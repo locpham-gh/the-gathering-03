@@ -1,0 +1,22 @@
+{
+  "name": "@the-gathering/server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build ./src/index.ts --target=bun"
+  },
+  "dependencies": {
+    "@elysiajs/cors": "^1.2.0",
+    "@elysiajs/jwt": "^1.2.0",
+    "@elysiajs/static": "^1.4.7",
+    "elysia": "^1.2.0",
+    "google-auth-library": "^9.15.0",
+    "livekit-server-sdk": "^2.15.0",
+    "mongoose": "^8.9.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.0.0"
+  }
+}
