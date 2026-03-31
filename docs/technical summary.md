@@ -30,21 +30,23 @@ Authentication: Google One Tap (OAuth 2.0) -> Custom JWT Session.
 
 Storage: Cloudinary / AWS S3 (for PDFs, Avatars).
 
-2. DATABASE SCHEMA DESIGN (MONGODB)
+1. DATABASE SCHEMA DESIGN (MONGODB)
 
 We utilize NoSQL advantages by embedding related data to reduce read latency.
 
-User: { \_id, email (unique), displayName, avatarUrl, googleId } (No password field needed due to OAuth).
+Room: { _id, name, code, ownerId (ref: User), members: [User._id] }
+ 
+User: { _id, email, displayName, avatarUrl, googleId }
+ 
+Event: { _id, title, date, livekitRoomId, attendees: [User._id] }
+ 
+Resource (Library): { _id, title, type (pdf/video), fileUrl, size }
+ 
+Service (Directory): { _id, name, provider, contactInfo }
+ 
+ForumTopic: { _id, title, authorId, replies: [{ authorId, content, createdAt }] }
 
-Event: { \_id, title, date, livekitRoomId, attendees: [User._id] }
-
-Resource (Library): { \_id, title, type (pdf/video), fileUrl, size }
-
-Service (Directory): { \_id, name, provider, contactInfo }
-
-ForumTopic: { \_id, title, authorId, replies: [{ authorId, content, createdAt }] } (Replies are embedded).
-
-3. 2D METAVERSE CORE (PIXIJS ALGORITHMS)
+1. 2D METAVERSE CORE (PIXIJS ALGORITHMS)
 
 A. Map Rendering (Tiled JSON Parsing):
 
@@ -78,7 +80,7 @@ Network: Send player (x, y) delta to Socket.io at 15-20 ticks per second.
 
 Client-Side Prediction: Use Linear Interpolation (Lerp) current = current + (target - current) \* 0.1 to smoothly animate other players' movements.
 
-4. BUSINESS LOGIC & FEATURE INTEGRATION
+1. BUSINESS LOGIC & FEATURE INTEGRATION
 
 1. Auth Flow (Google One Tap):
 
@@ -90,7 +92,7 @@ Backend uses google-auth-library to verify. Upserts User in MongoDB.
 
 Backend issues a Custom JWT. Frontend stores it and mounts <GameCanvas />.
 
-2. Interactive Zones (Proximity Triggers):
+1. Interactive Zones (Proximity Triggers):
 
 Define AABB zones for Library, Forum, and Reception.
 
@@ -98,7 +100,7 @@ When player intersects a zone, prompt "Press E".
 
 Pressing 'E' opens the respective React Glassmorphism Modal and pauses player movement.
 
-3. Proximity Video Call (LiveKit):
+1. Proximity Video Call (LiveKit):
 
 Algorithm: Calculate Euclidean distance between local player and other players in the game loop.
 
@@ -106,11 +108,11 @@ Trigger: If distance < 100px, trigger React state to open a 1-on-1 LiveKit video
 
 Hysteresis: To prevent flickering, only close the call when distance > 120px.
 
-4. Large Event Hosting:
+1. Large Event Hosting:
 
 When walking into the "Event Zone", auto-connect the user to a predefined LiveKit room ID fetched from the MongoDB Event document.
 
-5. DEVELOPMENT PHASES (INSTRUCTIONS FOR AI)
+1. DEVELOPMENT PHASES (INSTRUCTIONS FOR AI)
 
 When prompted to write code, strictly follow this modular approach:
 
@@ -123,3 +125,8 @@ Phase 3: PixiJS Core. Parse Map, render Adam sprite, implement WASD + Collision.
 Phase 4: React Modals (UI overlapping the Canvas) and MongoDB data fetching.
 
 Phase 5: Socket.io & LiveKit integration for multiplayer and proximity calls.
+
+Phase 5.5: Persistent Room Management & Dashboard Overhaul (Completed).
+- Implemented Room CRUD with ownership.
+- Redesigned Dashboard with Sidebar navigation.
+- Fixed JWT serialization and PixiJS renders.

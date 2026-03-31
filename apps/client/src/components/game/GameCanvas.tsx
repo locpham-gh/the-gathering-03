@@ -6,7 +6,7 @@ import type { Zone } from "./zones";
 import { useMultiplayer } from "../../hooks/useMultiplayer";
 import type { RemotePlayer } from "../../hooks/useMultiplayer";
 
-PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
 interface MapData {
   width: number;
@@ -21,6 +21,7 @@ interface GameCanvasProps {
   onInteract?: () => void;
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
+  roomId?: string;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -28,9 +29,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onInteract,
   activeZone,
   onNearbyPlayer,
+  roomId,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
-  const { players, updatePosition } = useMultiplayer();
+  const { players, updatePosition } = useMultiplayer(roomId);
 
   useEffect(() => {
     fetch("/maps/office.json")

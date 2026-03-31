@@ -5,5 +5,11 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "scripts": {
+    "dev": "concurrently \"bun run --cwd apps/server dev\" \"bun run --cwd apps/client dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

@@ -10,17 +10,17 @@ export interface RemotePlayer {
   avatarUrl?: string;
 }
 
-export function useMultiplayer() {
+export function useMultiplayer(roomId?: string) {
   const { user } = useAuth();
   const [players, setPlayers] = useState<Record<string, RemotePlayer>>({});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !roomId) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = "localhost:3000"; // Assuming dev server host
-    const ws = new WebSocket(`${protocol}//${host}/ws`);
+    const ws = new WebSocket(`${protocol}//${host}/ws?room=${roomId}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
@@ -39,6 +39,8 @@ export function useMultiplayer() {
             avatarUrl: payload.avatarUrl,
           },
         }));
+      } else if (type === "initial_state") {
+        setPlayers(payload.players);
       } else if (type === "player_left") {
         setPlayers((prev) => {
           const next = { ...prev };

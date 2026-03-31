@@ -7,14 +7,21 @@ declare global {
   }
 }
 
-export const GoogleOneTap: React.FC = () => {
-  const { login } = useAuth();
+interface GoogleOneTapProps {
+  showPrompt?: boolean;
+}
+
+export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true }) => {
+  const { user, login } = useAuth();
   const btnRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef<boolean>(false);
 
   useEffect(() => {
+    if (user || isInitialized.current) return; // Skip if already authenticated or initialized
+
     // Wait for google script to load if it hasn't
     const initGoogleAuth = () => {
-      if (!window.google) return;
+      if (!window.google || isInitialized.current) return;
 
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID",
@@ -38,6 +45,7 @@ export const GoogleOneTap: React.FC = () => {
           }
         },
       });
+      isInitialized.current = true;
 
       if (btnRef.current) {
           window.google.accounts.id.renderButton(btnRef.current, {
@@ -47,7 +55,9 @@ export const GoogleOneTap: React.FC = () => {
           });
       }
 
-      window.google.accounts.id.prompt();
+      if (showPrompt) {
+        window.google.accounts.id.prompt();
+      }
     };
 
     if (window.google) {
@@ -58,7 +68,7 @@ export const GoogleOneTap: React.FC = () => {
         script.addEventListener("load", initGoogleAuth);
       }
     }
-  }, [login]);
+  }, [login, showPrompt]);
 
-  return <div ref={btnRef} className="w-full flex justify-center mt-4 min-h-[40px]"></div>;
+  return <div ref={btnRef} className="flex justify-center min-h-[40px]"></div>;
 };

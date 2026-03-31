@@ -1,45 +1,54 @@
 # Project Context & Progress Review
 
-**Dự án**: The Gathering (2D Metaverse + SaaS UI)
-**Giai đoạn hiện tại**: Hoàn thành Phase 5. Chuẩn bị tiến vào Phase 6 (Data & SaaS Modules).
-
-## 🏆 Những gì đã hoàn thành (Phase 1 -> 5)
-
-### Kiến trúc & Monorepo
-- Đã thiết lập Bun Workspaces chuẩn chỉ. Đã cấu hình lại Framework về **React 18.3.1** để tương thích hoàn hảo với `@pixi/react`.
-
-### Backend (Bun + Elysia + mongoose)
-- API xác thực Google OAuth 2.0.
-- **WebSocket Server native (Bun.ws)**: Quản lý kết nối, pub/sub tọa độ người chơi.
-- **LiveKit Integration**: Endpoint `/api/livekit/token` cấp quyền truy cập Video Call.
-
-### Frontend & Core Engine (Vite + React + PixiJS)
-- **Game Engine**: Render bản đồ 64x64 pixel art, va chạm AABB cực chuẩn.
-- **Interactions (Zones)**: Hệ thống vùng tương tác (Reception, Library, Forum) có Overlay "E to enter" và Modal Glassmorphism.
-- **Multiplayer Sync**: Sử dụng WebSockets đồng bộ vị trí. Áp dụng thuật toán **Lerp** (nội suy) giúp nhân vật khác di chuyển mượt mà ngay cả khi mạng chậm.
-- **Proximity RTC**: Tự động tính khoảng cách Euclidean và kích hoạt Video Call (LiveKit) khi lại gần.
+**Dự án**: The Gathering (2D Metaverse + SaaS Dashboard)
+**Giai đoạn hiện tại**: Hoàn thành Phase 5.5 - Quản lý Phòng & Dashboard Táo bạo. Dự án đã chuyển mình từ Prototype sang một nền tảng SaaS có khả năng mở rộng.
 
 ---
 
-## 🚀 Tính năng & Triển khai tiếp theo cho Lần tới (Next Session)
+## 🏆 Những gì đã hoàn thành (Cập nhật 31/03/2026)
 
-### Phase 6: SaaS Modules & Data Integration (Tiếp theo)
-1. **Library Module**:
-   - Cho phép người dùng "gắp" tài liệu (Resources) từ Database hiển thị trong Modal Library.
-   - Thêm tính năng Search/Filter cho tài liệu.
-2. **Forum Module**:
-   - Xây dựng hệ thống Thread/Comment đơn giản.
-   - Cho phép tạo Topic mới từ trong giao diện Game.
-3. **User Status**:
-   - Trạng thái Online/Offline và "Check-in" tại Reception để thông báo cho team.
+### 🏡 Hệ thống Quản lý Phòng (Persistent Rooms)
 
-### Phase 7: Polish & Optimization (Dành cho bản production)
-1. **Throttling WebSocket**: Giảm tần suất gửi tọa độ (hiện tại mỗi frame đều gửi) xuống khoảng 15hz-20hz để tiết kiệm băng thông.
-2. **Spatial Grid**: Nếu lượng người chơi tăng lên (> 50 người), cần chia bản đồ thành các ô nhỏ để chỉ tính khoảng cách với các Player lân cận.
-3. **Asset Optimization**: Chuyển các ảnh đơn lẻ sang **Spritesheets (Atlas JSON)** để giảm số lượng Web Requests và tăng tốc độ Render.
+- **Database (MongoDB)**: Đã triển khai Model `Room` lưu trữ vĩnh viễn: `name`, `code`, `ownerId`, và `members`.
+- **Phân quyền (Ownership)**:
+  - Chỉ chủ phòng mới có quyền **Xóa phòng (Delete)**.
+  - Đã có cơ chế **Auto-migration**: Tự động gán quyền sở hữu cho các phòng cũ "vô chủ" khi chủ nhân quay lại.
+- **Tham gia phòng**: Tự động thêm User vào danh sách `members` khi truy cập qua URL `/room/:code`.
+
+### 🖥️ Giao diện Dashboard & UX (Sidebar Redesign)
+
+- **Sidebar Chuyên nghiệp**: Cấu trúc điều hướng mới với `Overview`, `My Rooms`, và `Profile`. Sử dụng Lucide Icons và hiệu ứng kính (Glassmorphism).
+- **Profile Management**: Cho phép người dùng cập nhật `displayName` và `avatarUrl` trực tiếp, đồng bộ tức thì trên toàn hệ thống (AuthContext).
+- **Google One Tap v2**: Tối ưu hóa việc gọi SDK (fix lỗi duplicate init) và ẩn hoàn toàn khi người dùng đã đăng nhập.
+
+### 🛠️ Kỹ thuật & Sửa lỗi (Fixes)
+
+- **JWT Serialization**: Khắc phục lỗi `Cast to ObjectId failed` bằng cách ép kiểu `userId` sang String trước khi ký Token.
+- **PixiJS v7+ Integration**: Cập nhật `BaseTexture.defaultOptions.scaleMode` để loại bỏ các cảnh báo lỗi thời.
+- **Backend Robustness**: Bổ sung `try-catch` và Log chẩn đoán cho toàn bộ các Route API quan trọng.
 
 ---
 
-## 🛠️ Trạng thái thiết lập quan trọng
-- **Backend .env**: Cần `MONGODB_URI`, `JWT_SECRET`, `GOOGLE_CLIENT_ID`, `LIVEKIT_URL/KEY/SECRET`.
-- **Frontend .env**: Cần `VITE_GOOGLE_CLIENT_ID`, `VITE_API_URL`, `VITE_LIVEKIT_URL`.
+## 🚀 Tính năng & Triển khai tiếp theo (Next Session)
+
+### 📦 SaaS Modules & Data Integration (Tiếp tục)
+
+1. **File Management (Avatars)**: Tích hợp dịch vụ lưu trữ (Cloudinary/S3) để thay thế việc nhập URL ảnh thủ công.
+2. **Room Settings Advanced**:
+   - Chủ phòng có thể đặt mật khẩu phòng.
+   - Thống kê số lượng người đang Online trong phòng.
+3. **Library & Forum Integration**:
+   - Kết nối Modal Library với Database (đã chuẩn bị ở Phase 6).
+   - Xây dựng hệ thống Chat/Forum đơn giản trong từng phòng.
+
+---
+
+## 🛠️ Trạng thái thiết lập & Môi trường
+
+- **Backend**: `bun run --cwd apps/server dev`. Cần đảm bảo `JWT_SECRET` đồng nhất giữa các Route.
+- **Frontend**: `bun run --cwd apps/client dev`. Cần xóa `localStorage` nếu gặp lỗi Token cũ (Buffer issue).
+- **Dữ liệu**: MongoDB đang chạy tại `127.0.0.1`.
+
+---
+
+_Cập nhật bởi Antigravity AI Assistant._
