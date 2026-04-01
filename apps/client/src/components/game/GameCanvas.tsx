@@ -8,6 +8,11 @@ import type { RemotePlayer } from "../../hooks/useMultiplayer";
 
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 
+// Modern PixiJS 7+ settings to silence warnings
+if ((PIXI as any).settings?.RENDER_OPTIONS) {
+  (PIXI as any).settings.RENDER_OPTIONS.hello = false;
+}
+
 interface MapData {
   width: number;
   height: number;
@@ -49,7 +54,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     <Stage
       width={mapData.width * 64}
       height={mapData.height * 64}
-      options={{ backgroundColor: 0x0f172a, antialias: false }}
+      options={{ 
+        backgroundColor: 0x0f172a, 
+        antialias: false,
+        hello: false,
+      }}
     >
       <MapRender mapData={mapData} />
       <Player
@@ -170,10 +179,10 @@ const Player: React.FC<{
     let nextX = x;
     let nextY = y;
 
-    if (keys.has("w")) nextY -= speed * delta;
-    if (keys.has("s")) nextY += speed * delta;
-    if (keys.has("a")) nextX -= speed * delta;
-    if (keys.has("d")) nextX += speed * delta;
+    if (keys.has("w") || keys.has("arrowup")) nextY -= speed * delta;
+    if (keys.has("s") || keys.has("arrowdown")) nextY += speed * delta;
+    if (keys.has("a") || keys.has("arrowleft")) nextX -= speed * delta;
+    if (keys.has("d") || keys.has("arrowright")) nextX += speed * delta;
 
     const wallLayer = mapData.layers.find((l) => l.name === "Walls");
     if (wallLayer && (nextX !== x || nextY !== y)) {

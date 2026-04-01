@@ -25,7 +25,8 @@ export default function GamePage() {
 
     // Join the room in the persistence layer
     if (roomId) {
-      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" });
+      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" })
+        .catch(err => console.error("Room join non-critical failure:", err));
     }
   }, [user, navigate, roomId]);
 
@@ -43,33 +44,38 @@ export default function GamePage() {
     }
   }, [currentZone]);
 
-  const handleProximityCall = useCallback(async (playerId: string | null) => {
-    if (!playerId) {
-      setLiveKitToken(null);
-      setIsCalling(false);
-      return;
-    }
+  const handleProximityCall = useCallback(
+    async (playerId: string | null) => {
+      if (!playerId) {
+        setLiveKitToken(null);
+        setIsCalling(false);
+        return;
+      }
 
-    if (!user || liveKitToken || isCalling) return;
+      if (!user || liveKitToken || isCalling) return;
 
-    try {
-      setIsCalling(true);
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const roomName = [user.id, playerId].sort().join("--");
-      
-      const res = await fetch(`${apiUrl}/api/livekit/token?room=${roomName}&username=${user.displayName}`);
-      const data = await res.json();
-      
-      if (data.token) {
-        setLiveKitToken(data.token);
-      } else {
+      try {
+        setIsCalling(true);
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const roomName = [user.id, playerId].sort().join("--");
+
+        const res = await fetch(
+          `${apiUrl}/api/livekit/token?room=${roomName}&username=${user.displayName}`,
+        );
+        const data = await res.json();
+
+        if (data.token) {
+          setLiveKitToken(data.token);
+        } else {
+          setIsCalling(false);
+        }
+      } catch (err) {
+        console.error("Failed to fetch LiveKit token", err);
         setIsCalling(false);
       }
-    } catch (err) {
-      console.error("Failed to fetch LiveKit token", err);
-      setIsCalling(false);
-    }
-  }, [user, liveKitToken, isCalling]);
+    },
+    [user, liveKitToken, isCalling],
+  );
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -103,8 +109,8 @@ export default function GamePage() {
       </div>
 
       {liveKitToken && (
-        <LiveKitModal 
-          token={liveKitToken} 
+        <LiveKitModal
+          token={liveKitToken}
           serverUrl={import.meta.env.VITE_LIVEKIT_URL}
           onDisconnect={() => {
             setLiveKitToken(null);
@@ -115,9 +121,7 @@ export default function GamePage() {
 
       <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 
-      {activeZone && (
-        <ZoneModal zone={activeZone} onClose={handleZoneClose} />
-      )}
+      {activeZone && <ZoneModal zone={activeZone} onClose={handleZoneClose} />}
 
       {/* User UI Panel */}
       <div className="absolute top-4 right-4 glass p-4 rounded-xl flex items-center gap-4 z-50 animate-in fade-in slide-in-from-right duration-500">

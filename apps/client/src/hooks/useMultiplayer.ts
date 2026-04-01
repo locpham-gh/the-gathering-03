@@ -19,11 +19,16 @@ export function useMultiplayer(roomId?: string) {
     if (!user || !roomId) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const host = "localhost:3000"; // Assuming dev server host
+    // Use the backend URL from env or fallback to current host with port 3000
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const host = apiUrl.replace(/^https?:\/\//, "");
+    
+    let isClosing = false;
     const ws = new WebSocket(`${protocol}//${host}/ws?room=${roomId}`);
     wsRef.current = ws;
 
     ws.onmessage = (event) => {
+      if (isClosing) return;
       const { type, payload } = JSON.parse(event.data);
       
       if (type === "player_moved") {
@@ -51,9 +56,15 @@ export function useMultiplayer(roomId?: string) {
     };
 
     return () => {
-      ws.close();
+      isClosing = true;
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      } else if (ws.readyState === WebSocket.CONNECTING) {
+        // If still connecting, wait for it to open before closing to avoid browser warning
+        ws.onopen = () => ws.close();
+      }
     };
-  }, [user]);
+  }, [user, roomId]);
 
   const lastSent = useRef<number>(0);
   const updatePosition = useCallback((x: number, y: number) => {
