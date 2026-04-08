@@ -25,8 +25,9 @@ export default function GamePage() {
 
     // Join the room in the persistence layer
     if (roomId) {
-      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" })
-        .catch(err => console.error("Room join non-critical failure:", err));
+      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" }).catch((err) =>
+        console.error("Room join non-critical failure:", err),
+      );
     }
   }, [user, navigate, roomId]);
 
