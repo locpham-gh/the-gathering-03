@@ -51,3 +51,23 @@ export const addReply = async (topicId: string, content: string, authorId: strin
         throw new Error("Failed to add reply");
     }
 };
+
+export const deleteTopic = async (topicId: string, authorId: string) => {
+    try {
+        const topic = await ForumTopic.findById(topicId);
+        if (!topic) {
+            throw new Error("Topic not found");
+        }
+
+        // String comparison between ObjectId and String
+        if (topic.authorId.toString() !== authorId) {
+            throw new Error("Unauthorized to delete this topic");
+        }
+
+        await ForumTopic.findByIdAndDelete(topicId);
+        return true;
+    } catch (error) {
+        console.error("Error deleting topic:", error);
+        throw new Error("Failed to delete topic");
+    }
+};

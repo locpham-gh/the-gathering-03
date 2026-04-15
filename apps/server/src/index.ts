@@ -6,6 +6,7 @@ import { authRoutes } from "./routes/auth.routes.js";
 import { resourceRoutes } from "./routes/resource.routes.js";
 import { forumRoutes } from "./routes/forum.routes.js";
 import { roomRoutes } from "./routes/room.routes.js";
+import { eventRoutes } from "./routes/event.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 
 // Boot up MongoDB
@@ -28,6 +29,7 @@ app.use(authRoutes);
 app.use(resourceRoutes);
 app.use(forumRoutes);
 app.use(roomRoutes);
+app.use(eventRoutes);
 
 // 2. HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");

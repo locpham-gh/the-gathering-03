@@ -6,6 +6,7 @@ export interface RemotePlayer {
   x: number;
   y: number;
   lastUpdate: number;
+  isSitting?: boolean;
   displayName?: string;
   avatarUrl?: string;
 }
@@ -39,6 +40,7 @@ export function useMultiplayer(roomId?: string) {
             id: payload.id,
             x: payload.x,
             y: payload.y,
+            isSitting: payload.isSitting,
             lastUpdate: Date.now(),
             displayName: payload.displayName,
             avatarUrl: payload.avatarUrl,
@@ -67,10 +69,15 @@ export function useMultiplayer(roomId?: string) {
   }, [user, roomId]);
 
   const lastSent = useRef<number>(0);
-  const updatePosition = useCallback((x: number, y: number) => {
+  const lastSittingState = useRef<boolean | undefined>(undefined);
+
+  const updatePosition = useCallback((x: number, y: number, isSitting?: boolean) => {
     const now = Date.now();
-    // Throttle to 20Hz (every 50ms) to save bandwidth
-    if (now - lastSent.current < 50) return;
+    const stateChanged = isSitting !== lastSittingState.current;
+
+    // Bắt buộc gửi lên Server nếu hành động Ngồi/Đứng (isSitting) bị thay đổi (Bypass throttle).
+    // Nếu chỉ là di chuyển thông thường thì Throttle về 20Hz (mỗi 50ms) để tiết kiệm băng thông.
+    if (!stateChanged && now - lastSent.current < 50) return;
     
     if (wsRef.current?.readyState === WebSocket.OPEN && user) {
       wsRef.current.send(JSON.stringify({
@@ -78,11 +85,13 @@ export function useMultiplayer(roomId?: string) {
         payload: {
           x,
           y,
+          isSitting,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl
         }
       }));
       lastSent.current = now;
+      lastSittingState.current = isSitting;
     }
   }, [user]);
 

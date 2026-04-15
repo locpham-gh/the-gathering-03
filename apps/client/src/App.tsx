@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LandingPage from "./pages/index";
 import HomePage from "./pages/home";
 import GamePage from "./pages/game";
+import ScheduleEventPage from "./pages/schedule";
 import AuthSuccess from "./pages/auth/success";
 import AuthFailed from "./pages/auth/failed";
 
@@ -29,12 +30,24 @@ function AppRoutes() {
         element={user ? <HomePage /> : <Navigate to="/" replace />} 
       />
       <Route 
+        path="/home/events" 
+        element={user ? <HomePage /> : <Navigate to="/" replace />} 
+      />
+      <Route 
+        path="/home/forum" 
+        element={user ? <HomePage /> : <Navigate to="/" replace />} 
+      />
+      <Route 
         path="/home/profile" 
         element={user ? <HomePage /> : <Navigate to="/" replace />} 
       />
       <Route 
         path="/room/:roomId" 
         element={user ? <GamePage /> : <Navigate to="/" replace />} 
+      />
+      <Route 
+        path="/schedule/:roomId" 
+        element={user ? <ScheduleEventPage /> : <Navigate to="/" replace />} 
       />
       <Route path="/auth/success" element={<AuthSuccess />} />
       <Route path="/auth/failed" element={<AuthFailed />} />

@@ -4,6 +4,7 @@ import { GameCanvas } from "../components/game/GameCanvas";
 import type { Zone } from "../components/game/zones";
 import { ZoneOverlay } from "../components/game/ZoneOverlay";
 import { ZoneModal } from "../components/game/ZoneModal";
+import { LibraryModal } from "../components/game/LibraryModal";
 import { LiveKitModal } from "../components/game/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
@@ -122,7 +123,11 @@ export default function GamePage() {
 
       <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 
-      {activeZone && <ZoneModal zone={activeZone} onClose={handleZoneClose} />}
+      {activeZone && activeZone.id === "library" ? (
+        <LibraryModal onClose={handleZoneClose} />
+      ) : activeZone ? (
+        <ZoneModal zone={activeZone} onClose={handleZoneClose} />
+      ) : null}
 
       {/* User UI Panel */}
       <div className="absolute top-4 right-4 glass p-4 rounded-xl flex items-center gap-4 z-50 animate-in fade-in slide-in-from-right duration-500">

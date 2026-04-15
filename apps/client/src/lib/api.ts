@@ -23,7 +23,15 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 export const resourcesApi = {
-    getAll: () => apiFetch("/api/resources"),
+    getAll: (search?: string, type?: string) => {
+        const params = new URLSearchParams();
+        if (search) params.append("search", search);
+        if (type) params.append("type", type);
+        
+        const qs = params.toString();
+        const endpoint = qs ? `/api/resources?${qs}` : "/api/resources";
+        return apiFetch(endpoint);
+    },
 };
 
 export const forumApi = {
@@ -36,4 +44,23 @@ export const forumApi = {
         method: "POST",
         body: JSON.stringify({ content }),
     }),
+    deleteTopic: (topicId: string) => apiFetch(`/api/forum/topics/${topicId}`, {
+        method: "DELETE"
+    }),
+};
+
+export const eventsApi = {
+    scheduleMeeting: (data: {
+      roomId: string;
+      hostId: string;
+      title: string;
+      description: string;
+      startTime: string; // ISO String
+      endTime: string;   // ISO String
+      guestEmails: string[];
+    }) => apiFetch(`/api/events`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+    getMyEvents: () => apiFetch(`/api/events`),
 };

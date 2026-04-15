@@ -1,34 +1,48 @@
 import { Resource } from "../models/Resource.js";
 
-export const getAllResources = async () => {
+export const getAllResources = async (search?: string, contentType?: string) => {
     try {
-        const resources = await Resource.find();
+        const query: any = {};
+        if (contentType) {
+            query.contentType = contentType;
+        }
+        if (search) {
+            query.$text = { $search: search };
+        }
+
+        let resources = await Resource.find(query);
         
         // If no resources, seed some defaults
-        if (resources.length === 0) {
-            console.log("🌱 Seeding default resources...");
+        if (resources.length === 0 && !search && !contentType) {
+            console.log("🌱 Seeding default CMS resources...");
             const defaults = [
                 {
-                    title: "Welcome Guide.pdf",
-                    type: "pdf",
-                    fileUrl: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-                    size: 1024 * 50 // 50KB
+                    title: "Advanced React Hooks Guide",
+                    description: "Learn how to master useMemo, useCallback, and custom hooks in this comprehensive guide for frontend developers.",
+                    contentType: "guide",
+                    fileUrl: "https://react.dev/reference/react",
+                    thumbnailUrl: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=500&q=80",
+                    tags: ["react", "frontend", "hooks"]
                 },
                 {
-                    title: "Platform Demo.mp4",
-                    type: "video",
-                    fileUrl: "https://www.w3schools.com/html/mov_bbb.mp4",
-                    size: 1024 * 1024 * 5 // 5MB
+                    title: "Building Scalable Architecture",
+                    description: "An e-book detailing the journey of scaling Node.js applications with Bun and Elysia.",
+                    contentType: "e-book",
+                    fileUrl: "https://bun.sh/docs",
+                    thumbnailUrl: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&q=80",
+                    tags: ["architecture", "backend", "bun"]
                 },
                 {
-                    title: "Community Guidelines.pdf",
-                    type: "pdf",
-                    fileUrl: "https://www.adobe.com/support/products/enterprise/knowledgecenter/media/c4611_sample_explain.pdf",
-                    size: 1024 * 120 // 120KB
+                    title: "Full-Stack Web Development Course",
+                    description: "A complete video course on building Metaverses using PixiJS and React.",
+                    contentType: "course",
+                    fileUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ", // Safe placeholder
+                    thumbnailUrl: "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=500&q=80",
+                    tags: ["course", "pixijs", "video"]
                 }
             ];
             await Resource.insertMany(defaults);
-            return await Resource.find();
+            resources = await Resource.find(query);
         }
         
         return resources;

@@ -6,8 +6,10 @@ import {
   Layout, 
   Settings, 
   LogOut, 
-  PlusCircle, 
-  ChevronRight
+  PlusCircle,
+  ChevronRight,
+  Calendar,
+  MessageCircle
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -22,6 +24,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const menuItems = [
     { name: "Overview", path: "/home", icon: <Home size={20} /> },
     { name: "My Rooms", path: "/home/rooms", icon: <Layout size={20} /> },
+    { name: "My Events", path: "/home/events", icon: <Calendar size={20} /> },
+    { name: "Community", path: "/home/forum", icon: <MessageCircle size={20} /> },
     { name: "Profile", path: "/home/profile", icon: <Settings size={20} /> },
   ];
 

@@ -294,7 +294,7 @@ const Player: React.FC<{
   onZoneChange: ((zone: Zone | null) => void) | undefined;
   isPaused: boolean;
   onInteract: (() => void) | undefined;
-  updatePosition: (x: number, y: number) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer: ((playerId: string | null) => void) | undefined;
 }> = ({
@@ -331,6 +331,7 @@ const Player: React.FC<{
   currentZoneRef.current = currentZone;
   const isSittingRef = useRef(isSitting);
   isSittingRef.current = isSitting;
+  const lastSyncSit = useRef(isSitting);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -504,8 +505,9 @@ const Player: React.FC<{
     }
 
     // Sync position to backend
-    if (nextX !== x || nextY !== y) {
-      updatePosition(nextX, nextY);
+    if (nextX !== x || nextY !== y || isSittingRef.current !== lastSyncSit.current) {
+      updatePosition(nextX, nextY, isSittingRef.current);
+      lastSyncSit.current = isSittingRef.current;
     }
 
     // Proximity check for Video Calls
@@ -571,6 +573,7 @@ const OtherPlayer: React.FC<{ player: RemotePlayer }> = ({ player }) => {
       y={y}
       direction={direction}
       isMoving={isMoving}
+      isSitting={player.isSitting}
       tint={0x88ff88}
     />
   );
