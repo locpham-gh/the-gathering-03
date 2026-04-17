@@ -66,9 +66,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         </div>
 
         <div className="mt-auto p-6 space-y-4">
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 mb-4">
+          <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
              <div className="flex items-center gap-3">
-                <img src={user.avatarUrl} className="w-10 h-10 rounded-full border border-white shadow-sm" />
+                <img 
+                  src={user.avatarUrl} 
+                  referrerPolicy="no-referrer"
+                  className="w-10 h-10 rounded-full border border-white shadow-sm object-cover" 
+                  onError={(e: any) => { e.target.src = `https://api.dicebear.com/8.x/notionists/svg?seed=${user.displayName}`}}
+                />
                 <div className="overflow-hidden">
                    <p className="text-sm font-bold truncate">{user.displayName}</p>
                    <p className="text-xs text-slate-400 truncate">{user.email}</p>
@@ -93,7 +98,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
            </h2>
            <button 
              onClick={() => navigate("/home")}
-             className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-primary/90 transition-all shadow-lg shadow-primary/10"
+             className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
            >
              <PlusCircle size={18} />
              <span>Create Room</span>

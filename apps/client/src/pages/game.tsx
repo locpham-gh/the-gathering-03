@@ -3,8 +3,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { GameCanvas } from "../components/game/GameCanvas";
 import type { Zone } from "../components/game/zones";
 import { ZoneOverlay } from "../components/game/ZoneOverlay";
-import { ZoneModal } from "../components/game/ZoneModal";
 import { LibraryModal } from "../components/game/LibraryModal";
+import { RoomSidebar } from "../components/game/RoomSidebar";
+import { useMultiplayer } from "../hooks/useMultiplayer";
 import { LiveKitModal } from "../components/game/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
@@ -17,6 +18,8 @@ export default function GamePage() {
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
+
+  const { players, updatePosition } = useMultiplayer(roomId);
 
   useEffect(() => {
     if (!user) {
@@ -94,61 +97,43 @@ export default function GamePage() {
   if (!user) return null;
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center bg-slate-950 relative overflow-hidden">
-      <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-sky-500/20 rounded-full blur-[100px] pointer-events-none"></div>
+    <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
+      
+      {/* 1. Gather.town Style Sidebar */}
+      <RoomSidebar roomId={roomId} user={user} players={players} />
 
-      <div className="absolute inset-0 z-0 flex items-center justify-center overflow-auto pointer-events-auto">
-        <div className="rounded-2xl overflow-hidden shadow-2xl border-4 border-slate-800 ring-4 ring-black/50">
+      {/* 2. Main Game Viewport */}
+      <div className="flex-1 relative flex items-center justify-center overflow-auto">
+        <div className="relative pointer-events-auto">
           <GameCanvas
             onZoneChange={handleZoneChange}
             onInteract={handleInteract}
             activeZone={activeZone}
             onNearbyPlayer={handleProximityCall}
             roomId={roomId}
+            players={players}
+            updatePosition={updatePosition}
           />
         </div>
-      </div>
 
-      {liveKitToken && (
-        <LiveKitModal
-          token={liveKitToken}
-          serverUrl={import.meta.env.VITE_LIVEKIT_URL}
-          onDisconnect={() => {
-            setLiveKitToken(null);
-            setIsCalling(false);
-          }}
-        />
-      )}
+        {/* 3. In-Game Modals & Overlays */}
+        <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 
-      <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
+        {activeZone && activeZone.id === "library" && (
+          <LibraryModal onClose={handleZoneClose} />
+        )}
 
-      {activeZone && activeZone.id === "library" ? (
-        <LibraryModal onClose={handleZoneClose} />
-      ) : activeZone ? (
-        <ZoneModal zone={activeZone} onClose={handleZoneClose} />
-      ) : null}
+        {liveKitToken && (
+          <LiveKitModal
+            token={liveKitToken}
+            serverUrl={import.meta.env.VITE_LIVEKIT_URL}
+            onDisconnect={() => {
+              setLiveKitToken(null);
+              setIsCalling(false);
+            }}
+          />
+        )}
 
-      {/* User UI Panel */}
-      <div className="absolute top-4 right-4 glass p-4 rounded-xl flex items-center gap-4 z-50 animate-in fade-in slide-in-from-right duration-500">
-        <img
-          src={user.avatarUrl}
-          alt="Avatar"
-          className="w-12 h-12 rounded-full border-2 border-primary/50 shadow-xl"
-        />
-        <div className="hidden md:block">
-          <h2 className="text-sm font-bold text-white tracking-tight uppercase">
-            {user.displayName}
-          </h2>
-          <p className="text-slate-400 text-xs mt-0.5">{user.email}</p>
-        </div>
-        <div className="h-10 w-[1px] bg-white/10 mx-2"></div>
-        <button
-          onClick={() => navigate("/home")}
-          className="px-4 py-2 bg-slate-500/10 hover:bg-slate-500/20 text-white text-xs font-bold rounded-lg transition-all border border-white/20 uppercase tracking-wider"
-        >
-          Leave Room
-        </button>
       </div>
     </div>
   );

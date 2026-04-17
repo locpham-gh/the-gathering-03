@@ -177,10 +177,14 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
     }
 
     try {
-      const room = await Room.findById(params.id).populate(
-        "members",
-        "displayName email avatarUrl",
-      );
+      let room;
+      if (params.id.length === 24 && params.id.match(/^[0-9a-fA-F]{24}$/)) {
+        room = await Room.findById(params.id).populate("members", "displayName email avatarUrl");
+      }
+      if (!room) {
+        room = await Room.findOne({ code: params.id }).populate("members", "displayName email avatarUrl");
+      }
+
       if (!room) {
         set.status = 404;
         return { success: false, error: "Room not found" };

@@ -8,20 +8,24 @@ export const verifyGoogleTokenAndUpsertUser = async (credential: string) => {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     if (!clientId) {
-        console.warn("⚠️ GOOGLE_CLIENT_ID is not configured. Google Auth might fail.");
+      console.warn(
+        "⚠️ GOOGLE_CLIENT_ID is not configured. Google Auth might fail.",
+      );
     }
 
     const ticket = await client.verifyIdToken({
       idToken: credential,
       audience: clientId,
     });
-    
+
     const payload = ticket.getPayload();
     if (!payload || !payload.email || !payload.sub) {
       throw new Error("Invalid Google token payload");
     }
 
     const { email, name, picture, sub: googleId } = payload;
+    const fallbackAvatar = `https://api.dicebear.com/8.x/notionists/svg?seed=${encodeURIComponent(email)}`;
+    const actualAvatar = picture || fallbackAvatar;
 
     // Upsert User
     let user = await User.findOne({ googleId });
@@ -29,12 +33,17 @@ export const verifyGoogleTokenAndUpsertUser = async (credential: string) => {
       user = new User({
         email,
         displayName: name || "User",
-        avatarUrl: picture,
+        avatarUrl: actualAvatar,
         googleId,
       });
       await user.save();
     } else {
-      user.avatarUrl = picture;
+      // Bugfix: Do not blindly overwrite user's custom avatar on subsequent logins!
+      // Only set avatar to Google's picture if the user doesn't currently have an avatar.
+      if (!user.avatarUrl) {
+        user.avatarUrl = actualAvatar;
+      }
+      
       // Nếu user cũ thiếu trường displayName do database version trước, ta phải cập nhật nó
       if (!user.displayName) {
         user.displayName = name || "User";

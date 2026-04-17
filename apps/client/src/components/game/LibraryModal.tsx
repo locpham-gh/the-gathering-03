@@ -49,18 +49,19 @@ export const LibraryModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl shadow-2xl border border-white/20 w-full max-w-5xl h-[80vh] flex overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8 bg-slate-950/60 backdrop-blur-md animate-in fade-in zoom-in-95 duration-300">
+      <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-3xl shadow-[0_0_80px_-15px_rgba(15,118,110,0.3)] border border-teal-500/20 w-full max-w-7xl h-full flex overflow-hidden">
         
         {/* Sidebar */}
-        <div className="w-64 bg-white/50 dark:bg-zinc-950/50 border-r border-zinc-200 dark:border-zinc-800 p-6 flex flex-col gap-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-primary/10 rounded-xl text-primary">
+        <div className="w-64 bg-slate-50 border-r border-slate-200 p-6 flex flex-col gap-6 shrink-0 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+          <div className="flex items-center gap-3 relative z-10">
+            <div className="p-3 bg-teal-600 rounded-xl text-white shadow-lg shadow-teal-600/30">
               <BookOpen size={24} />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Public Library</h2>
-              <p className="text-xs text-zinc-500">Knowledge CMS</p>
+              <h2 className="text-xl font-black text-slate-800 tracking-tight">Public Library</h2>
+              <p className="text-xs font-bold text-teal-600 uppercase tracking-widest mt-0.5">Knowledge CMS</p>
             </div>
           </div>
 
@@ -69,10 +70,10 @@ export const LibraryModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
               <button
                 key={cat.id}
                 onClick={() => setActiveTab(cat.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-semibold ${
                   activeTab === cat.id
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    ? "bg-teal-600 text-white shadow-md shadow-teal-600/20 translate-x-1"
+                    : "text-slate-500 hover:bg-slate-200 hover:text-slate-800"
                 }`}
               >
                 <cat.icon size={18} />
@@ -83,18 +84,20 @@ export const LibraryModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col relative h-full">
+        <div className="flex-1 flex flex-col relative h-full bg-white">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors z-10"
+            className="absolute top-6 right-6 p-2.5 bg-slate-100 hover:bg-red-100 hover:text-red-600 rounded-full transition-all z-10 text-slate-500 group shadow-sm"
           >
-            <X size={20} className="text-zinc-500" />
+            <X size={20} className="group-hover:scale-110 transition-transform" />
           </button>
 
           {/* Top Bar / Actions */}
-          <div className="p-8 pb-4">
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-6">
+          <div className="p-10 pb-6 border-b border-slate-100 relative overflow-hidden">
+            <div className="absolute right-0 top-0 w-64 h-64 bg-teal-500/5 rounded-full blur-3xl translate-x-1/3 -translate-y-1/2 pointer-events-none"></div>
+            <h1 className="text-4xl font-black text-slate-800 mb-6 tracking-tight flex items-center gap-3 relative z-10">
               {categories.find(c => c.id === activeTab)?.label || "Library Content"}
+              <span className="text-teal-600">.</span>
             </h1>
             
             <div className="relative max-w-md">
@@ -104,61 +107,63 @@ export const LibraryModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 placeholder="Search guides, books, and courses..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 bg-white/70 dark:bg-zinc-950/70 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+                className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all font-medium text-slate-700 placeholder:text-slate-400 shadow-sm"
               />
             </div>
           </div>
 
           {/* Grid Area */}
-          <div className="flex-1 overflow-y-auto p-8 pt-4">
+          <div className="flex-1 overflow-y-auto p-10 pt-6 relative z-10">
             {loading ? (
-              <div className="flex items-center justify-center h-48">
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              <div className="flex items-center justify-center h-64">
+                <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
               </div>
             ) : resources.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-zinc-500">
-                <BookOpen size={48} className="mb-4 opacity-50" />
-                <p>No resources found matching your criteria.</p>
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
+                <BookOpen size={64} className="mb-4 text-slate-200" />
+                <p className="font-semibold text-lg">No resources found matching your criteria.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {resources.map((resource) => (
                   <div
                     key={resource._id}
-                    className="group flex flex-col bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:shadow-xl transition-all cursor-pointer hover:-translate-y-1"
+                    className="group flex flex-col bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-teal-900/5 hover:border-teal-500/30 transition-all duration-300 cursor-pointer hover:-translate-y-2"
                     onClick={() => window.open(resource.fileUrl, '_blank')}
                   >
-                    <div className="h-40 w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950 relative">
+                    <div className="h-48 w-full overflow-hidden bg-slate-100 relative">
                       {resource.thumbnailUrl ? (
                         <img 
                           src={resource.thumbnailUrl} 
                           alt={resource.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-zinc-300">
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
                           <BookOpen size={48} />
                         </div>
                       )}
-                      <div className="absolute top-3 right-3 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full text-white text-xs font-medium capitalize flex items-center gap-1">
-                        {resource.contentType === "course" && <Video size={12} />}
-                        {resource.contentType === "e-book" && <BookOpen size={12} />}
-                        {resource.contentType === "guide" && <FileText size={12} />}
+                      <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-full text-white text-xs font-bold capitalize flex items-center gap-1.5 shadow-lg">
+                        {resource.contentType === "course" && <Video size={14} />}
+                        {resource.contentType === "e-book" && <BookOpen size={14} />}
+                        {resource.contentType === "guide" && <FileText size={14} />}
                         {resource.contentType}
                       </div>
                     </div>
                     
-                    <div className="p-5 flex-1 flex flex-col">
-                      <h3 className="font-bold text-lg text-zinc-900 dark:text-zinc-100 line-clamp-1 mb-2">
+                    <div className="p-6 flex-1 flex flex-col bg-white">
+                      <h3 className="font-bold text-xl text-slate-800 line-clamp-2 mb-2 group-hover:text-teal-600 transition-colors">
                         {resource.title}
                       </h3>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-4 flex-1">
+                      <p className="text-sm text-slate-500 line-clamp-3 mb-6 flex-1 pr-4 leading-relaxed">
                         {resource.description}
                       </p>
                       
-                      <div className="flex items-center gap-2 text-primary font-medium text-sm mt-auto">
-                        <span>Check it out</span>
-                        <ExternalLink size={14} className="group-hover:translate-x-1 transition-transform" />
+                      <div className="flex items-center justify-between mt-auto">
+                        <div className="flex items-center gap-2 text-teal-600 font-bold text-sm bg-teal-50 px-4 py-2 rounded-lg group-hover:bg-teal-600 group-hover:text-white transition-colors">
+                          <span>Check it out</span>
+                          <ExternalLink size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                        </div>
                       </div>
                     </div>
                   </div>

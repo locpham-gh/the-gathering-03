@@ -3,7 +3,6 @@ import { Stage, Sprite, Container, useTick } from "@pixi/react";
 import * as PIXI from "pixi.js";
 import { ZONES, checkZoneCollision } from "./zones";
 import type { Zone } from "./zones";
-import { useMultiplayer } from "../../hooks/useMultiplayer";
 import type { RemotePlayer } from "../../hooks/useMultiplayer";
 
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
@@ -12,6 +11,13 @@ PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 if ((PIXI as any).settings?.RENDER_OPTIONS) {
   (PIXI as any).settings.RENDER_OPTIONS.hello = false;
 }
+
+// Silence `@pixi/react` known deprecation warning about interaction plugin
+const originalWarn = console.warn;
+console.warn = (...args: any[]) => {
+  if (typeof args[0] === 'string' && args[0].includes('renderer.plugins.interaction has been deprecated')) return;
+  originalWarn(...args);
+};
 
 interface MapData {
   width: number;
@@ -27,6 +33,8 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   roomId?: string;
+  players: Record<string, RemotePlayer>;
+  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -35,9 +43,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   activeZone,
   onNearbyPlayer,
   roomId,
+  players,
+  updatePosition
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
-  const { players, updatePosition } = useMultiplayer(roomId);
 
   useEffect(() => {
     fetch("/maps/office.json")
@@ -55,7 +64,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       width={mapData.width * 64}
       height={mapData.height * 64}
       options={{
-        backgroundColor: 0x0f172a,
+        backgroundColor: 0xf8fafc,
         antialias: false,
         hello: false,
       }}

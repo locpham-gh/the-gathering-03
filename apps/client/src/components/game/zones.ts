@@ -1,4 +1,4 @@
-export type ZoneType = "reception" | "library" | "forum";
+export type ZoneType = "library";
 
 export interface Zone {
   id: ZoneType;
@@ -12,15 +12,6 @@ export interface Zone {
 
 export const ZONES: Zone[] = [
   {
-    id: "reception",
-    label: "Reception",
-    x: 64,
-    y: 64,
-    width: 128,
-    height: 128,
-    description: "Welcome desk and check-in area",
-  },
-  {
     id: "library",
     label: "Library",
     x: 192,
@@ -28,15 +19,6 @@ export const ZONES: Zone[] = [
     width: 128,
     height: 128,
     description: "Knowledge resources and documentation",
-  },
-  {
-    id: "forum",
-    label: "Forum",
-    x: 640,
-    y: 192,
-    width: 128,
-    height: 128,
-    description: "Discussion and community board",
   },
 ];
 

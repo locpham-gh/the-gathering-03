@@ -14,13 +14,17 @@ const ResourceSchema = new Schema<IResource>(
   {
     title: { type: String, required: true },
     description: { type: String, default: "" },
-    contentType: { type: String, enum: ["guide", "e-book", "course"], required: true },
+    contentType: {
+      type: String,
+      enum: ["guide", "e-book", "course"],
+      required: true,
+    },
     fileUrl: { type: String, required: true },
     thumbnailUrl: { type: String, default: "" },
     tags: [{ type: String }],
     size: { type: Number },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Add index for search
