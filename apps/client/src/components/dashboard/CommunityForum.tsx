@@ -108,7 +108,7 @@ export function CommunityForum({ user }: { user: any }) {
                 type="button"
                 className="text-slate-400 hover:text-slate-600 transition-colors"
               ></button>
-                 <button
+              <button
                 type="submit"
                 disabled={!newTopicContent.trim()}
                 className="bg-teal-600 text-white px-6 py-1.5 rounded-full text-sm font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 shadow-sm"
