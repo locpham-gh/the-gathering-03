@@ -103,8 +103,8 @@ export default function GamePage() {
       <RoomSidebar roomId={roomId} user={user} players={players} />
 
       {/* 2. Main Game Viewport */}
-      <div className="flex-1 relative flex items-center justify-center overflow-auto">
-        <div className="relative pointer-events-auto">
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+        <div className="relative pointer-events-auto w-full h-full">
           <GameCanvas
             onZoneChange={handleZoneChange}
             onInteract={handleInteract}

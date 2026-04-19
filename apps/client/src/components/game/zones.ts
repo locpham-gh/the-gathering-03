@@ -14,10 +14,10 @@ export const ZONES: Zone[] = [
   {
     id: "library",
     label: "Library",
-    x: 192,
-    y: 192,
-    width: 128,
-    height: 128,
+    x: 2000,
+    y: 350,
+    width: 600,
+    height: 600,
     description: "Knowledge resources and documentation",
   },
 ];
@@ -25,7 +25,7 @@ export const ZONES: Zone[] = [
 export function checkZoneCollision(
   playerX: number,
   playerY: number,
-  zones: Zone[]
+  zones: Zone[],
 ): Zone | null {
   const playerRect = {
     left: playerX + 16,
