@@ -1,6 +1,7 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { getDefaultAvatarByGender, resolveAvatarUrl } from "../../lib/profile";
 import { 
   Home, 
   Layout, 
@@ -30,6 +31,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   ];
 
   if (!user) return null;
+  const avatarUrl = resolveAvatarUrl(user.avatarUrl, user.gender);
+  const fallbackAvatar = getDefaultAvatarByGender(user.gender);
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -69,10 +72,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 mb-4">
              <div className="flex items-center gap-3">
                 <img 
-                  src={user.avatarUrl} 
+                  src={avatarUrl}
                   referrerPolicy="no-referrer"
                   className="w-10 h-10 rounded-full border border-white shadow-sm object-cover" 
-                  onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/8.x/notionists/svg?seed=${user.displayName}`}}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = fallbackAvatar;
+                  }}
                 />
                 <div className="overflow-hidden">
                    <p className="text-sm font-bold truncate">{user.displayName}</p>

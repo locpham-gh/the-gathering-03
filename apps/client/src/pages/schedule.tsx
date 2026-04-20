@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { eventsApi } from "../lib/api";
+import { resolveAvatarUrl } from "../lib/profile";
 import { 
   X, Clock, AlignLeft, 
   MapPin, Bell, Users, Plus, Save
@@ -242,7 +243,11 @@ export default function ScheduleEventPage() {
               
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  <img src={user.avatarUrl} alt="" className="w-8 h-8 rounded-full border border-slate-200" />
+                  <img
+                    src={resolveAvatarUrl(user.avatarUrl, user.gender)}
+                    alt=""
+                    className="w-8 h-8 rounded-full border border-slate-200"
+                  />
                   <div className="flex-1 text-sm">
                     <span className="font-semibold block truncate leading-tight text-slate-800">{user.displayName}</span>
                     <span className="text-xs text-slate-500">Chủ tọa</span>

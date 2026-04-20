@@ -1,11 +1,8 @@
 import React, { createContext, useContext, useState } from "react";
+import { normalizeUserProfile } from "../lib/profile";
+import type { AppUser } from "../lib/profile";
 
-interface User {
-  id: string;
-  email: string;
-  displayName: string;
-  avatarUrl?: string;
-}
+export type User = AppUser;
 
 interface AuthContextType {
   user: User | null;
@@ -25,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        return JSON.parse(storedUser);
+        return normalizeUserProfile(JSON.parse(storedUser) as User);
       } catch (err) {
         console.error("Failed to parse stored user", err);
         localStorage.removeItem("user");
@@ -44,10 +41,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading] = useState(false);
 
   const login = (userData: User, jwt: string) => {
-    setUser(userData);
+    const normalizedUser = normalizeUserProfile(userData);
+    setUser(normalizedUser);
     setToken(jwt);
     localStorage.setItem("token", jwt);
-    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
   };
 
   const logout = () => {
@@ -58,8 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateUser = (userData: User) => {
-    setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    const normalizedUser = normalizeUserProfile(userData);
+    setUser(normalizedUser);
+    localStorage.setItem("user", JSON.stringify(normalizedUser));
   };
 
   return (

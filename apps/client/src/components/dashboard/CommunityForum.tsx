@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { MessageSquare, Heart, Trash, MoreHorizontal } from "lucide-react";
 import { forumApi } from "../../lib/api";
+import { getDefaultAvatarByGender, resolveAvatarUrl } from "../../lib/profile";
 
 interface Reply {
   _id: string;
@@ -25,7 +26,13 @@ interface Topic {
   createdAt: string;
 }
 
-export function CommunityForum({ user }: { user: { id: string; avatarUrl: string; displayName: string } }) {
+export function CommunityForum({
+  user,
+}: {
+  user: { id: string; avatarUrl: string; displayName: string; gender?: string };
+}) {
+  const selfFallback = getDefaultAvatarByGender(user.gender);
+  const fallbackOther = getDefaultAvatarByGender("other");
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTopicContent, setNewTopicContent] = useState("");
@@ -107,9 +114,12 @@ export function CommunityForum({ user }: { user: { id: string; avatarUrl: string
       {/* Composer */}
       <div className="bg-white rounded-t-2xl shadow-sm border border-slate-200 border-b-0 p-6 flex gap-4 relative z-0">
         <img
-          src={user.avatarUrl}
+          src={resolveAvatarUrl(user.avatarUrl)}
           referrerPolicy="no-referrer"
           className="w-10 h-10 rounded-full object-cover shrink-0 z-10 bg-white"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = selfFallback;
+          }}
         />
         <div className="flex-1">
           <form onSubmit={handleCreateTopic}>
@@ -166,9 +176,12 @@ export function CommunityForum({ user }: { user: { id: string; avatarUrl: string
                 {/* Left Column Avatar and Thread Line */}
                 <div className="flex flex-col items-center shrink-0 relative">
                   <img
-                    src={topic.authorId.avatarUrl}
+                    src={resolveAvatarUrl(topic.authorId.avatarUrl)}
                     referrerPolicy="no-referrer"
                     className="w-10 h-10 rounded-full object-cover z-10 bg-white"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = fallbackOther;
+                    }}
                   />
                   {/* Thread vertical line going down - only if there are replies */}
                   {topic.replies.length > 0 && (
@@ -237,12 +250,13 @@ export function CommunityForum({ user }: { user: { id: string; avatarUrl: string
                       {/* Reply Avatar Overlapping the line */}
                       <div className="flex flex-col items-center shrink-0">
                         <img
-                          src={
-                            reply.authorId?.avatarUrl ||
-                            "https://api.dicebear.com/8.x/notionists/svg?seed=fallback"
-                          }
+                          src={resolveAvatarUrl(reply.authorId?.avatarUrl)}
                           referrerPolicy="no-referrer"
                           className="w-8 h-8 rounded-full border-2 border-white object-cover bg-slate-100"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src =
+                              fallbackOther;
+                          }}
                         />
                       </div>
                       <div className="flex-1 pb-1">
@@ -265,11 +279,14 @@ export function CommunityForum({ user }: { user: { id: string; avatarUrl: string
 
               {/* Reply Input Form (Appears when active) */}
               {activeReplyId === topic._id && (
-                <div className="flex gap-4 mt-6 items-start relative z-10 relative">
+                <div className="flex gap-4 mt-6 items-start relative z-10">
                   <img
-                    src={user.avatarUrl}
+                    src={resolveAvatarUrl(user.avatarUrl)}
                     referrerPolicy="no-referrer"
                     className="w-8 h-8 rounded-full ml-[4px] border border-white"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = selfFallback;
+                    }}
                   />
                   <form
                     onSubmit={(e) => handleAddReply(topic._id, e)}

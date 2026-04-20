@@ -12,6 +12,7 @@ import type { RoomData } from "../components/dashboard/RoomsManager";
 import { EventsManager } from "../components/dashboard/EventsManager";
 import { CommunityForum } from "../components/dashboard/CommunityForum";
 import { ProfileSettings } from "../components/dashboard/ProfileSettings";
+import { resolveAvatarUrl } from "../lib/profile";
 
 export default function HomePage() {
   const { user } = useAuth();
@@ -50,14 +51,17 @@ export default function HomePage() {
           user={{ 
             id: user.id, 
             displayName: user.displayName, 
-            avatarUrl: user.avatarUrl || "" 
+            avatarUrl: resolveAvatarUrl(user.avatarUrl, user.gender),
+            gender: user.gender,
           }} 
         />
       ) : isProfileView ? (
         <ProfileSettings 
           user={{ 
             displayName: user.displayName, 
-            avatarUrl: user.avatarUrl || "" 
+            avatarUrl: resolveAvatarUrl(user.avatarUrl, user.gender),
+            gender: user.gender,
+            character2d: user.character2d,
           }} 
         />
       ) : isRoomsView ? (

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Sprite, useTick } from "@pixi/react";
-import { DIR_COL_OFFSET, getAdamTexture } from "./lib/tileUtils";
+import { DIR_COL_OFFSET, getCharacterTexture } from "./lib/tileUtils";
 import type { DirString } from "./lib/gameTypes";
 
 interface AnimatedPlayerSpriteProps {
@@ -10,6 +10,7 @@ interface AnimatedPlayerSpriteProps {
   isMoving: boolean;
   isSitting?: boolean;
   tint?: number;
+  character2d?: string;
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -19,6 +20,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   isMoving,
   isSitting = false,
   tint = 0xffffff,
+  character2d,
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
@@ -48,7 +50,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   }
 
   const col = baseCol + frame;
-  const texture = getAdamTexture(row, col);
+  const texture = getCharacterTexture(character2d, row, col);
 
   return (
     <Sprite

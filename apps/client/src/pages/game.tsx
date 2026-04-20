@@ -9,6 +9,7 @@ import { useMultiplayer } from "../hooks/useMultiplayer";
 import { LiveKitModal } from "../components/game/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
+import { resolveAvatarUrl } from "../lib/profile";
 
 export default function GamePage() {
   const { user } = useAuth();
@@ -102,7 +103,7 @@ export default function GamePage() {
       {/* 1. Gather.town Style Sidebar */}
       <RoomSidebar 
         roomId={roomId} 
-        user={{ ...user, avatarUrl: user.avatarUrl || "" }} 
+        user={{ ...user, avatarUrl: resolveAvatarUrl(user.avatarUrl, user.gender) }}
         players={players} 
       />
 
@@ -116,6 +117,7 @@ export default function GamePage() {
             onNearbyPlayer={handleProximityCall}
             players={players}
             updatePosition={updatePosition}
+            localCharacter2d={user.character2d}
           />
         </div>
 

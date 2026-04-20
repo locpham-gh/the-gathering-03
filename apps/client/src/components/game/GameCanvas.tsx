@@ -50,6 +50,7 @@ interface GameCanvasProps {
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
   updatePosition: (x: number, y: number, isSitting?: boolean) => void;
+  localCharacter2d?: string;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -59,6 +60,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onNearbyPlayer,
   players,
   updatePosition,
+  localCharacter2d,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -118,6 +120,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           worldRef={worldRef}
           screenW={dimensions.w}
           screenH={dimensions.h}
+          character2d={localCharacter2d}
         />
 
         {Object.values(players).map((player) => (

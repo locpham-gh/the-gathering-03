@@ -10,16 +10,17 @@ import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
 import { CommunityForum } from "../dashboard/CommunityForum";
 import { EventsManager } from "../dashboard/EventsManager";
+import { resolveAvatarUrl } from "../../lib/profile";
 
 interface Member {
   _id: string;
   displayName: string;
-  avatarUrl: string;
+  avatarUrl?: string;
 }
 
 interface RoomSidebarProps {
   roomId?: string;
-  user: { id: string; avatarUrl: string; displayName: string };
+  user: { id: string; avatarUrl?: string; displayName: string; gender?: string };
   players: Record<string, unknown>;
 }
 
@@ -28,6 +29,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   user,
   players,
 }) => {
+  const currentUserAvatar = resolveAvatarUrl(user.avatarUrl, user.gender);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const navigate = useNavigate();
@@ -74,7 +76,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
         </div>
         <div className="mt-auto flex flex-col items-center gap-4 w-full px-2">
           <img
-            src={user.avatarUrl}
+            src={currentUserAvatar}
             alt="User Avatar"
             referrerPolicy="no-referrer"
             className="w-10 h-10 rounded-full border-2 border-slate-200 shadow-sm object-cover bg-slate-100"
@@ -128,7 +130,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                   >
                     <div className="relative">
                       <img
-                        src={member.avatarUrl}
+                        src={resolveAvatarUrl(member.avatarUrl)}
                         referrerPolicy="no-referrer"
                         className={`w-10 h-10 rounded-full object-cover bg-slate-100 ${isOnline ? "border-2 border-teal-500" : "border border-slate-300"}`}
                       />
@@ -153,12 +155,19 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
           )}
           {activeTab === "chat" && (
             <div className="scale-[0.95] origin-top">
-              <CommunityForum user={user} />
+              <CommunityForum
+                user={{
+                  id: user.id,
+                  displayName: user.displayName,
+                  avatarUrl: currentUserAvatar,
+                  gender: user.gender,
+                }}
+              />
             </div>
           )}
           {activeTab === "events" && (
             <div className="scale-[0.95] origin-top">
-              <EventsManager user={user} />
+              <EventsManager user={{ id: user.id }} />
             </div>
           )}
         </div>

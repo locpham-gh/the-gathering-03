@@ -39,6 +39,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       direction={direction}
       isMoving={isMoving}
       isSitting={player.isSitting}
+      character2d={player.character2d}
       tint={0x88ff88}
     />
   );

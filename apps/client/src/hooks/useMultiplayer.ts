@@ -9,6 +9,7 @@ export interface RemotePlayer {
   isSitting?: boolean;
   displayName?: string;
   avatarUrl?: string;
+  character2d?: string;
 }
 
 export function useMultiplayer(roomId?: string) {
@@ -44,6 +45,7 @@ export function useMultiplayer(roomId?: string) {
             lastUpdate: Date.now(),
             displayName: payload.displayName,
             avatarUrl: payload.avatarUrl,
+            character2d: payload.character2d,
           },
         }));
       } else if (type === "initial_state") {
@@ -87,7 +89,8 @@ export function useMultiplayer(roomId?: string) {
           y,
           isSitting,
           displayName: user.displayName,
-          avatarUrl: user.avatarUrl
+          avatarUrl: user.avatarUrl,
+          character2d: user.character2d,
         }
       }));
       lastSent.current = now;

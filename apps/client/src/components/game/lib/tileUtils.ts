@@ -5,7 +5,7 @@ import type { DirString, TileData } from "./gameTypes";
 
 export const baseTextures: Record<string, PIXI.BaseTexture> = {};
 export const textureCache: Record<number, PIXI.Texture> = {};
-export const adamTextureCache: Record<string, PIXI.Texture> = {};
+export const characterTextureCache: Record<string, PIXI.Texture> = {};
 
 export const DIR_COL_OFFSET: Record<DirString, number> = {
   right: 0,
@@ -92,13 +92,24 @@ export function getTileDataForGid(rawGid: number): TileData | null {
 }
 
 /**
- * Returns a texture slice for the Adam character spritesheet.
+ * Returns a texture slice for a character spritesheet.
  */
-export function getAdamTexture(row: number, col: number): PIXI.Texture {
-  const key = `${row}-${col}`;
-  if (adamTextureCache[key]) return adamTextureCache[key];
+export function getCharacterTexture(
+  character2d: string | undefined,
+  row: number,
+  col: number,
+): PIXI.Texture {
+  const normalizedCharacter =
+    character2d === "Adam" ||
+    character2d === "Alex" ||
+    character2d === "Amelia" ||
+    character2d === "Bob"
+      ? character2d
+      : "Adam";
+  const key = `${normalizedCharacter}-${row}-${col}`;
+  if (characterTextureCache[key]) return characterTextureCache[key];
 
-  const source = "/sprites/Adam_16x16aa.png";
+  const source = `/assets/Characters_free/${normalizedCharacter}_16x16.png`;
   if (!baseTextures[source]) {
     baseTextures[source] = PIXI.BaseTexture.from(source);
   }
@@ -109,7 +120,7 @@ export function getAdamTexture(row: number, col: number): PIXI.Texture {
     baseTextures[source],
     new PIXI.Rectangle(tx, ty, 16, 32),
   );
-  adamTextureCache[key] = texture;
+  characterTextureCache[key] = texture;
   return texture;
 }
 

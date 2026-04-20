@@ -1,6 +1,15 @@
 import { Elysia, t } from "elysia";
 import { verifyGoogleTokenAndUpsertUser } from "../controllers/auth.controller.js";
 import { sendOtpEmail } from "../services/email.service.js";
+import {
+  CHARACTER_2D,
+  getDefaultCharacterByGender,
+  GENDERS,
+  resolveAvatarUrl,
+  resolveDisplayName,
+  sanitizeCharacter2D,
+  sanitizeGender,
+} from "../utils/profile.js";
 
 export const authRoutes = new Elysia({ prefix: "/api/auth" })
   .post(
@@ -24,6 +33,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
             email: user.email,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
+            gender: user.gender,
+            character2d: user.character2d,
           },
           token,
         };
@@ -49,7 +60,13 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
         const { User } = await import("../models/User.js");
         let user = await User.findOne({ email });
         if (!user) {
-          user = new User({ email, displayName: email.split("@")[0] });
+          user = new User({
+            email,
+            displayName: resolveDisplayName(undefined, email),
+            gender: "other",
+            character2d: getDefaultCharacterByGender("other"),
+            avatarUrl: resolveAvatarUrl(undefined, "other"),
+          });
         }
         user.otpCode = otpCode;
         user.otpExpiresAt = otpExpiresAt;
@@ -113,6 +130,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
             email: user.email,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
+            gender: user.gender,
+            character2d: user.character2d,
           },
           token,
         };
@@ -128,7 +147,7 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
   .put(
     "/profile",
     async ({ body, jwt, headers, set }: any) => {
-      const { displayName, avatarUrl } = body;
+      const { displayName, avatarUrl, gender, character2d } = body;
       const auth = headers["authorization"];
       if (!auth) return { success: false, error: "Unauthorized" };
 
@@ -137,9 +156,18 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
       if (!decoded) return { success: false, error: "Invalid session" };
 
       const { User } = await import("../models/User.js");
+      const normalizedGender = sanitizeGender(gender);
+      const normalizedCharacter = character2d
+        ? sanitizeCharacter2D(character2d)
+        : getDefaultCharacterByGender(normalizedGender);
       const user = await User.findByIdAndUpdate(
         decoded.userId,
-        { displayName, avatarUrl },
+        {
+          displayName: resolveDisplayName(displayName, decoded.email || ""),
+          gender: normalizedGender,
+          character2d: normalizedCharacter,
+          avatarUrl: resolveAvatarUrl(avatarUrl, normalizedGender),
+        },
         { new: true },
       );
 
@@ -152,13 +180,19 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
           email: user.email,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          gender: user.gender,
+          character2d: user.character2d,
         },
       };
     },
     {
       body: t.Object({
         displayName: t.String(),
-        avatarUrl: t.String(),
+        avatarUrl: t.Optional(t.String()),
+        gender: t.Union(GENDERS.map((value) => t.Literal(value))),
+        character2d: t.Optional(
+          t.Union(CHARACTER_2D.map((value) => t.Literal(value))),
+        ),
       }),
     },
   );
