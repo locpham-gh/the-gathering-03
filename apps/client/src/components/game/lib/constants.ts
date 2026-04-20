@@ -5,11 +5,11 @@ export const WORLD_CONFIG = {
   TILE_SIZE_RAW: 32,
   TILE_SIZE_VIRTUAL: 64,
   TILE_SCALE: 2.01, // 0.01 extra to hide sub-pixel gaps
-  
-  MOVEMENT_SPEED: 4,
+
+  MOVEMENT_SPEED: 5,
   INTERACTION_RANGE: 64,
   PROXIMITY_RANGE: 120,
-  
+
   PLAYER_SPAWN_X: 1600,
   PLAYER_SPAWN_Y: 1600,
 };

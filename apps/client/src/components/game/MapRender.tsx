@@ -19,12 +19,14 @@ const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
             {layer.data.map((tileId, index) => {
               if (tileId === 0) return null;
 
-              const x = (index % mapData.width) * 64;
-              const y = Math.floor(index / mapData.width) * 64;
+              const x = (index % mapData.width) * WORLD_CONFIG.TILE_SIZE_VIRTUAL;
+              const y = Math.floor(index / mapData.width) * WORLD_CONFIG.TILE_SIZE_VIRTUAL;
               const tileData = getTileDataForGid(tileId);
 
               if (!tileData) return null;
               const { texture, flipX, flipY } = tileData;
+
+              const scale = WORLD_CONFIG.TILE_SCALE;
 
               return (
                 <Sprite
@@ -32,8 +34,8 @@ const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
                   texture={texture}
                   x={x}
                   y={y}
-                  // ✅ Fine-tuned scale of 2.01 to hide sub-pixel gaps 
-                  scale={{ x: flipX ? -2.01 : 2.01, y: flipY ? -2.01 : 2.01 }}
+                  // ✅ Fine-tuned scale to hide sub-pixel gaps 
+                  scale={{ x: flipX ? -scale : scale, y: flipY ? -scale : scale }}
                   anchor={{ x: flipX ? 1 : 0, y: flipY ? 1 : 0 }}
                 />
               );

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Mail, KeyRound, Loader2, ArrowRight } from "lucide-react";
+import { Mail, KeyRound, Loader2 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../lib/api";
@@ -29,8 +29,9 @@ export const EmailOTPForm: React.FC = () => {
         body: JSON.stringify({ email }),
       });
       setStep("OTP");
-    } catch (err: any) {
-      setError(err.message || "Failed to send OTP");
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to send OTP";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -56,8 +57,10 @@ export const EmailOTPForm: React.FC = () => {
       } else {
         throw new Error(res.error || "Verification failed");
       }
-    } catch (err: any) {
-      setError(err.message || "Mã OTP không chính xác / Invalid OTP");
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error ? err.message : "Mã OTP không chính xác / Invalid OTP";
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

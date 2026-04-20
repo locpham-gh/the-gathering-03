@@ -60,7 +60,7 @@ export const Player: React.FC<PlayerProps> = ({
   // 3. Custom Logic Hooks
   const { checkCollision } = useCollision(mapData);
   const { updateCamera } = useCamera(worldRef, screenW, screenH);
-  
+
   const handleInteraction = () => {
     if (isPaused) return;
 
@@ -89,7 +89,10 @@ export const Player: React.FC<PlayerProps> = ({
     const focusRow = Math.floor((focusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
 
     const layer4 = mapData.layers.find(
-      (l) => l.name === "Tile Layer 4" || l.name === "Furniture" || l.name === "object",
+      (l) =>
+        l.name === "Tile Layer 4" ||
+        l.name === "Furniture" ||
+        l.name === "object",
     );
 
     let foundChair = false;
@@ -98,7 +101,7 @@ export const Player: React.FC<PlayerProps> = ({
       const rawGid = layer4.data[tileIndex] & 0x1fffffff;
 
       // Chair logic (LocalID 542 context)
-      if (rawGid >= 392 && (rawGid - 392 === 542)) {
+      if (rawGid >= 392 && rawGid - 392 === 542) {
         setIsSitting(true);
         sitOrigin.current = { x, y };
         setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
@@ -123,9 +126,15 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Auto-stand logic
     if (isSitting) {
-      const isPressingMove = keys.has("w") || keys.has("a") || keys.has("s") || keys.has("d") || 
-                             keys.has("arrowup") || keys.has("arrowdown") || 
-                             keys.has("arrowleft") || keys.has("arrowright");
+      const isPressingMove =
+        keys.has("w") ||
+        keys.has("a") ||
+        keys.has("s") ||
+        keys.has("d") ||
+        keys.has("arrowup") ||
+        keys.has("arrowdown") ||
+        keys.has("arrowleft") ||
+        keys.has("arrowright");
       if (isPressingMove) {
         setIsSitting(false);
         if (sitOrigin.current) {
@@ -153,7 +162,7 @@ export const Player: React.FC<PlayerProps> = ({
     if (dx !== 0 || dy !== 0) {
       setIsMoving(true);
       setDirection((prevDir) => getNewDirection(dx, dy, prevDir));
-      
+
       // Apply collision
       if (!checkCollision(nextX, nextY)) {
         setX(nextX);
@@ -182,7 +191,9 @@ export const Player: React.FC<PlayerProps> = ({
     if (now - lastNearbyTrigger.current > 500) {
       let foundPlayerId: string | null = null;
       for (const [id, remoteUser] of Object.entries(players)) {
-        const dist = Math.sqrt(Math.pow(nextX - remoteUser.x, 2) + Math.pow(nextY - remoteUser.y, 2));
+        const dist = Math.sqrt(
+          Math.pow(nextX - remoteUser.x, 2) + Math.pow(nextY - remoteUser.y, 2),
+        );
         if (dist < WORLD_CONFIG.PROXIMITY_RANGE) {
           foundPlayerId = id;
           break;

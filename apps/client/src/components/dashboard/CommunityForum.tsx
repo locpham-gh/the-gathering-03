@@ -2,8 +2,31 @@ import { useState, useEffect } from "react";
 import { MessageSquare, Heart, Trash, MoreHorizontal } from "lucide-react";
 import { forumApi } from "../../lib/api";
 
-export function CommunityForum({ user }: { user: any }) {
-  const [topics, setTopics] = useState<any[]>([]);
+interface Reply {
+  _id: string;
+  authorId: {
+    _id: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+  content: string;
+  createdAt: string;
+}
+
+interface Topic {
+  _id: string;
+  authorId: {
+    _id: string;
+    displayName: string;
+    avatarUrl: string;
+  };
+  title: string;
+  replies: Reply[];
+  createdAt: string;
+}
+
+export function CommunityForum({ user }: { user: { id: string; avatarUrl: string; displayName: string } }) {
+  const [topics, setTopics] = useState<Topic[]>([]);
   const [loading, setLoading] = useState(true);
   const [newTopicContent, setNewTopicContent] = useState("");
   const [replyContent, setReplyContent] = useState<Record<string, string>>({});
@@ -23,6 +46,7 @@ export function CommunityForum({ user }: { user: any }) {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTopics();
   }, []);
 
@@ -133,7 +157,7 @@ export function CommunityForum({ user }: { user: any }) {
             Chưa có bài viết nào. Hãy là người đầu tiên!
           </div>
         ) : (
-          topics.map((topic, i) => (
+          topics.map((topic) => (
             <div
               key={topic._id}
               className="group border-b border-slate-100 last:border-b-0 p-6 pt-5 transition-colors hover:bg-slate-50/50"
@@ -205,7 +229,7 @@ export function CommunityForum({ user }: { user: any }) {
               {/* Replies Rendering Area */}
               {topic.replies.length > 0 && (
                 <div className="pl-6 pt-4 relative">
-                  {topic.replies.map((reply: any, idx: number) => (
+                  {topic.replies.map((reply) => (
                     <div
                       key={reply._id}
                       className="flex gap-4 mt-4 first:mt-0 relative z-10"

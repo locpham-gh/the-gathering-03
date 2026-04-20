@@ -26,9 +26,9 @@ export function getTileDataForGid(rawGid: number): TileData | null {
   const gid = rawGid & 0x1fffffff;
   if (gid === 0) return null;
 
-  let sourceImage = "";
-  let columns = 0;
-  let localId = 0;
+  let sourceImage: string;
+  let columns: number;
+  let localId: number;
 
   const { SERENE_VILLAGE_FIRST_GID, INTERIORS_FIRST_GID, ROOM_BUILDER_COLS, SERENE_VILLAGE_COLS, INTERIORS_COLS } = TILESET_CONFIG;
 

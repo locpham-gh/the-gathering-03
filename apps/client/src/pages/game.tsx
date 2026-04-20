@@ -100,7 +100,11 @@ export default function GamePage() {
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
       
       {/* 1. Gather.town Style Sidebar */}
-      <RoomSidebar roomId={roomId} user={user} players={players} />
+      <RoomSidebar 
+        roomId={roomId} 
+        user={{ ...user, avatarUrl: user.avatarUrl || "" }} 
+        players={players} 
+      />
 
       {/* 2. Main Game Viewport */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
@@ -110,7 +114,6 @@ export default function GamePage() {
             onInteract={handleInteract}
             activeZone={activeZone}
             onNearbyPlayer={handleProximityCall}
-            roomId={roomId}
             players={players}
             updatePosition={updatePosition}
           />

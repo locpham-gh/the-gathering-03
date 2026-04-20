@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Video,
@@ -24,12 +24,18 @@ export interface RoomData {
   createdAt: string;
 }
 
+interface Member {
+  _id: string;
+  displayName: string;
+  email?: string;
+  avatarUrl: string;
+}
+
 export function DashboardOverview({
   user,
-  rooms,
   fetchRooms,
 }: {
-  user: any;
+  user: { displayName: string };
   rooms: RoomData[];
   fetchRooms: () => void;
 }) {
@@ -154,7 +160,7 @@ export function WorkspaceList({
   loading,
   fetchRooms,
 }: {
-  user: any;
+  user: { id: string };
   rooms: RoomData[];
   loading: boolean;
   fetchRooms: () => void;
@@ -281,26 +287,27 @@ function RoomManageModal({
   onClose: () => void;
 }) {
   const [name, setName] = useState(room.name);
-  const [members, setMembers] = useState<any[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const fetchMembers = async () => {
-    setLoading(true);
+  const fetchMembers = useCallback(async () => {
+    // loading is already true from state init
     const res = await apiFetch(`/api/rooms/${room._id}/members`);
     if (res.success) {
       // Deduplicate for UI safety (especially for legacy data)
       const unique = Array.from(
-        new Map(res.members.map((m: any) => [m._id, m])).values(),
-      );
+        new Map(res.members.map((m: Member) => [m._id, m])).values(),
+      ) as Member[];
       setMembers(unique);
     }
     setLoading(false);
-  };
+  }, [room._id]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchMembers();
-  }, [room._id]);
+  }, [fetchMembers]);
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { apiFetch } from "../../lib/api";
 
-export function ProfileSettings({ user }: { user: any }) {
+export function ProfileSettings({ 
+  user 
+}: { 
+  user: { displayName: string; avatarUrl: string } 
+}) {
   const { updateUser } = useAuth();
   const [name, setName] = useState(user.displayName);
   const [avatar, setAvatar] = useState(user.avatarUrl);

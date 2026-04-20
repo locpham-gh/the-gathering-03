@@ -72,7 +72,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                   src={user.avatarUrl} 
                   referrerPolicy="no-referrer"
                   className="w-10 h-10 rounded-full border border-white shadow-sm object-cover" 
-                  onError={(e: any) => { e.target.src = `https://api.dicebear.com/8.x/notionists/svg?seed=${user.displayName}`}}
+                  onError={(e) => { (e.target as HTMLImageElement).src = `https://api.dicebear.com/8.x/notionists/svg?seed=${user.displayName}`}}
                 />
                 <div className="overflow-hidden">
                    <p className="text-sm font-bold truncate">{user.displayName}</p>

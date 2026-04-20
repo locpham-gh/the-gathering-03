@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 
 /**
  * Custom hook to handle keyboard input and interaction triggers.

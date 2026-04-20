@@ -3,7 +3,18 @@ import { useAuth } from "../../contexts/AuthContext";
 
 declare global {
   interface Window {
-    google?: any;
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: {
+            client_id: string;
+            callback: (response: { credential: string }) => void;
+          }) => void;
+          renderButton: (element: HTMLElement, options: unknown) => void;
+          prompt: () => void;
+        };
+      };
+    };
   }
 }
 
@@ -25,7 +36,7 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
 
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID",
-        callback: async (response: any) => {
+        callback: async (response: { credential: string }) => {
           try {
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
             const res = await fetch(`${apiUrl}/api/auth/google`, {
@@ -68,7 +79,7 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
         script.addEventListener("load", initGoogleAuth);
       }
     }
-  }, [login, showPrompt]);
+  }, [login, showPrompt, user]);
 
   return <div ref={btnRef} className="flex justify-center min-h-[40px]"></div>;
 };

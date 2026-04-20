@@ -3,7 +3,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { eventsApi } from "../lib/api";
 import { 
-  X, Calendar as CalendarIcon, Clock, AlignLeft, 
+  X, Clock, AlignLeft, 
   MapPin, Bell, Users, Plus, Save
 } from "lucide-react";
 
@@ -62,8 +62,9 @@ export default function ScheduleEventPage() {
       await eventsApi.scheduleMeeting(payload);
       alert("✅ Lên lịch và gửi Email thành công!");
       navigate("/home");
-    } catch (err: any) {
-      alert("Lỗi khi tạo lịch: " + err.message);
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      alert("Lỗi khi tạo lịch: " + errorMsg);
     } finally {
       setLoading(false);
     }

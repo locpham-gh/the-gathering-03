@@ -14,18 +14,23 @@ import type { Zone } from "./zones";
 import type { RemotePlayer } from "../../hooks/useMultiplayer";
 
 // Pixi Settings
-if ((PIXI as any).settings?.RENDER_OPTIONS) {
-  (PIXI as any).settings.RENDER_OPTIONS.hello = false;
+const pixiSettings = PIXI.settings as unknown as { 
+  RENDER_OPTIONS: { hello: boolean }; 
+  ROUND_PIXELS: boolean;
+};
+
+if (pixiSettings.RENDER_OPTIONS) {
+  pixiSettings.RENDER_OPTIONS.hello = false;
 }
 
 // ✅ Anti-glitch: Disable rounding and mipmaps to prevent edge bleeding on zoomed maps
-(PIXI as any).settings.ROUND_PIXELS = false;
+pixiSettings.ROUND_PIXELS = false;
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
 
 // Silence `@pixi/react` known deprecation warning about interaction plugin
 const originalWarn = console.warn;
-console.warn = (...args: any[]) => {
+console.warn = (...args: unknown[]) => {
   if (typeof args[0] === "string" && args[0].includes("renderer.plugins.interaction has been deprecated")) return;
   originalWarn(...args);
 };
@@ -43,7 +48,6 @@ interface GameCanvasProps {
   onInteract?: () => void;
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
-  roomId?: string;
   players: Record<string, RemotePlayer>;
   updatePosition: (x: number, y: number, isSitting?: boolean) => void;
 }
@@ -53,7 +57,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onInteract,
   activeZone,
   onNearbyPlayer,
-  roomId,
   players,
   updatePosition,
 }) => {

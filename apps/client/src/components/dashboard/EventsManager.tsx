@@ -3,9 +3,19 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, Clock, MapPin } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 
-export function EventsManager({ user }: { user: any }) {
+interface Event {
+  _id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  hostId: { _id: string };
+  roomId: { code: string };
+  guestEmails: string[];
+}
+
+export function EventsManager({ user }: { user: { id: string } }) {
   const navigate = useNavigate();
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useLocation } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
@@ -19,18 +19,19 @@ export default function HomePage() {
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRooms = async () => {
-    setLoading(true);
+  const fetchRooms = useCallback(async () => {
+    // loading is already true from state init
     const res = await apiFetch("/api/rooms");
     if (res.success) {
       setRooms(res.rooms);
     }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (user) fetchRooms();
-  }, [user]);
+  }, [user, fetchRooms]);
 
   if (!user) return null;
 
@@ -43,20 +44,35 @@ export default function HomePage() {
   return (
     <DashboardLayout>
       {isEventsView ? (
-        <EventsManager user={user} />
+        <EventsManager user={{ id: user.id }} />
       ) : isForumView ? (
-        <CommunityForum user={user} />
+        <CommunityForum 
+          user={{ 
+            id: user.id, 
+            displayName: user.displayName, 
+            avatarUrl: user.avatarUrl || "" 
+          }} 
+        />
       ) : isProfileView ? (
-        <ProfileSettings user={user} />
+        <ProfileSettings 
+          user={{ 
+            displayName: user.displayName, 
+            avatarUrl: user.avatarUrl || "" 
+          }} 
+        />
       ) : isRoomsView ? (
         <WorkspaceList
-          user={user}
+          user={{ id: user.id }}
           rooms={rooms}
           loading={loading}
           fetchRooms={fetchRooms}
         />
       ) : (
-        <DashboardOverview user={user} rooms={rooms} fetchRooms={fetchRooms} />
+        <DashboardOverview 
+          user={{ displayName: user.displayName }} 
+          rooms={rooms} 
+          fetchRooms={fetchRooms} 
+        />
       )}
     </DashboardLayout>
   );

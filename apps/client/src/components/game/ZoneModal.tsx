@@ -52,8 +52,16 @@ export function ZoneModal({ zone, onClose }: ZoneModalProps) {
   );
 }
 
+interface Resource {
+  _id: string;
+  type: string;
+  title: string;
+  size: number;
+  fileUrl: string;
+}
+
 function LibraryContent() {
-  const [resources, setResources] = useState<any[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
