@@ -1,50 +1,47 @@
-# The Gathering - Project Context (Updated 2026-04-19)
+# The Gathering - Project Context (Updated 2026-04-20)
 
 ## 🎯 Current Status
-The project is in a stable, production-ready state with a modular architecture. We have successfully transitioned from a monolithic "God Component" to a clean, decoupled rendering engine. The core focus has shifted to the **Library** feature, with non-essential zones (Reception/Forum) removed to streamline the MVP.
+The project has successfully reached a modular UI maturity phase. We have completely overhauled the **Digital Public Library** interface, transitioning from a dark-themed prototype to a polished, professional "Light & Teal" design system. The codebase has also been modernized with **Tailwind CSS v4**.
 
 ## 🛠 Tech Stack
-- **Monorepo**: Bun Workspaces.
+- **Monorepo**: Bun Workspaces (v1.3+).
 - **Backend**: Bun + ElysiaJS + MongoDB (Mongoose).
-- **Frontend**: React (Vite) + Tailwind CSS + PixiJS (@pixi/react).
+- **Frontend**: React 18 + Vite 8 + **Tailwind CSS v4** + Framer Motion.
+- **Game Engine**: PixiJS (@pixi/react) for the 2D workspace.
 - **Communication**: Native Bun WebSockets for real-time positional sync.
-- **Media**: LiveKit (Integrated for future positional audio/video).
+- **Media**: LiveKit (Integrated for proximity-based collaboration).
 
-## ✅ Major Milestones Completed
+## 🎨 Design System: "Angular Light"
+As of April 20, 2026, the application follows a specific design language:
+- **Theme**: Light Mode (Slate-50 background, Slate-900 typography).
+- **Primary Color**: Teal (#0D9488) used for active states, primary buttons, and branding accents.
+- **Typography**: **Inter** font (imported via Google Fonts). Chosen for its "structural lines" and high legibility in professional UIs.
+- **Geometry**: **Angular Design**. We have moved away from round corners. Standard border-radius is `0.375rem` (6px) or lower (`rounded`).
+- **Aesthetic**: Minimalist, high contrast, and performance-first.
 
-### 1. Modular Rendering Engine
-The `GameCanvas.tsx` has been refactored into atomic components:
-- `MapRender`: Memoized world renderer for high-performance 50x50 map display.
-- `Player`: Handles local physics, collisions, and DPI-aware camera logic.
-- `OtherPlayer`: Handles remote player interpolation (Lerp).
-- `AnimatedPlayerSprite`: Manages character states (Idle, Walk, Sit).
-- `tileUtils`: Centralized logic for GID mapping and texture caching.
+## 📁 Feature Focus: Digital Public Library
+The Library is a key interaction zone in the Gathering Metaverse:
+- **Components**:
+    - `LibrarySidebar`: Categorization and search by tags.
+    - `LibraryHeader`: Sticky navigation with high-opacity backgrounds (no blur for performance).
+    - `LibraryCard`: Hardware-accelerated cards for artifacts.
+    - `ResourceDetail`: Sharp, angular modal for deep-diving into eBooks/Guides.
+- **Performance Optimizations**:
+    - **Backdrop Blur removal**: Eliminated from all sticky/animated elements to maintain 60fps scrolling and transitions.
+    - **Hardware Acceleration**: Utilized `will-change: transform, opacity` and `overscroll-behavior: contain` for a native-app feel.
+    - **Deferred Search**: Uses `useDeferredValue` for non-blocking search filtering.
 
-### 2. High-DPI & Zoom Stability
-Resolved visual artifacts (tearing/shifting walls) caused by browser zoom levels (110%, 150%, etc.):
-- **DPI-aware Camera**: Snaps container coordinates to physical pixels using `window.devicePixelRatio`.
-- **Sub-pixel Fix**: Tiles are scaled to `2.01` (slight overlap) to eliminate rounding gaps.
+## ⚙️ Infrastructure Changes (Tailwind v4 Upgrade)
+The project now follows a **CSS-First** configuration:
+- **No JS Config**: `tailwind.config.js` and `postcss.config.js` have been **deleted**.
+- **CSS Entry**: Config is defined within the `@theme` block in `src/index.css`.
+- **Vite Integration**: Uses `@tailwindcss/vite` plugin for lightning-fast HMR and build times.
+- **Clean Environment**: `tailwindcss-animate` and other v3-only plugins have been removed to ensure build stability.
 
-### 3. Map System v2
-- Integration of `office_map_new.json` (50x50 tiles).
-- Support for multiple tilesets (`Room_Builder`, `Interiors`, `Serene_Village`) with custom GID offsets.
-- Interaction zones mapped to the new coordinates (Library at top-right).
-
-### 4. Core Features
-- **Sitting Mechanic**: Pressing `E` near chairs (`GID 542`) triggers a sitting state that syncs across the network.
-- **Library Resource Hub**: Integrated with `resourcesApi` to show documents and topics.
-
-## ⚠️ Technical Requirements & Constraints
-- **Coordinate System**: Uses a 64px virtual grid (32px assets scaled x2).
-- **Multiplayer Protocol**: 
-  - `move` (Client -> Server): Throttled to 20Hz (50ms) unless state (Sitting) changes.
-  - `player_moved` (Server -> Client): Broadcasts position, direction, and sitting status.
-- **Anti-Glitch**: Avoid using integer-only rounding for the `worldRef` container; use the physical pixel snapping logic in `Player.tsx`.
-
-## 🚀 Roadmap
-- **Proximity Audio**: Integrating LiveKit more deeply to enable spatial voice chat in the Library.
-- **Enhanced Interactions**: Adding "shared whiteboard" or "collaborative document" triggers in specific zones.
-- **Performance**: Investigating Tile-Chunking if the map expands beyond 100x100.
+## 🚀 Roadmap & Next Steps
+- **Admin Dashboard**: Future implementation for librarians to upload resources directly.
+- **Proximity Audio**: Deepening LiveKit integration for spatial voice chat within the Library zones.
+- **Shared Workspace**: Interactive "whiteboard" triggers within the library archive rooms.
 
 ---
-*Status: Architecture Refactor 100% Complete. Focus shifted to Feature Expansion.*
+*Status: Design Reversion & Performance Optimization Complete. Ready for feature expansion.*

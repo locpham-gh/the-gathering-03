@@ -1,3 +1,5 @@
+import { MAP_CONFIG } from "./config";
+
 export type ZoneType = "library";
 
 export interface Zone {
@@ -14,10 +16,9 @@ export const ZONES: Zone[] = [
   {
     id: "library",
     label: "Library",
-    x: 2000,
-    y: 350,
-    width: 600,
-    height: 600,
+    ...(MAP_CONFIG.version === "v3"
+      ? { x: 1984, y: 1408, width: 512, height: 832 } // Classroom layout (Extended to 5 rows)
+      : { x: 2000, y: 350, width: 600, height: 600 }), // Office layout
     description: "Knowledge resources and documentation",
   },
 ];

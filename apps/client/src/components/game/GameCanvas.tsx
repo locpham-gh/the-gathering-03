@@ -74,7 +74,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    const mapFile = MAP_CONFIG.version === "v2" ? "/maps/office_map_new.json" : "/maps/office.json";
+    let mapFile = "/maps/office.json";
+    if (MAP_CONFIG.version === "v2") mapFile = "/maps/office_map_new.json";
+    else if (MAP_CONFIG.version === "v3") mapFile = "/maps/classroom_map.json";
+
     fetch(mapFile)
       .then((res) => res.json())
       .then((data) => setMapData(data));

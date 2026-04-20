@@ -10,7 +10,7 @@ export function useCollision(mapData: MapData) {
   const checkCollision = useCallback((nextX: number, nextY: number): boolean => {
     // 1. Identify solid layers (Furniture, Walls, etc.)
     const solidLayers = mapData.layers.filter(
-      (l) => l.name !== "Tile Layer 1" && l.name !== "Floor" && l.name !== "floor",
+      (l) => l.name !== "Tile Layer 1" && l.name !== "Floor" && l.name !== "floor" && l.name !== "ground",
     );
 
     if (solidLayers.length === 0) return false;

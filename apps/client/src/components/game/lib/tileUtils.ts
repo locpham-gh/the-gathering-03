@@ -42,6 +42,20 @@ export function getTileDataForGid(rawGid: number): TileData | null {
       columns = ROOM_BUILDER_COLS;
       localId = gid - 1;
     }
+  } else if (MAP_CONFIG.version === "v3") {
+    if (gid >= INTERIORS_FIRST_GID) {
+      sourceImage = "/maps/Interiors_free_32x32.png";
+      columns = INTERIORS_COLS;
+      localId = gid - INTERIORS_FIRST_GID;
+    } else if (gid >= 856) {
+      sourceImage = "/maps/Room_Builder_v2_32x32.png";
+      columns = ROOM_BUILDER_COLS;
+      localId = gid - 856;
+    } else {
+      sourceImage = "/maps/Serene_Village_32x32.png";
+      columns = SERENE_VILLAGE_COLS;
+      localId = gid - 1;
+    }
   } else {
     if (gid >= INTERIORS_FIRST_GID) {
       sourceImage = "/maps/Interiors_free_32x32.png";

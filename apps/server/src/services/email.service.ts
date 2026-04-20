@@ -60,7 +60,7 @@ export const sendEventEmail = async (
     endTime: Date;
     roomLink: string;
     hostName: string;
-  }
+  },
 ) => {
   try {
     const { transporter, emailUser } = await getGmailTransporter();
@@ -76,8 +76,8 @@ export const sendEventEmail = async (
           
           <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
             <p style="margin: 0 0 10px 0; color: #020617;"><strong>Sự kiện:</strong> ${eventDetails.title}</p>
-            <p style="margin: 0 0 10px 0; color: #020617;"><strong>Thời gian bắt đầu:</strong> ${new Date(eventDetails.startTime).toLocaleString('vi-VN')}</p>
-            <p style="margin: 0 0 10px 0; color: #020617;"><strong>Thời lượng (Dự kiến):</strong> kết thúc lúc ${new Date(eventDetails.endTime).toLocaleString('vi-VN')}</p>
+            <p style="margin: 0 0 10px 0; color: #020617;"><strong>Thời gian bắt đầu:</strong> ${new Date(eventDetails.startTime).toLocaleString("vi-VN")}</p>
+            <p style="margin: 0 0 10px 0; color: #020617;"><strong>Thời lượng (Dự kiến):</strong> kết thúc lúc ${new Date(eventDetails.endTime).toLocaleString("vi-VN")}</p>
             <p style="margin: 0; color: #020617;"><strong>Nội dung:</strong> ${eventDetails.description}</p>
           </div>
 
@@ -98,7 +98,7 @@ export const sendEventEmail = async (
 
     const info = await transporter.sendMail(mailOptions);
     console.log("✅ Email sent successfully! Message ID:", info.messageId);
-    
+
     return true;
   } catch (error) {
     console.error("❌ Failed to send email:", error);

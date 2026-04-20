@@ -1,69 +1,33 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+@theme {
+  /* Design Tokens - Slate & Teal Theme */
+  --color-background: #F8FAFC;
+  --color-foreground: #0F172A;
+  
+  --color-card: #FFFFFF;
+  --color-card-foreground: #0F172A;
+  
+  --color-primary: #0D9488;
+  --color-primary-foreground: #FFFFFF;
+  
+  --color-secondary: #F1F5F9;
+  --color-secondary-foreground: #0F172A;
+  
+  --color-muted: #F1F5F9;
+  --color-muted-foreground: #64748B;
+  
+  --color-accent: #0D9488;
+  
+  --color-border: #E2E8F0;
+  --color-input: #E2E8F0;
+  --color-ring: #0D9488;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+  --radius-xl: 0.375rem;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 174 100% 33%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 174 80% 95%;
-    --accent-foreground: 174 100% 20%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 174 100% 33%;
-
-    --radius: 0.75rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 174 100% 40%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 174 30% 15%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 174 20% 15%;
-    --muted-foreground: 174 20% 65%;
-
-    --accent: 174 30% 20%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 174 30% 20%;
-    --input: 174 30% 20%;
-    --ring: 174 100% 40%;
-  }
+  /* Fonts */
+  --font-display: "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
 }
 
 @layer base {
@@ -72,14 +36,22 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
   }
 }
 
 /* Glassmorphism Utilities */
-.glass {
-  @apply bg-white/10 backdrop-blur-md border border-white/20 shadow-xl;
+@utility glass {
+  background-color: rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 0.2);
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
 .dark .glass {
-  @apply bg-black/40 border-white/10;
+  background-color: rgb(0 0 0 / 0.4);
+  border-color: rgb(255 255 255 / 0.1);
 }

@@ -23,10 +23,11 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 }
 
 export const resourcesApi = {
-    getAll: (search?: string, type?: string) => {
+    getAll: (search?: string, type?: string, tag?: string) => {
         const params = new URLSearchParams();
         if (search) params.append("search", search);
         if (type) params.append("type", type);
+        if (tag) params.append("tag", tag);
         
         const qs = params.toString();
         const endpoint = qs ? `/api/resources?${qs}` : "/api/resources";
