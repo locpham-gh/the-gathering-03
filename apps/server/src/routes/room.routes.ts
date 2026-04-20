@@ -1,5 +1,7 @@
 import { Elysia, t } from "elysia";
 import { Room } from "../models/Room.js";
+import { User } from "../models/User.js";
+import { sendRoomInviteEmail } from "../services/email.service.js";
 import { jwt } from "@elysiajs/jwt";
 import mongoose from "mongoose";
 
@@ -205,6 +207,62 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
       return { success: false, error: err.message };
     }
   })
+  .post(
+    "/:id/invite",
+    async ({ params, body, user, set }: any) => {
+      const userId = (user?.userId || user?.id)?.toString();
+      if (!userId || userId.length !== 24) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
+      try {
+        let room;
+        if (params.id.length === 24 && params.id.match(/^[0-9a-fA-F]{24}$/)) {
+          room = await Room.findById(params.id);
+        }
+        if (!room) {
+          room = await Room.findOne({ code: params.id });
+        }
+        if (!room) {
+          set.status = 404;
+          return { success: false, error: "Room not found" };
+        }
+
+        const inviter = await User.findById(userId).select("displayName email");
+        const inviteEmails = (body.emails || [])
+          .map((email: string) => String(email).trim().toLowerCase())
+          .filter((email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+        if (inviteEmails.length === 0) {
+          set.status = 400;
+          return { success: false, error: "At least one valid email is required" };
+        }
+
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const roomLink = `${frontendUrl}/room/${room.code}`;
+        const sent = await sendRoomInviteEmail(inviteEmails, {
+          roomName: room.name,
+          roomCode: room.code,
+          roomLink,
+          inviterName: inviter?.displayName || inviter?.email || "A teammate",
+        });
+        if (!sent) {
+          set.status = 500;
+          return { success: false, error: "Failed to send invitation email" };
+        }
+
+        return { success: true, invited: inviteEmails.length, roomCode: room.code, roomLink };
+      } catch (err: any) {
+        set.status = 500;
+        return { success: false, error: err.message };
+      }
+    },
+    {
+      body: t.Object({
+        emails: t.Array(t.String()),
+      }),
+    },
+  )
   .post(
     "/:id/kick",
     async ({ params, body, user, set }: any) => {

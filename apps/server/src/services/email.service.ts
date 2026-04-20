@@ -105,3 +105,43 @@ export const sendEventEmail = async (
     return false;
   }
 };
+
+export const sendRoomInviteEmail = async (
+  toEmails: string[],
+  data: {
+    roomName: string;
+    roomCode: string;
+    roomLink: string;
+    inviterName: string;
+  },
+) => {
+  try {
+    const { transporter, emailUser } = await getGmailTransporter();
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px; padding: 22px;">
+        <h2 style="margin: 0 0 8px; color: #0f172a;">Loi moi vao phong The Gathering</h2>
+        <p style="color: #334155; line-height: 1.5;">
+          <b>${data.inviterName}</b> da moi ban tham gia phong <b>${data.roomName}</b>.
+        </p>
+        <div style="margin: 14px 0; padding: 12px; border-radius: 8px; background: #f8fafc; color: #0f172a;">
+          <p style="margin: 0 0 6px;"><strong>Ma phong:</strong> ${data.roomCode}</p>
+          <p style="margin: 0;"><strong>Link:</strong> <a href="${data.roomLink}">${data.roomLink}</a></p>
+        </div>
+        <a href="${data.roomLink}" style="display:inline-block; background:#2563eb; color:white; text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:600;">
+          Tham gia phong
+        </a>
+      </div>
+    `;
+
+    await transporter.sendMail({
+      from: `"The Gathering Invite" <${emailUser}>`,
+      to: toEmails.join(", "),
+      subject: `[The Gathering] Loi moi vao phong: ${data.roomName}`,
+      html: emailHtml,
+    });
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send room invite email:", error);
+    return false;
+  }
+};

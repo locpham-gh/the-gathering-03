@@ -8,12 +8,11 @@ interface LibraryCardProps {
   onClick: (resource: Resource) => void;
 }
 
-export const LibraryCard: React.FC<LibraryCardProps> = ({
-  resource,
-  onClick,
-}) => {
-  return (
-    <motion.div
+export const LibraryCard = React.forwardRef<HTMLDivElement, LibraryCardProps>(
+  ({ resource, onClick }, ref) => {
+    return (
+      <motion.div
+        ref={ref}
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -21,7 +20,7 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
       whileHover={{ y: -5 }}
       transition={{ duration: 0.3 }}
       onClick={() => onClick(resource)}
-      className="group bg-white border border-slate-200 rounded overflow-hidden cursor-pointer flex flex-col h-[420px] shadow-sm hover:shadow-md hover:border-slate-800 transition-all duration-200 [will-change:transform]"
+      className="group bg-white border border-slate-200 rounded overflow-hidden cursor-pointer flex flex-col h-[420px] shadow-sm hover:shadow-md hover:border-slate-800 transition-all duration-200 will-change-transform"
     >
       <div className="h-44 w-full relative overflow-hidden bg-slate-100 border-b border-slate-100">
         {resource.thumbnailUrl ? (
@@ -69,6 +68,9 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
           </div>
         </div>
       </div>
-    </motion.div>
-  );
-};
+      </motion.div>
+    );
+  },
+);
+
+LibraryCard.displayName = "LibraryCard";

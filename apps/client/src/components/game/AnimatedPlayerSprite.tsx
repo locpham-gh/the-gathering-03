@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { Sprite, useTick } from "@pixi/react";
+import * as PIXI from "pixi.js";
 import { DIR_COL_OFFSET, getCharacterTexture } from "./lib/tileUtils";
 import type { DirString } from "./lib/gameTypes";
 
@@ -11,6 +12,7 @@ interface AnimatedPlayerSpriteProps {
   isSitting?: boolean;
   tint?: number;
   character2d?: string;
+  showCameraBadge?: boolean;
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -21,6 +23,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   isSitting = false,
   tint = 0xffffff,
   character2d,
+  showCameraBadge = false,
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
@@ -53,15 +56,43 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   const texture = getCharacterTexture(character2d, row, col);
 
   return (
-    <Sprite
-      texture={texture}
-      x={Math.round(x)}
-      y={Math.round(y - 64)}
-      width={64}
-      height={128}
-      anchor={0}
-      zIndex={Math.round(y)}
-      tint={tint}
-    />
+    <>
+      <Sprite
+        texture={texture}
+        x={Math.round(x)}
+        y={Math.round(y - 64)}
+        width={64}
+        height={128}
+        anchor={0}
+        zIndex={Math.round(y)}
+        tint={tint}
+      />
+      {showCameraBadge && (
+        <>
+          <Sprite
+            texture={PIXI.Texture.WHITE}
+            x={Math.round(x + 20)}
+            y={Math.round(y - 76)}
+            width={24}
+            height={14}
+            anchor={0}
+            tint={0x111827}
+            alpha={0.86}
+            zIndex={Math.round(y) + 1}
+          />
+          <Sprite
+            texture={PIXI.Texture.WHITE}
+            x={Math.round(x + 38)}
+            y={Math.round(y - 72)}
+            width={4}
+            height={6}
+            anchor={0}
+            tint={0x6b7280}
+            alpha={0.95}
+            zIndex={Math.round(y) + 2}
+          />
+        </>
+      )}
+    </>
   );
 };

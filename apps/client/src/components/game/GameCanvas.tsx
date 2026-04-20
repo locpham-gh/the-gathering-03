@@ -49,8 +49,17 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
+  selfPlayerId?: string | null;
+  cameraFocusTarget?: { x: number; y: number; id: number } | null;
+  cameraZoomTarget?: { x: number; y: number; id: number } | null;
+  resetCameraSignal?: number;
+  paused?: boolean;
+  localCameraEnabled?: boolean;
+  onViewportChange?: (next: { x: number; y: number; scale: number }) => void;
+  onLocalPlayerRenderPosition?: (next: { x: number; y: number }) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean) => number | null;
   localCharacter2d?: string;
+  authoritativeSelf?: RemotePlayer | null;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -59,8 +68,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   activeZone,
   onNearbyPlayer,
   players,
+  selfPlayerId,
+  cameraFocusTarget,
+  cameraZoomTarget,
+  resetCameraSignal = 0,
+  paused = false,
+  localCameraEnabled = false,
+  onViewportChange,
+  onLocalPlayerRenderPosition,
   updatePosition,
   localCharacter2d,
+  authoritativeSelf,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -68,6 +86,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     h: window.innerHeight,
   });
   const worldRef = useRef<PIXI.Container>(null);
+  const [zoom, setZoom] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+  const dragLastRef = useRef<{ x: number; y: number } | null>(null);
+  const pinchDistanceRef = useRef<number | null>(null);
+  const panVelocityRef = useRef({ x: 0, y: 0 });
+  const inertiaFrameRef = useRef<number | null>(null);
+  const lastMoveTsRef = useRef(0);
+
+  const stopInertia = () => {
+    if (inertiaFrameRef.current !== null) {
+      cancelAnimationFrame(inertiaFrameRef.current);
+      inertiaFrameRef.current = null;
+    }
+  };
+
+  const startInertia = () => {
+    stopInertia();
+    const run = () => {
+      panVelocityRef.current.x *= 0.92;
+      panVelocityRef.current.y *= 0.92;
+      const vx = panVelocityRef.current.x;
+      const vy = panVelocityRef.current.y;
+      if (Math.abs(vx) < 0.05 && Math.abs(vy) < 0.05) {
+        inertiaFrameRef.current = null;
+        return;
+      }
+      setPanOffset((prev) => ({ x: prev.x + vx, y: prev.y + vy }));
+      inertiaFrameRef.current = requestAnimationFrame(run);
+    };
+    inertiaFrameRef.current = requestAnimationFrame(run);
+  };
 
   useEffect(() => {
     const onResize = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
@@ -85,6 +135,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       .then((data) => setMapData(data));
   }, []);
 
+  useEffect(() => {
+    if (!cameraZoomTarget) return;
+    setZoom((prev) => Math.max(1.05, Math.min(1.8, prev + 0.12)));
+  }, [cameraZoomTarget?.id, cameraZoomTarget]);
+
+  useEffect(() => {
+    if (!resetCameraSignal) return;
+    setPanOffset((prev) => ({ x: prev.x * 0.35, y: prev.y * 0.35 }));
+    setZoom((prev) => prev + (1 - prev) * 0.4);
+    panVelocityRef.current = { x: 0, y: 0 };
+    stopInertia();
+  }, [resetCameraSignal]);
+
+  useEffect(() => {
+    return () => stopInertia();
+  }, []);
+
   if (!mapData) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-slate-900 border-none">
@@ -94,42 +161,112 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }
 
   return (
-    <Stage
-      width={dimensions.w}
-      height={dimensions.h}
-      options={{
-        backgroundColor: 0xf8fafc,
-        antialias: false,
-        hello: false,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
+    <div
+      className="w-full h-full"
+      style={{ touchAction: "none" }}
+      onWheel={(e) => {
+        stopInertia();
+        const delta = e.deltaY > 0 ? -0.03 : 0.03;
+        setZoom((prev) => Math.max(0.75, Math.min(1.9, prev + delta)));
       }}
-      style={{ imageRendering: "pixelated" }}
+      onMouseDown={(e) => {
+        if (e.button !== 0) return;
+        stopInertia();
+        isDraggingRef.current = true;
+        dragLastRef.current = { x: e.clientX, y: e.clientY };
+        lastMoveTsRef.current = performance.now();
+        panVelocityRef.current = { x: 0, y: 0 };
+      }}
+      onMouseMove={(e) => {
+        if (!isDraggingRef.current || !dragLastRef.current) return;
+        const dx = e.clientX - dragLastRef.current.x;
+        const dy = e.clientY - dragLastRef.current.y;
+        const now = performance.now();
+        const dt = Math.max(1, now - lastMoveTsRef.current);
+        panVelocityRef.current = { x: dx / (dt / 16), y: dy / (dt / 16) };
+        lastMoveTsRef.current = now;
+        dragLastRef.current = { x: e.clientX, y: e.clientY };
+        setPanOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      }}
+      onMouseUp={() => {
+        if (isDraggingRef.current) startInertia();
+        isDraggingRef.current = false;
+        dragLastRef.current = null;
+      }}
+      onMouseLeave={() => {
+        if (isDraggingRef.current) startInertia();
+        isDraggingRef.current = false;
+        dragLastRef.current = null;
+      }}
+      onTouchStart={(e) => {
+        if (e.touches.length < 2) return;
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        pinchDistanceRef.current = distance;
+      }}
+      onTouchMove={(e) => {
+        if (e.touches.length < 2) return;
+        const [a, b] = [e.touches[0], e.touches[1]];
+        const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        if (!pinchDistanceRef.current) {
+          pinchDistanceRef.current = distance;
+          return;
+        }
+        const ratio = distance / pinchDistanceRef.current;
+        setZoom((prev) => Math.max(0.75, Math.min(1.9, prev * ratio)));
+        pinchDistanceRef.current = distance;
+      }}
+      onTouchEnd={() => {
+        pinchDistanceRef.current = null;
+      }}
     >
-      <Container ref={worldRef}>
-        <MapRender mapData={mapData} />
-        
-        <Player
-          mapData={mapData}
-          onZoneChange={onZoneChange}
-          isPaused={activeZone !== null}
-          onInteract={onInteract}
-          updatePosition={updatePosition}
-          players={players}
-          onNearbyPlayer={onNearbyPlayer}
-          worldRef={worldRef}
-          screenW={dimensions.w}
-          screenH={dimensions.h}
-          character2d={localCharacter2d}
-        />
+      <Stage
+        width={dimensions.w}
+        height={dimensions.h}
+        options={{
+          backgroundColor: 0xf8fafc,
+          antialias: false,
+          hello: false,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        }}
+        style={{ imageRendering: "pixelated" }}
+      >
+        <Container ref={worldRef}>
+          <MapRender mapData={mapData} />
+          
+          <Player
+            mapData={mapData}
+            onZoneChange={onZoneChange}
+            isPaused={activeZone !== null || paused}
+            onInteract={onInteract}
+            updatePosition={updatePosition}
+            players={players}
+            selfPlayerId={selfPlayerId}
+            onNearbyPlayer={onNearbyPlayer}
+            worldRef={worldRef}
+            screenW={dimensions.w}
+            screenH={dimensions.h}
+            zoom={zoom}
+            panOffset={panOffset}
+            onViewportChange={onViewportChange}
+            onLocalPlayerRenderPosition={onLocalPlayerRenderPosition}
+            character2d={localCharacter2d}
+            authoritativePosition={authoritativeSelf}
+            cameraFocusTarget={cameraFocusTarget}
+            showCameraBadge={localCameraEnabled}
+          />
 
-        {Object.values(players).map((player) => (
-          <OtherPlayer key={player.id} player={player} />
-        ))}
+          {Object.values(players)
+            .filter((player) => player.id !== selfPlayerId)
+            .map((player) => (
+            <OtherPlayer key={player.id} player={player} />
+            ))}
 
-        <ZoneDebugRenderer zones={ZONES} />
-      </Container>
-    </Stage>
+          <ZoneDebugRenderer zones={ZONES} />
+        </Container>
+      </Stage>
+    </div>
   );
 };
 

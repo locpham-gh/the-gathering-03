@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { useAuth } from "./contexts/AuthContext";
 import LandingPage from "./pages/index";
 import HomePage from "./pages/home";
 import GamePage from "./pages/game";
+import PrejoinPage from "./pages/prejoin";
 import ScheduleEventPage from "./pages/schedule";
 import AuthSuccess from "./pages/auth/success";
 import AuthFailed from "./pages/auth/failed";
@@ -43,6 +44,10 @@ function AppRoutes() {
       />
       <Route 
         path="/room/:roomId" 
+        element={user ? <PrejoinPage /> : <Navigate to="/" replace />} 
+      />
+      <Route 
+        path="/room/:roomId/play" 
         element={user ? <GamePage /> : <Navigate to="/" replace />} 
       />
       <Route 
@@ -60,9 +65,7 @@ function AppRoutes() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <AppRoutes />
     </BrowserRouter>
   );
 }

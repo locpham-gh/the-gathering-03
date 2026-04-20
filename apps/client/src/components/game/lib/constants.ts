@@ -6,12 +6,14 @@ export const WORLD_CONFIG = {
   TILE_SIZE_VIRTUAL: 64,
   TILE_SCALE: 2.01, // 0.01 extra to hide sub-pixel gaps
 
-  MOVEMENT_SPEED: 5,
+  // Keep close to authoritative server speed (8 units / 50ms tick ~= 160 px/s).
+  MOVEMENT_SPEED: 2.7,
   INTERACTION_RANGE: 64,
   PROXIMITY_RANGE: 120,
 
-  PLAYER_SPAWN_X: 1600,
-  PLAYER_SPAWN_Y: 1600,
+  // Center-ish safe spawn to avoid furniture collision on join.
+  PLAYER_SPAWN_X: 768,
+  PLAYER_SPAWN_Y: 576,
 };
 
 /**

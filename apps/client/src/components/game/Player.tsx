@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useTick } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
@@ -23,13 +23,21 @@ interface PlayerProps {
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean) => number | null;
   players: Record<string, RemotePlayer>;
+  selfPlayerId?: string | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
   screenW: number;
   screenH: number;
+  zoom: number;
+  panOffset: { x: number; y: number };
+  onViewportChange?: (next: { x: number; y: number; scale: number }) => void;
+  onLocalPlayerRenderPosition?: (next: { x: number; y: number }) => void;
   character2d?: string;
+  authoritativePosition?: RemotePlayer | null;
+  cameraFocusTarget?: { x: number; y: number; id: number } | null;
+  showCameraBadge?: boolean;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -39,11 +47,19 @@ export const Player: React.FC<PlayerProps> = ({
   onInteract,
   updatePosition,
   players,
+  selfPlayerId,
   onNearbyPlayer,
   worldRef,
   screenW,
   screenH,
+  zoom,
+  panOffset,
+  onViewportChange,
+  onLocalPlayerRenderPosition,
   character2d,
+  authoritativePosition,
+  cameraFocusTarget,
+  showCameraBadge = false,
 }) => {
   // 1. Local State
   const [x, setX] = useState(WORLD_CONFIG.PLAYER_SPAWN_X);
@@ -58,10 +74,56 @@ export const Player: React.FC<PlayerProps> = ({
   const sitOrigin = useRef<{ x: number; y: number } | null>(null);
   const lastNearbyTrigger = useRef<number>(0);
   const lastSyncSit = useRef(isSitting);
+  const focusPointRef = useRef<{ x: number; y: number } | null>(null);
+  const focusUntilRef = useRef(0);
+  const hasSyncedAuthoritativeRef = useRef(false);
+  const pendingPredictionsRef = useRef<
+    Array<{ seq: number; x: number; y: number; isSitting?: boolean }>
+  >([]);
+  const lastAckSeqRef = useRef(0);
 
   // 3. Custom Logic Hooks
   const { checkCollision } = useCollision(mapData);
-  const { updateCamera } = useCamera(worldRef, screenW, screenH);
+  const { updateCamera } = useCamera(
+    worldRef,
+    screenW,
+    screenH,
+    zoom,
+    panOffset,
+    {
+      width: mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL,
+      height: mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL,
+    },
+    onViewportChange,
+  );
+
+  useEffect(() => {
+    if (!checkCollision(x, y)) return;
+
+    // Try nearby tiles to avoid spawning inside blocked furniture/walls.
+    const step = WORLD_CONFIG.TILE_SIZE_VIRTUAL;
+    const maxRadius = 6;
+    for (let radius = 1; radius <= maxRadius; radius += 1) {
+      for (let offsetX = -radius; offsetX <= radius; offsetX += 1) {
+        for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
+          if (Math.abs(offsetX) !== radius && Math.abs(offsetY) !== radius) continue;
+          const candidateX = x + offsetX * step;
+          const candidateY = y + offsetY * step;
+          if (!checkCollision(candidateX, candidateY)) {
+            setX(candidateX);
+            setY(candidateY);
+            return;
+          }
+        }
+      }
+    }
+  }, [x, y, checkCollision]);
+
+  useEffect(() => {
+    if (!cameraFocusTarget) return;
+    focusPointRef.current = { x: cameraFocusTarget.x, y: cameraFocusTarget.y };
+    focusUntilRef.current = Date.now() + 1500;
+  }, [cameraFocusTarget?.id, cameraFocusTarget]);
 
   const handleInteraction = () => {
     if (isPaused) return;
@@ -121,6 +183,63 @@ export const Player: React.FC<PlayerProps> = ({
 
   // 4. Game Loop
   useTick((delta) => {
+    const isPressingMove =
+      keys.has("w") ||
+      keys.has("a") ||
+      keys.has("s") ||
+      keys.has("d") ||
+      keys.has("arrowup") ||
+      keys.has("arrowdown") ||
+      keys.has("arrowleft") ||
+      keys.has("arrowright");
+
+    if (authoritativePosition) {
+      const ackSeq = authoritativePosition.authoritativeSeq || 0;
+      if (ackSeq > lastAckSeqRef.current) {
+        lastAckSeqRef.current = ackSeq;
+        pendingPredictionsRef.current = pendingPredictionsRef.current.filter(
+          (item) => item.seq > ackSeq,
+        );
+      }
+
+      const replayTarget =
+        pendingPredictionsRef.current.length > 0
+          ? pendingPredictionsRef.current[pendingPredictionsRef.current.length - 1]
+          : authoritativePosition;
+      const targetX = replayTarget.x;
+      const targetY = replayTarget.y;
+
+      // If authoritative target lands inside a blocked tile locally (furniture/wall),
+      // trust local collision to avoid jittering against obstacles.
+      const authoritativeBlocked = checkCollision(targetX, targetY);
+      const safeTargetX = authoritativeBlocked ? x : targetX;
+      const safeTargetY = authoritativeBlocked ? y : targetY;
+
+      const correctedDriftX = safeTargetX - x;
+      const correctedDriftY = safeTargetY - y;
+      const driftDist = Math.sqrt(
+        correctedDriftX * correctedDriftX + correctedDriftY * correctedDriftY,
+      );
+      if (!hasSyncedAuthoritativeRef.current || driftDist > 220) {
+        hasSyncedAuthoritativeRef.current = true;
+        setX(safeTargetX);
+        setY(safeTargetY);
+      } else if (driftDist > 6) {
+        // While user is actively moving, avoid frequent tiny pull-backs that cause jitter.
+        if (isPressingMove && driftDist < 90) {
+          // keep predicted motion smooth
+        } else {
+        const correction = isPressingMove ? 0.12 : 0.22;
+        setX((prev) => prev + correctedDriftX * correction);
+        setY((prev) => prev + correctedDriftY * correction);
+        }
+      } else if (!isPressingMove && driftDist > 0) {
+        // Prevent micro-drift when user has already released movement keys.
+        setX(safeTargetX);
+        setY(safeTargetY);
+      }
+    }
+
     if (isPaused) {
       if (isMoving) setIsMoving(false);
       return;
@@ -128,15 +247,6 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Auto-stand logic
     if (isSitting) {
-      const isPressingMove =
-        keys.has("w") ||
-        keys.has("a") ||
-        keys.has("s") ||
-        keys.has("d") ||
-        keys.has("arrowup") ||
-        keys.has("arrowdown") ||
-        keys.has("arrowleft") ||
-        keys.has("arrowright");
       if (isPressingMove) {
         setIsSitting(false);
         if (sitOrigin.current) {
@@ -174,16 +284,35 @@ export const Player: React.FC<PlayerProps> = ({
       setIsMoving(false);
     }
 
-    // Camera & Sync
-    updateCamera(x, y, delta);
+    // Camera & Sync (supports temporary map focus from mini-map clicks)
+    const focusPoint = focusPointRef.current;
+    if (focusPoint && Date.now() < focusUntilRef.current) {
+      updateCamera(focusPoint.x, focusPoint.y, delta);
+    } else {
+      focusPointRef.current = null;
+      updateCamera(x, y, delta);
+    }
 
-    if (nextX !== x || nextY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(nextX, nextY, isSitting);
+    const actualX = checkCollision(nextX, nextY) ? x : nextX;
+    const actualY = checkCollision(nextX, nextY) ? y : nextY;
+    if (actualX !== x || actualY !== y || isSitting !== lastSyncSit.current) {
+      const sentSeq = updatePosition(actualX, actualY, isSitting);
+      if (sentSeq) {
+        pendingPredictionsRef.current.push({
+          seq: sentSeq,
+          x: actualX,
+          y: actualY,
+          isSitting,
+        });
+        if (pendingPredictionsRef.current.length > 60) {
+          pendingPredictionsRef.current.splice(0, pendingPredictionsRef.current.length - 60);
+        }
+      }
       lastSyncSit.current = isSitting;
     }
 
     // Zone & Proximity Check
-    const zone = checkZoneCollision(nextX, nextY, ZONES);
+    const zone = checkZoneCollision(actualX, actualY, ZONES);
     if (zone !== currentZone) {
       setCurrentZone(zone);
       onZoneChange?.(zone);
@@ -193,11 +322,13 @@ export const Player: React.FC<PlayerProps> = ({
     if (now - lastNearbyTrigger.current > 500) {
       let foundPlayerId: string | null = null;
       for (const [id, remoteUser] of Object.entries(players)) {
+        if (id === selfPlayerId) continue;
+        if (!remoteUser.userId) continue;
         const dist = Math.sqrt(
-          Math.pow(nextX - remoteUser.x, 2) + Math.pow(nextY - remoteUser.y, 2),
+          Math.pow(actualX - remoteUser.x, 2) + Math.pow(actualY - remoteUser.y, 2),
         );
         if (dist < WORLD_CONFIG.PROXIMITY_RANGE) {
-          foundPlayerId = id;
+          foundPlayerId = remoteUser.userId;
           break;
         }
       }
@@ -207,6 +338,8 @@ export const Player: React.FC<PlayerProps> = ({
       }
       lastNearbyTrigger.current = now;
     }
+
+    onLocalPlayerRenderPosition?.({ x, y });
   });
 
   return (
@@ -217,6 +350,7 @@ export const Player: React.FC<PlayerProps> = ({
       isMoving={isMoving}
       isSitting={isSitting}
       character2d={character2d}
+      showCameraBadge={showCameraBadge}
     />
   );
 };
