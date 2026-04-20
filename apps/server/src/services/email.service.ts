@@ -1,5 +1,56 @@
 import nodemailer from "nodemailer";
 
+async function getGmailTransporter() {
+  const emailUser = process.env.EMAIL_USER;
+  const emailPass = process.env.EMAIL_PASS;
+  if (!emailUser || !emailPass) {
+    throw new Error("EMAIL_USER/EMAIL_PASS is required for Gmail SMTP.");
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: emailUser,
+      pass: emailPass,
+    },
+  });
+
+  return { transporter, emailUser };
+}
+
+export const sendOtpEmail = async (toEmail: string, otpCode: string) => {
+  try {
+    const { transporter, emailUser } = await getGmailTransporter();
+
+    const mailOptions = {
+      from: `"The Gathering OTP" <${emailUser}>`,
+      to: toEmail,
+      subject: "[The Gathering] Mã OTP đăng nhập",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px;">
+          <h2 style="margin: 0 0 12px; color: #111827;">Mã OTP của bạn</h2>
+          <p style="color: #374151; line-height: 1.5;">
+            Dùng mã bên dưới để đăng nhập vào The Gathering. Mã có hiệu lực trong 5 phút.
+          </p>
+          <div style="margin: 16px 0; font-size: 28px; font-weight: 700; letter-spacing: 8px; color: #2563eb;">
+            ${otpCode}
+          </div>
+          <p style="color: #6b7280; font-size: 12px;">
+            Nếu bạn không yêu cầu mã này, bạn có thể bỏ qua email.
+          </p>
+        </div>
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ OTP email sent. Message ID:", info.messageId);
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send OTP email:", error);
+    return false;
+  }
+};
+
 export const sendEventEmail = async (
   toEmails: string[],
   eventDetails: {
@@ -12,31 +63,7 @@ export const sendEventEmail = async (
   }
 ) => {
   try {
-    let transporter;
-
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-      // Use real SMTP (e.g. Gmail)
-      transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS,
-        },
-      });
-    } else {
-      // Setup mock Ethereal mail if no real SMTP exists. Best for testing.
-      console.warn("⚠️ SMTP_USER not set. Falling back to Ethereal Mail...");
-      const testAccount = await nodemailer.createTestAccount();
-      transporter = nodemailer.createTransport({
-        host: "smtp.ethereal.email",
-        port: 587,
-        secure: false,
-        auth: {
-          user: testAccount.user,
-          pass: testAccount.pass,
-        },
-      });
-    }
+    const { transporter, emailUser } = await getGmailTransporter();
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
@@ -63,7 +90,7 @@ export const sendEventEmail = async (
     `;
 
     const mailOptions = {
-      from: `"The Gathering Ảo" <${process.env.SMTP_USER || "noreply@thegathering.com"}>`,
+      from: `"The Gathering Ảo" <${emailUser}>`,
       to: toEmails.join(", "),
       subject: `[The Gathering] Lời mời tham gia: ${eventDetails.title}`,
       html: emailHtml,
@@ -71,10 +98,6 @@ export const sendEventEmail = async (
 
     const info = await transporter.sendMail(mailOptions);
     console.log("✅ Email sent successfully! Message ID:", info.messageId);
-    
-    if (!process.env.SMTP_USER) {
-      console.log("🌐 Preview Ethereal URL: %s", nodemailer.getTestMessageUrl(info));
-    }
     
     return true;
   } catch (error) {

@@ -1,5 +1,6 @@
 import { Elysia, t } from "elysia";
 import { verifyGoogleTokenAndUpsertUser } from "../controllers/auth.controller.js";
+import { sendOtpEmail } from "../services/email.service.js";
 
 export const authRoutes = new Elysia({ prefix: "/api/auth" })
   .post(
@@ -54,7 +55,11 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
         user.otpExpiresAt = otpExpiresAt;
         await user.save();
 
-        console.log(`[OTP] MÃ ĐĂNG NHẬP GỬI ĐẾN ${email} LÀ: ${otpCode}`);
+        const sent = await sendOtpEmail(email, otpCode);
+        if (!sent) {
+          set.status = 500;
+          return { success: false, error: "Failed to send OTP email" };
+        }
 
         return { success: true, message: "OTP sent successfully" };
       } catch (error: any) {
