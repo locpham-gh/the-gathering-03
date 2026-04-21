@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { getDefaultAvatarByGender, resolveAvatarUrl } from "../../lib/profile";
+import { apiFetch } from "../../lib/api";
+import { nanoid } from "nanoid";
+import { MAP_OPTIONS, type MapVersion } from "../game/config";
 import { 
   Home, 
   Layout, 
@@ -10,7 +13,8 @@ import {
   PlusCircle,
   ChevronRight,
   Calendar,
-  MessageCircle
+  MessageCircle,
+  X
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -21,6 +25,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [roomName, setRoomName] = useState("");
+  const [mapVersion, setMapVersion] = useState<MapVersion>("v3");
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const menuItems = [
     { name: "Overview", path: "/home", icon: <Home size={20} /> },
@@ -33,6 +42,33 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   if (!user) return null;
   const avatarUrl = resolveAvatarUrl(user.avatarUrl, user.gender);
   const fallbackAvatar = getDefaultAvatarByGender(user.gender);
+  const previewCode = useMemo(() => nanoid(10), [createOpen]);
+
+  const handleCreateRoom = async () => {
+    if (creating) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const code = nanoid(10);
+      const name = roomName.trim() || `${user.displayName}'s Room`;
+      const res = await apiFetch("/api/rooms", {
+        method: "POST",
+        body: JSON.stringify({ name, code, mapVersion }),
+      });
+      if (!res?.success) {
+        setCreateError(res?.error || "Create room failed.");
+        return;
+      }
+      setCreateOpen(false);
+      setRoomName("");
+      setMapVersion("v3");
+      navigate(`/room/${code}`);
+    } catch (error: any) {
+      setCreateError(error?.message || "Create room failed.");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
@@ -102,7 +138,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
              {menuItems.find(i => i.path === location.pathname)?.name || "Dashboard"}
            </h2>
            <button 
-             onClick={() => navigate("/home")}
+             onClick={() => setCreateOpen(true)}
              className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
            >
              <PlusCircle size={18} />
@@ -119,6 +155,78 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
            </div>
         </div>
       </main>
+
+      {createOpen && (
+        <div className="fixed inset-0 z-100 bg-black/40 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-2xl p-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800">Create Room</h3>
+              <button
+                onClick={() => setCreateOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-500"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Room code will be auto-generated when creating.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="text-xs text-slate-500 font-medium">Room name (optional)</span>
+                <input
+                  value={roomName}
+                  onChange={(e) => setRoomName(e.target.value)}
+                  placeholder={`${user.displayName}'s Room`}
+                  className="mt-2 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs text-slate-500 font-medium">Room code (preview)</span>
+                <input
+                  readOnly
+                  value={previewCode}
+                  className="mt-2 w-full px-3 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-mono text-slate-600"
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs text-slate-500 font-medium">Map</span>
+                <select
+                  value={mapVersion}
+                  onChange={(e) => setMapVersion(e.target.value as MapVersion)}
+                  className="mt-2 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary text-sm"
+                >
+                  {MAP_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {createError && (
+                <p className="text-xs rounded-lg bg-red-50 text-red-600 px-3 py-2">{createError}</p>
+              )}
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setCreateOpen(false)}
+                className="px-3 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateRoom}
+                disabled={creating}
+                className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold disabled:opacity-60"
+              >
+                {creating ? "Creating..." : "Create & Join"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

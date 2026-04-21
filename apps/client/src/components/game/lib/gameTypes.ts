@@ -2,9 +2,25 @@ import * as PIXI from "pixi.js";
 
 export type DirString = "right" | "up" | "left" | "down";
 
+export interface MapLayerProperty {
+  name: string;
+  value: unknown;
+}
+
 export interface MapLayer {
   name: string;
   data: number[];
+  order?: number;
+  properties?: MapLayerProperty[];
+}
+
+export interface MapTileset {
+  firstgid: number;
+  image?: string;
+  columns?: number;
+  tilecount?: number;
+  tilewidth?: number;
+  tileheight?: number;
 }
 
 export interface MapData {
@@ -13,6 +29,7 @@ export interface MapData {
   tilewidth: number;
   tileheight: number;
   layers: MapLayer[];
+  tilesets?: MapTileset[];
 }
 
 export interface TileData {

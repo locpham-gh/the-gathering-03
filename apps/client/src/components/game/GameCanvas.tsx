@@ -3,11 +3,12 @@ import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Internal modules
-import { MAP_CONFIG } from "./config";
+import type { MapVersion } from "./config";
 import { MapRender } from "./MapRender";
+import { ObjectLayer } from "./ObjectLayer";
 import { Player } from "./Player";
 import { OtherPlayer } from "./OtherPlayer";
-import { ZONES } from "./zones";
+import { getZones } from "./zones";
 
 // Types
 import type { Zone } from "./zones";
@@ -18,6 +19,7 @@ const pixiSettings = PIXI.settings as unknown as {
   RENDER_OPTIONS: { hello: boolean }; 
   ROUND_PIXELS: boolean;
 };
+const FIXED_MAP_ZOOM = 1;
 
 if (pixiSettings.RENDER_OPTIONS) {
   pixiSettings.RENDER_OPTIONS.hello = false;
@@ -40,8 +42,50 @@ interface MapData {
   height: number;
   tilewidth: number;
   tileheight: number;
-  layers: { name: string; data: number[] }[];
+  layers: { name: string; data: number[]; order?: number; properties?: RawLayerProperty[] }[];
+  tilesets?: {
+    firstgid: number;
+    image?: string;
+    columns?: number;
+    tilecount?: number;
+    tilewidth?: number;
+    tileheight?: number;
+  }[];
 }
+
+interface RawLayer {
+  name: string;
+  type?: string;
+  data?: number[];
+  layers?: RawLayer[];
+  properties?: RawLayerProperty[];
+}
+
+interface RawLayerProperty {
+  name: string;
+  value: unknown;
+}
+
+const flattenTileLayers = (
+  layers: RawLayer[],
+): { name: string; data: number[]; order: number; properties?: RawLayerProperty[] }[] => {
+  const result: { name: string; data: number[]; order: number; properties?: RawLayerProperty[] }[] = [];
+  let order = 0;
+  const walk = (list: RawLayer[], prefix = "") => {
+    for (const layer of list) {
+      const nextName = prefix ? `${prefix}/${layer.name}` : layer.name;
+      if (layer.type === "tilelayer" && Array.isArray(layer.data)) {
+        result.push({ name: nextName, data: layer.data, order: order++, properties: layer.properties });
+        continue;
+      }
+      if (layer.type === "group" && Array.isArray(layer.layers)) {
+        walk(layer.layers, nextName);
+      }
+    }
+  };
+  walk(layers);
+  return result;
+};
 
 interface GameCanvasProps {
   onZoneChange?: (zone: Zone | null) => void;
@@ -57,9 +101,15 @@ interface GameCanvasProps {
   localCameraEnabled?: boolean;
   onViewportChange?: (next: { x: number; y: number; scale: number }) => void;
   onLocalPlayerRenderPosition?: (next: { x: number; y: number }) => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => number | null;
+  updatePosition: (
+    x: number,
+    y: number,
+    isSitting?: boolean,
+    intent?: { dx: number; dy: number },
+  ) => number | null;
   localCharacter2d?: string;
   authoritativeSelf?: RemotePlayer | null;
+  mapVersion?: MapVersion;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -79,6 +129,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   updatePosition,
   localCharacter2d,
   authoritativeSelf,
+  mapVersion = "v3",
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -86,7 +137,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     h: window.innerHeight,
   });
   const worldRef = useRef<PIXI.Container>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(FIXED_MAP_ZOOM);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const dragLastRef = useRef<{ x: number; y: number } | null>(null);
@@ -126,24 +177,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    let mapFile = "/maps/office.json";
-    if (MAP_CONFIG.version === "v2") mapFile = "/maps/office_map_new.json";
-    else if (MAP_CONFIG.version === "v3") mapFile = "/maps/classroom_map.json";
+    let mapFile = "/maps/classroom_map.json";
+    if (mapVersion === "v2") mapFile = "/maps/office_map_new.json";
+    else if (mapVersion === "v4") mapFile = "/maps/office.tmj";
 
     fetch(mapFile)
       .then((res) => res.json())
-      .then((data) => setMapData(data));
-  }, []);
+      .then((data) => {
+        const normalized: MapData = {
+          width: data.width,
+          height: data.height,
+          tilewidth: data.tilewidth,
+          tileheight: data.tileheight,
+          layers: flattenTileLayers(data.layers || []),
+          tilesets: data.tilesets || [],
+        };
+        setMapData(normalized);
+      });
+  }, [mapVersion]);
 
   useEffect(() => {
     if (!cameraZoomTarget) return;
-    setZoom((prev) => Math.max(1.05, Math.min(1.8, prev + 0.12)));
+    setZoom(FIXED_MAP_ZOOM);
   }, [cameraZoomTarget?.id, cameraZoomTarget]);
 
   useEffect(() => {
     if (!resetCameraSignal) return;
     setPanOffset((prev) => ({ x: prev.x * 0.35, y: prev.y * 0.35 }));
-    setZoom((prev) => prev + (1 - prev) * 0.4);
+    setZoom(FIXED_MAP_ZOOM);
     panVelocityRef.current = { x: 0, y: 0 };
     stopInertia();
   }, [resetCameraSignal]);
@@ -151,6 +212,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     return () => stopInertia();
   }, []);
+
+  useEffect(() => {
+    if (!worldRef.current) return;
+    worldRef.current.sortableChildren = true;
+  }, [worldRef]);
 
   if (!mapData) {
     return (
@@ -160,14 +226,53 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     );
   }
 
+  const cameraCenterX = authoritativeSelf?.x ?? 0;
+  const cameraCenterY = authoritativeSelf?.y ?? 0;
+  const cullMargin = 256;
+  const viewportBounds = {
+    left: cameraCenterX - dimensions.w / 2 - cullMargin,
+    top: cameraCenterY - dimensions.h / 2 - cullMargin,
+    right: cameraCenterX + dimensions.w / 2 + cullMargin,
+    bottom: cameraCenterY + dimensions.h / 2 + cullMargin,
+  };
+  const otherPlayers = Object.values(players).filter((player) => {
+    if (player.id === selfPlayerId) return false;
+    const dx = player.x - cameraCenterX;
+    const dy = player.y - cameraCenterY;
+    return dx * dx + dy * dy <= 2200 * 2200;
+  });
+  const objectLayerNames = new Set(
+    mapData.layers
+      .filter((layer) => {
+        const normalized = layer.name.toLowerCase();
+        const hasCollides =
+          Array.isArray(layer.properties) &&
+          layer.properties.some(
+            (property) =>
+              property.name.toLowerCase() === "collides" && Boolean(property.value),
+          );
+        return (
+          hasCollides ||
+          normalized.includes("layer 3") ||
+          normalized.includes("layer 4") ||
+          normalized.includes("object") ||
+          normalized.includes("furniture") ||
+          normalized.includes("wall") ||
+          normalized.includes("block") ||
+          (layer.order ?? 0) >= 2
+        );
+      })
+      .map((layer) => layer.name),
+  );
+
   return (
     <div
       className="w-full h-full"
       style={{ touchAction: "none" }}
       onWheel={(e) => {
-        stopInertia();
-        const delta = e.deltaY > 0 ? -0.03 : 0.03;
-        setZoom((prev) => Math.max(0.75, Math.min(1.9, prev + delta)));
+        // Let global non-passive listeners handle browser zoom prevention.
+        // Keep local wheel event inert to avoid passive-listener warnings.
+        e.stopPropagation();
       }}
       onMouseDown={(e) => {
         if (e.button !== 0) return;
@@ -206,15 +311,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }}
       onTouchMove={(e) => {
         if (e.touches.length < 2) return;
-        const [a, b] = [e.touches[0], e.touches[1]];
-        const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-        if (!pinchDistanceRef.current) {
-          pinchDistanceRef.current = distance;
-          return;
-        }
-        const ratio = distance / pinchDistanceRef.current;
-        setZoom((prev) => Math.max(0.75, Math.min(1.9, prev * ratio)));
-        pinchDistanceRef.current = distance;
+        e.preventDefault();
+        pinchDistanceRef.current = null;
       }}
       onTouchEnd={() => {
         pinchDistanceRef.current = null;
@@ -233,8 +331,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         style={{ imageRendering: "pixelated" }}
       >
         <Container ref={worldRef}>
-          <MapRender mapData={mapData} />
-          
+          <MapRender
+            mapData={mapData}
+            mapVersion={mapVersion}
+            renderMode="bottom"
+            viewportBounds={viewportBounds}
+            excludeLayerNames={objectLayerNames}
+          />
+          <Container sortableChildren>
+            <ObjectLayer
+              mapData={mapData}
+              mapVersion={mapVersion}
+              viewportBounds={viewportBounds}
+            />
           <Player
             mapData={mapData}
             onZoneChange={onZoneChange}
@@ -255,15 +364,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             authoritativePosition={authoritativeSelf}
             cameraFocusTarget={cameraFocusTarget}
             showCameraBadge={localCameraEnabled}
+            zones={getZones(mapVersion)}
           />
 
-          {Object.values(players)
-            .filter((player) => player.id !== selfPlayerId)
-            .map((player) => (
+          {otherPlayers.map((player) => (
             <OtherPlayer key={player.id} player={player} />
             ))}
-
-          <ZoneDebugRenderer zones={ZONES} />
+          </Container>
+          <MapRender
+            mapData={mapData}
+            mapVersion={mapVersion}
+            renderMode="top"
+            viewportBounds={viewportBounds}
+            excludeLayerNames={objectLayerNames}
+          />
+          <ZoneDebugRenderer zones={getZones(mapVersion)} />
         </Container>
       </Stage>
     </div>
@@ -291,3 +406,4 @@ const ZoneDebugRenderer: React.FC<{ zones: Zone[] }> = ({ zones }) => {
     </Container>
   );
 };
+

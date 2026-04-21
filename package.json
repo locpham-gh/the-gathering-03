@@ -10,9 +10,11 @@
     "dev": "concurrently \"bun run --cwd apps/server dev\" \"bun run --cwd apps/client dev\"",
     "bench:20": "bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench20 --clients 20 --duration 60",
     "bench:50": "bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench50 --clients 50 --duration 60",
-    "bench:100": "bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench100 --clients 100 --duration 60"
+    "bench:100": "bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench100 --clients 100 --duration 60",
+    "bench:200": "bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench200 --clients 200 --duration 60"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "msgpackr": "^1.11.10"
   }
 }

@@ -27,7 +27,7 @@ export function ActivityPanel({ events }: ActivityPanelProps) {
           <p className="text-xs text-slate-400 mt-2">Chưa có hoạt động realtime.</p>
         )}
         <div className="mt-2 space-y-3">
-          {Object.entries(grouped).map(([day, dayEvents]) => (
+          {(Object.entries(grouped) as [string, RoomActivityEvent[]][]).map(([day, dayEvents]) => (
             <div key={day}>
               <p className="text-[11px] font-semibold text-slate-500 mb-1">{day}</p>
               <ul className="text-xs text-slate-600 space-y-1.5">

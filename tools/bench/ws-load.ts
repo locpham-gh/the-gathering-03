@@ -4,6 +4,8 @@
  *   bun tools/bench/ws-load.ts --url ws://localhost:3000/ws?room=bench --clients 20 --duration 30
  */
 
+import { pack } from "msgpackr";
+
 type Args = Record<string, string>;
 
 const parseArgs = (): Args => {
@@ -21,6 +23,7 @@ const args = parseArgs();
 const url = args.url || "ws://localhost:3000/ws?room=bench";
 const clients = Number(args.clients || 20);
 const durationSeconds = Number(args.duration || 30);
+const apiBase = args.api || "http://localhost:3000";
 
 let opened = 0;
 let closed = 0;
@@ -37,7 +40,7 @@ for (let i = 0; i < clients; i += 1) {
   ws.onopen = () => {
     opened += 1;
     ws.send(
-      JSON.stringify({
+      pack({
         type: "join",
         payload: { displayName: `bench-${i}`, character2d: "Adam" },
       }),
@@ -58,7 +61,7 @@ const inputTimer = setInterval(() => {
     if (ws.readyState !== ws.OPEN) continue;
     inputSent += 1;
     ws.send(
-      JSON.stringify({
+      pack({
         type: "input",
         payload: {
           seq: inputSent,
@@ -71,7 +74,7 @@ const inputTimer = setInterval(() => {
   }
 }, 100);
 
-setTimeout(() => {
+setTimeout(async () => {
   clearInterval(inputTimer);
   for (const ws of sockets) ws.close();
   const elapsed = (Date.now() - start) / 1000;
@@ -86,6 +89,12 @@ setTimeout(() => {
     inputSent,
     msgsPerSec: Number((messages / elapsed).toFixed(2)),
   };
+  try {
+    const res = await fetch(`${apiBase}/api/realtime/metrics`);
+    summary["serverMetrics"] = await res.json();
+  } catch {
+    summary["serverMetrics"] = "unavailable";
+  }
   console.log(JSON.stringify(summary, null, 2));
   process.exit(0);
 }, durationSeconds * 1000);

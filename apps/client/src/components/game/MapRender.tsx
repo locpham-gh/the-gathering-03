@@ -1,17 +1,59 @@
 import React from "react";
 import { Container, Sprite } from "@pixi/react";
-import { getTileDataForGid } from "./lib/tileUtils";
+import { getTileDataForGid, getTileDataForGidFromTilesets } from "./lib/tileUtils";
 import { WORLD_CONFIG } from "./lib/constants";
 import type { MapData } from "./lib/gameTypes";
+import type { MapVersion } from "./config";
 
 interface MapRenderProps {
   mapData: MapData;
+  mapVersion: MapVersion;
+  renderMode?: "all" | "bottom" | "top";
+  viewportBounds?: { left: number; top: number; right: number; bottom: number } | null;
+  excludeLayerNames?: Set<string>;
 }
 
-const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
+const TOP_LAYER_KEYWORDS = [
+  "top",
+  "upper",
+  "above",
+  "overlay",
+  "roof",
+  "ceiling",
+  "foreground",
+  "tile layer 4",
+  "tile layer 5",
+];
+
+const hasTruthyProperty = (layer: MapData["layers"][number], key: string) =>
+  Array.isArray(layer.properties) &&
+  layer.properties.some(
+    (property) => property.name.toLowerCase() === key && Boolean(property.value),
+  );
+
+const isTopLayer = (layer: MapData["layers"][number]) => {
+  if (hasTruthyProperty(layer, "renderaboveplayers")) return true;
+  const name = layer.name.toLowerCase();
+  return TOP_LAYER_KEYWORDS.some((keyword) => name.includes(keyword));
+};
+
+const MapRenderComponent: React.FC<MapRenderProps> = ({
+  mapData,
+  mapVersion,
+  renderMode = "all",
+  viewportBounds = null,
+  excludeLayerNames,
+}) => {
+  const layersToRender = mapData.layers.filter((layer) => {
+    if (excludeLayerNames?.has(layer.name)) return false;
+    if (renderMode === "all") return true;
+    const topLayer = isTopLayer(layer);
+    return renderMode === "top" ? topLayer : !topLayer;
+  });
+
   return (
     <Container>
-      {mapData.layers.map((layer, layerIdx) => {
+      {layersToRender.map((layer, layerIdx) => {
         if (!layer.data) return null;
 
         return (
@@ -21,7 +63,18 @@ const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
 
               const x = (index % mapData.width) * WORLD_CONFIG.TILE_SIZE_VIRTUAL;
               const y = Math.floor(index / mapData.width) * WORLD_CONFIG.TILE_SIZE_VIRTUAL;
-              const tileData = getTileDataForGid(tileId);
+              if (
+                viewportBounds &&
+                (x > viewportBounds.right ||
+                  y > viewportBounds.bottom ||
+                  x + WORLD_CONFIG.TILE_SIZE_VIRTUAL < viewportBounds.left ||
+                  y + WORLD_CONFIG.TILE_SIZE_VIRTUAL < viewportBounds.top)
+              ) {
+                return null;
+              }
+              const tileData =
+                getTileDataForGidFromTilesets(tileId, mapData.tilesets) ||
+                getTileDataForGid(tileId, mapVersion);
 
               if (!tileData) return null;
               const { texture, flipX, flipY } = tileData;

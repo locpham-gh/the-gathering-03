@@ -9,17 +9,21 @@ import { roomRoutes } from "./routes/room.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 import crypto from "crypto";
+import { pack, unpack } from "msgpackr";
+import { REALTIME_CONFIG } from "@the-gathering/shared";
 import { metrics } from "./realtime/metrics.js";
 import {
   REALTIME_PROTOCOL_VERSION,
   type PresenceStatus,
   type RoomActivityEvent,
   type RoomChatMessage,
+  type RoomSnapshotPayload,
 } from "./realtime/protocol.js";
 import {
   InMemoryRealtimeStateAdapter,
   applyInputAuthoritatively,
   createInitialPlayerState,
+  getNearbyPlayers,
 } from "./realtime/state.js";
 import { createSnapshotBridge } from "./realtime/redisBridge.js";
 
@@ -33,15 +37,59 @@ const jwtConfig = jwt({
 
 const realtimeState = new InMemoryRealtimeStateAdapter();
 const HEARTBEAT_TIMEOUT_MS = 15000;
-const SNAPSHOT_TICK_MS = 50;
+const SNAPSHOT_TICK_MS = REALTIME_CONFIG.SNAPSHOT_TICK_MS;
 const AWAY_THRESHOLD_MS = 20000;
+const SNAPSHOT_KEYFRAME_INTERVAL = REALTIME_CONFIG.SNAPSHOT_KEYFRAME_INTERVAL;
+const SNAPSHOT_NEAR_RADIUS = REALTIME_CONFIG.SNAPSHOT_NEAR_RADIUS;
+const SNAPSHOT_FAR_RATE_TICKS = REALTIME_CONFIG.SNAPSHOT_FAR_RATE_TICKS;
 const instanceId = crypto.randomUUID();
 const snapshotBridge = createSnapshotBridge();
 const realtimeDebug = process.env.REALTIME_DEBUG === "true";
 
 const app = new Elysia();
 const serializeRealtimeMessage = (type: string, payload: unknown) =>
-  JSON.stringify({ type, payload });
+  pack({ type, payload });
+
+const parseRealtimeMessage = (rawMessage: unknown): { type: string; payload: any } | null => {
+  try {
+    if (rawMessage instanceof Uint8Array) {
+      return unpack(rawMessage) as { type: string; payload: any };
+    }
+    if (rawMessage instanceof ArrayBuffer) {
+      return unpack(new Uint8Array(rawMessage)) as { type: string; payload: any };
+    }
+  } catch (error) {
+    if (realtimeDebug) {
+      console.warn("Failed to parse realtime message", error);
+    }
+  }
+  return null;
+};
+
+const rawMessageByteLength = (rawMessage: unknown): number => {
+  if (rawMessage instanceof Uint8Array) return rawMessage.byteLength;
+  if (rawMessage instanceof ArrayBuffer) return rawMessage.byteLength;
+  return 0;
+};
+
+const playerSignature = (player: any): string =>
+  JSON.stringify([
+    Math.round(player.x),
+    Math.round(player.y),
+    Boolean(player.isSitting),
+    Number(player.inputSeq || 0),
+    player.profile?.displayName || "",
+    player.profile?.avatarUrl || "",
+    player.profile?.character2d || "",
+    player.profile?.status || "active",
+    Boolean(player.profile?.cameraEnabled),
+  ]);
+
+const isNearPlayer = (self: any, other: any) => {
+  const dx = Number(other.x || 0) - Number(self.x || 0);
+  const dy = Number(other.y || 0) - Number(self.y || 0);
+  return dx * dx + dy * dy <= SNAPSHOT_NEAR_RADIUS * SNAPSHOT_NEAR_RADIUS;
+};
 
 // 1. Plugins & Routes
 app.use(cors());
@@ -76,7 +124,7 @@ app.get(
 // 3. WebSocket Setup
 app.ws("/ws", {
   query: t.Object({ room: t.String() }),
-  body: t.Object({ type: t.String(), payload: t.Any() }),
+  body: t.Any(),
   open(ws: any) {
     const roomId = ws.data.query.room;
     if (realtimeDebug) {
@@ -87,31 +135,53 @@ app.ws("/ws", {
 
     const room = realtimeState.getOrCreateRoom(roomId);
     room.players.set(ws.id, createInitialPlayerState(ws.id, {}));
+    room.sockets.set(ws.id, ws);
     room.seq += 1;
     metrics.setGauge("rooms_active", realtimeState.roomCount());
     metrics.setGauge("players_active", realtimeState.playerCount());
 
-    const players = Object.fromEntries(room.players.entries());
+    const players = getNearbyPlayers(room, ws.id);
     ws.send(
-      serializeRealtimeMessage("welcome", {
+      ((data) => {
+        metrics.observeWsOutBytes(data.byteLength);
+        return data;
+      })(serializeRealtimeMessage("welcome", {
         protocolVersion: REALTIME_PROTOCOL_VERSION,
         playerId: ws.id,
         roomId,
-      }),
+      })),
     );
     metrics.inc("ws_messages_sent");
 
-    ws.send(
-      serializeRealtimeMessage("snapshot", {
-        roomId,
-        seq: room.seq,
-        ts: Date.now(),
-        players,
-      }),
+    const initialSnapshot: RoomSnapshotPayload = {
+      roomId,
+      seq: room.seq,
+      ts: Date.now(),
+      players,
+      isDelta: false,
+    };
+    {
+      const data = serializeRealtimeMessage("snapshot", initialSnapshot);
+      ws.send(data);
+      metrics.observeWsOutBytes(data.byteLength);
+    }
+    room.snapshotCacheByRecipient.set(
+      ws.id,
+      new Map(
+        Object.entries(players).map(([playerId, current]) => [
+          playerId,
+          playerSignature(current),
+        ]),
+      ),
     );
+    room.lastKeyframeSeqByRecipient.set(ws.id, room.seq);
     metrics.inc("ws_messages_sent");
   },
-  message(ws: any, { type, payload }: any) {
+  message(ws: any, rawMessage: unknown) {
+    metrics.observeWsInBytes(rawMessageByteLength(rawMessage));
+    const envelope = parseRealtimeMessage(rawMessage);
+    if (!envelope) return;
+    const { type, payload } = envelope;
     const roomId = ws.data.query.room;
     metrics.inc("ws_messages_received");
     const room = realtimeState.getOrCreateRoom(roomId);
@@ -151,7 +221,11 @@ app.ws("/ws", {
       const ackSeq =
         typeof payload?.lastSeq === "number" ? payload.lastSeq : room.seq;
       player.lastAckSeq = ackSeq;
-      ws.send(serializeRealtimeMessage("heartbeat_ack", { seq: ackSeq, ts: Date.now() }));
+      {
+        const data = serializeRealtimeMessage("heartbeat_ack", { seq: ackSeq, ts: Date.now() });
+        ws.send(data);
+        metrics.observeWsOutBytes(data.byteLength);
+      }
       metrics.inc("ws_messages_sent");
       return;
     }
@@ -237,6 +311,16 @@ app.ws("/ws", {
         dy: Number(payload?.dy ?? 0),
         isSitting: Boolean(payload?.isSitting),
       };
+      if (realtimeDebug && nextInput.seq % 20 === 0) {
+        console.log("🎮 input", {
+          roomId,
+          wsId: ws.id,
+          seq: nextInput.seq,
+          dx: Number(nextInput.dx.toFixed(3)),
+          dy: Number(nextInput.dy.toFixed(3)),
+          isSitting: nextInput.isSitting,
+        });
+      }
       const queue = room.pendingInputs.get(ws.id) || [];
       // Keep queue ordered and bounded to avoid stale buildup.
       if (queue.length > 24) queue.splice(0, queue.length - 24);
@@ -251,25 +335,11 @@ app.ws("/ws", {
       return;
     }
 
-    // Backward compatibility for old clients that still send absolute positions.
-    if (type === "move") {
-      const nextX = Number(payload?.x ?? player.x);
-      const nextY = Number(payload?.y ?? player.y);
-      const dx = Math.max(-1, Math.min(1, (nextX - player.x) / 16));
-      const dy = Math.max(-1, Math.min(1, (nextY - player.y) / 16));
-      const queue = room.pendingInputs.get(ws.id) || [];
-      queue.push({
-        seq: player.inputSeq + 1,
-        dx,
-        dy,
-        isSitting: Boolean(payload?.isSitting),
-      });
-      queue.sort((a, b) => a.seq - b.seq);
-      room.pendingInputs.set(ws.id, queue);
-    }
   },
   close(ws: any) {
     const roomId = ws.data.query.room;
+    const room = realtimeState.getRoom(roomId);
+    if (room) room.sockets.delete(ws.id);
     const roomBeforeClose = realtimeState.getRoom(roomId);
     const playerBeforeClose = roomBeforeClose?.players.get(ws.id);
     if (realtimeDebug) {
@@ -337,25 +407,109 @@ setInterval(() => {
       const player = room.players.get(playerId);
       if (!player) continue;
       for (const input of inputQueue) {
+        const beforeX = player.x;
+        const beforeY = player.y;
         const applied = applyInputAuthoritatively(player, input);
-        if (applied) metrics.inc("ws_input_applied");
-        else metrics.inc("ws_input_rejected");
+        if (applied) {
+          metrics.inc("ws_input_applied");
+          if (realtimeDebug && input.seq % 20 === 0) {
+            console.log("✅ applied", {
+              roomId: room.roomId,
+              playerId,
+              seq: input.seq,
+              from: { x: Math.round(beforeX), y: Math.round(beforeY) },
+              to: { x: Math.round(player.x), y: Math.round(player.y) },
+            });
+          }
+        } else {
+          metrics.inc("ws_input_rejected");
+          if (realtimeDebug) {
+            console.log("⛔ rejected", {
+              roomId: room.roomId,
+              playerId,
+              seq: input.seq,
+              inputSeq: player.inputSeq,
+            });
+          }
+        }
       }
     }
     room.pendingInputs.clear();
 
     room.seq += 1;
-    const players = Object.fromEntries(room.players.entries());
-    const snapshot = { roomId: room.roomId, seq: room.seq, ts: now, players };
-    app.server?.publish(`room-${room.roomId}`, serializeRealtimeMessage("snapshot", snapshot));
-    snapshotBridge.publish(room.roomId, { instanceId, snapshot }).catch(() => {});
+    let snapshotRecipients = 0;
+    let snapshotPlayersTotal = 0;
+    let snapshotBytesTotal = 0;
+    for (const [playerId, socket] of room.sockets.entries()) {
+      const selfPlayer = room.players.get(playerId);
+      if (!selfPlayer) continue;
+      const players = getNearbyPlayers(room, playerId);
+      const previousSignatures = room.snapshotCacheByRecipient.get(playerId) || new Map<string, string>();
+      const nextSignatures = new Map<string, string>();
+      const changedPlayers: Record<string, unknown> = {};
+      const shouldSendFar = room.seq % SNAPSHOT_FAR_RATE_TICKS === 0;
+      const lastKeyframeSeq = room.lastKeyframeSeqByRecipient.get(playerId) || 0;
+      const forceKeyframe = room.seq - lastKeyframeSeq >= SNAPSHOT_KEYFRAME_INTERVAL;
+      for (const [visibleId, visiblePlayer] of Object.entries(players)) {
+        const sig = playerSignature(visiblePlayer);
+        nextSignatures.set(visibleId, sig);
+        const changed = previousSignatures.get(visibleId) !== sig;
+        if (forceKeyframe) {
+          changedPlayers[visibleId] = visiblePlayer;
+          continue;
+        }
+        if (visibleId === playerId || isNearPlayer(selfPlayer, visiblePlayer)) {
+          if (changed || shouldSendFar) changedPlayers[visibleId] = visiblePlayer;
+          continue;
+        }
+        if (changed || shouldSendFar) {
+          changedPlayers[visibleId] = visiblePlayer;
+        }
+      }
+      const removedPlayerIds: string[] = [];
+      for (const previousId of previousSignatures.keys()) {
+        if (!nextSignatures.has(previousId)) {
+          removedPlayerIds.push(previousId);
+        }
+      }
+      room.snapshotCacheByRecipient.set(playerId, nextSignatures);
+      if (Object.keys(changedPlayers).length === 0 && removedPlayerIds.length === 0) {
+        continue;
+      }
+      const snapshot: RoomSnapshotPayload = {
+        roomId: room.roomId,
+        seq: room.seq,
+        ts: now,
+        players: changedPlayers as RoomSnapshotPayload["players"],
+        removedPlayerIds: forceKeyframe ? [] : removedPlayerIds,
+        isDelta: !forceKeyframe,
+      };
+      try {
+        const serialized = serializeRealtimeMessage("snapshot", snapshot);
+        socket.send(serialized);
+        metrics.observeWsOutBytes(serialized.byteLength);
+        metrics.observeKeyframe(forceKeyframe);
+        if (forceKeyframe) room.lastKeyframeSeqByRecipient.set(playerId, room.seq);
+        snapshotRecipients += 1;
+        snapshotPlayersTotal += Object.keys(changedPlayers).length;
+        snapshotBytesTotal += serialized.byteLength;
+        metrics.inc("ws_messages_sent");
+      } catch {
+        // Ignore transient socket send errors; heartbeat cleanup handles stale clients.
+      }
+    }
+    metrics.observeSnapshotStats(
+      snapshotPlayersTotal,
+      snapshotRecipients,
+      snapshotBytesTotal,
+    );
     metrics.inc("ws_snapshot_broadcasts");
-    metrics.inc("ws_messages_sent");
   }
 
   metrics.setGauge("rooms_active", realtimeState.roomCount());
   metrics.setGauge("players_active", realtimeState.playerCount());
   metrics.observeTickMs(Date.now() - tickStart);
+  metrics.endTick();
 }, SNAPSHOT_TICK_MS);
 
 app.listen(process.env.PORT || 3000);

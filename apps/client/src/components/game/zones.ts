@@ -1,4 +1,4 @@
-import { MAP_CONFIG } from "./config";
+import type { MapVersion } from "./config";
 
 export type ZoneType = "library";
 
@@ -12,16 +12,18 @@ export interface Zone {
   description: string;
 }
 
-export const ZONES: Zone[] = [
-  {
-    id: "library",
-    label: "Library",
-    ...(MAP_CONFIG.version === "v3"
-      ? { x: 1984, y: 1408, width: 512, height: 832 } // Classroom layout (Extended to 5 rows)
-      : { x: 2000, y: 350, width: 600, height: 600 }), // Office layout
-    description: "Knowledge resources and documentation",
-  },
-];
+export function getZones(mapVersion: MapVersion): Zone[] {
+  return [
+    {
+      id: "library",
+      label: "Library",
+      ...(mapVersion === "v3"
+        ? { x: 1984, y: 1408, width: 512, height: 832 }
+        : { x: 2000, y: 350, width: 600, height: 600 }),
+      description: "Knowledge resources and documentation",
+    },
+  ];
+}
 
 export function checkZoneCollision(
   playerX: number,

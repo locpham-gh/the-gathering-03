@@ -54,42 +54,44 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
 
   const col = baseCol + frame;
   const texture = getCharacterTexture(character2d, row, col);
+  const footX = Math.round(x + 32);
+  const footY = Math.round(y + 64);
 
   return (
     <>
       <Sprite
         texture={texture}
-        x={Math.round(x)}
-        y={Math.round(y - 64)}
+        x={footX}
+        y={footY}
         width={64}
         height={128}
-        anchor={0}
-        zIndex={Math.round(y)}
+        anchor={{ x: 0.5, y: 1 }}
+        zIndex={footY}
         tint={tint}
       />
       {showCameraBadge && (
         <>
           <Sprite
             texture={PIXI.Texture.WHITE}
-            x={Math.round(x + 20)}
-            y={Math.round(y - 76)}
+            x={Math.round(footX - 12)}
+            y={Math.round(footY - 140)}
             width={24}
             height={14}
             anchor={0}
             tint={0x111827}
             alpha={0.86}
-            zIndex={Math.round(y) + 1}
+            zIndex={footY + 1}
           />
           <Sprite
             texture={PIXI.Texture.WHITE}
-            x={Math.round(x + 38)}
-            y={Math.round(y - 72)}
+            x={Math.round(footX + 6)}
+            y={Math.round(footY - 136)}
             width={4}
             height={6}
             anchor={0}
             tint={0x6b7280}
             alpha={0.95}
-            zIndex={Math.round(y) + 2}
+            zIndex={footY + 2}
           />
         </>
       )}

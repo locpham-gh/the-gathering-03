@@ -16,14 +16,19 @@ import { useCamera } from "./hooks/useCamera";
 
 // Components
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
-import { ZONES, checkZoneCollision } from "./zones";
+import { checkZoneCollision } from "./zones";
 
 interface PlayerProps {
   mapData: MapData;
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => number | null;
+  updatePosition: (
+    x: number,
+    y: number,
+    isSitting?: boolean,
+    intent?: { dx: number; dy: number },
+  ) => number | null;
   players: Record<string, RemotePlayer>;
   selfPlayerId?: string | null;
   onNearbyPlayer?: (playerId: string | null) => void;
@@ -38,6 +43,7 @@ interface PlayerProps {
   authoritativePosition?: RemotePlayer | null;
   cameraFocusTarget?: { x: number; y: number; id: number } | null;
   showCameraBadge?: boolean;
+  zones: Zone[];
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -60,7 +66,9 @@ export const Player: React.FC<PlayerProps> = ({
   authoritativePosition,
   cameraFocusTarget,
   showCameraBadge = false,
+  zones,
 }) => {
+  const realtimeDebug = import.meta.env.VITE_REALTIME_DEBUG === "true";
   // 1. Local State
   const [x, setX] = useState(WORLD_CONFIG.PLAYER_SPAWN_X);
   const [y, setY] = useState(WORLD_CONFIG.PLAYER_SPAWN_Y);
@@ -81,6 +89,8 @@ export const Player: React.FC<PlayerProps> = ({
     Array<{ seq: number; x: number; y: number; isSitting?: boolean }>
   >([]);
   const lastAckSeqRef = useRef(0);
+  const lastIntentSentRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const debugCounterRef = useRef(0);
 
   // 3. Custom Logic Hooks
   const { checkCollision } = useCollision(mapData);
@@ -220,6 +230,20 @@ export const Player: React.FC<PlayerProps> = ({
       const driftDist = Math.sqrt(
         correctedDriftX * correctedDriftX + correctedDriftY * correctedDriftY,
       );
+      if (realtimeDebug && driftDist > 24) {
+        debugCounterRef.current += 1;
+        if (debugCounterRef.current % 10 === 0) {
+          console.log("[realtime] drift", {
+            drift: Number(driftDist.toFixed(2)),
+            isPressingMove,
+            targetX: Math.round(targetX),
+            targetY: Math.round(targetY),
+            localX: Math.round(x),
+            localY: Math.round(y),
+            authoritativeBlocked,
+          });
+        }
+      }
       if (!hasSyncedAuthoritativeRef.current || driftDist > 220) {
         hasSyncedAuthoritativeRef.current = true;
         setX(safeTargetX);
@@ -262,24 +286,54 @@ export const Player: React.FC<PlayerProps> = ({
     let nextX = x;
     let nextY = y;
     const speed = WORLD_CONFIG.MOVEMENT_SPEED;
-
-    if (keys.has("w") || keys.has("arrowup")) nextY -= speed * delta;
-    if (keys.has("s") || keys.has("arrowdown")) nextY += speed * delta;
-    if (keys.has("a") || keys.has("arrowleft")) nextX -= speed * delta;
-    if (keys.has("d") || keys.has("arrowright")) nextX += speed * delta;
+    let intentX = 0;
+    let intentY = 0;
+    if (keys.has("w") || keys.has("arrowup")) intentY -= 1;
+    if (keys.has("s") || keys.has("arrowdown")) intentY += 1;
+    if (keys.has("a") || keys.has("arrowleft")) intentX -= 1;
+    if (keys.has("d") || keys.has("arrowright")) intentX += 1;
+    if (intentX !== 0 && intentY !== 0) {
+      // Keep diagonal speed consistent (Gather-like normalized intent).
+      const inv = 1 / Math.sqrt(2);
+      intentX *= inv;
+      intentY *= inv;
+    }
+    nextX += intentX * speed * delta;
+    nextY += intentY * speed * delta;
 
     const dx = nextX - x;
     const dy = nextY - y;
 
+    let resolvedX = x;
+    let resolvedY = y;
     if (dx !== 0 || dy !== 0) {
       setIsMoving(true);
       setDirection((prevDir) => getNewDirection(dx, dy, prevDir));
 
-      // Apply collision
-      if (!checkCollision(nextX, nextY)) {
-        setX(nextX);
-        setY(nextY);
+      // Axis-separated collision to avoid hard-stuck jitter near corners/objects.
+      const canMoveX = !checkCollision(nextX, y);
+      const canMoveY = !checkCollision(x, nextY);
+      if (realtimeDebug && (!canMoveX || !canMoveY)) {
+        debugCounterRef.current += 1;
+        if (debugCounterRef.current % 15 === 0) {
+          console.log("[realtime] collision-block", {
+            canMoveX,
+            canMoveY,
+            nextX: Math.round(nextX),
+            nextY: Math.round(nextY),
+            currentX: Math.round(x),
+            currentY: Math.round(y),
+          });
+        }
       }
+      if (canMoveX) resolvedX = nextX;
+      if (canMoveY) resolvedY = nextY;
+      if (!canMoveX && !canMoveY && !checkCollision(nextX, nextY)) {
+        resolvedX = nextX;
+        resolvedY = nextY;
+      }
+      if (resolvedX !== x) setX(resolvedX);
+      if (resolvedY !== y) setY(resolvedY);
     } else {
       setIsMoving(false);
     }
@@ -293,10 +347,20 @@ export const Player: React.FC<PlayerProps> = ({
       updateCamera(x, y, delta);
     }
 
-    const actualX = checkCollision(nextX, nextY) ? x : nextX;
-    const actualY = checkCollision(nextX, nextY) ? y : nextY;
-    if (actualX !== x || actualY !== y || isSitting !== lastSyncSit.current) {
-      const sentSeq = updatePosition(actualX, actualY, isSitting);
+    const actualX = resolvedX;
+    const actualY = resolvedY;
+    const intentChanged =
+      intentX !== lastIntentSentRef.current.dx || intentY !== lastIntentSentRef.current.dy;
+    if (
+      actualX !== x ||
+      actualY !== y ||
+      isSitting !== lastSyncSit.current ||
+      intentChanged
+    ) {
+      const sentSeq = updatePosition(actualX, actualY, isSitting, {
+        dx: intentX,
+        dy: intentY,
+      });
       if (sentSeq) {
         pendingPredictionsRef.current.push({
           seq: sentSeq,
@@ -309,10 +373,11 @@ export const Player: React.FC<PlayerProps> = ({
         }
       }
       lastSyncSit.current = isSitting;
+      lastIntentSentRef.current = { dx: intentX, dy: intentY };
     }
 
     // Zone & Proximity Check
-    const zone = checkZoneCollision(actualX, actualY, ZONES);
+    const zone = checkZoneCollision(actualX, actualY, zones);
     if (zone !== currentZone) {
       setCurrentZone(zone);
       onZoneChange?.(zone);

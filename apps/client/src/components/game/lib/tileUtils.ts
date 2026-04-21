@@ -1,11 +1,12 @@
 import * as PIXI from "pixi.js";
-import { MAP_CONFIG } from "../config";
+import type { MapVersion } from "../config";
 import { WORLD_CONFIG, TILESET_CONFIG } from "./constants";
-import type { DirString, TileData } from "./gameTypes";
+import type { DirString, MapTileset, TileData } from "./gameTypes";
 
 export const baseTextures: Record<string, PIXI.BaseTexture> = {};
 export const textureCache: Record<number, PIXI.Texture> = {};
 export const characterTextureCache: Record<string, PIXI.Texture> = {};
+export const dynamicTileTextureCache: Record<string, PIXI.Texture> = {};
 
 export const DIR_COL_OFFSET: Record<DirString, number> = {
   right: 0,
@@ -17,7 +18,7 @@ export const DIR_COL_OFFSET: Record<DirString, number> = {
 /**
  * Maps a Tiled GID to a PIXI Texture and flip flags.
  */
-export function getTileDataForGid(rawGid: number): TileData | null {
+export function getTileDataForGid(rawGid: number, mapVersion: MapVersion): TileData | null {
   if (rawGid === 0) return null;
 
   const flipX = (rawGid & 0x80000000) !== 0;
@@ -32,17 +33,7 @@ export function getTileDataForGid(rawGid: number): TileData | null {
 
   const { SERENE_VILLAGE_FIRST_GID, INTERIORS_FIRST_GID, ROOM_BUILDER_COLS, SERENE_VILLAGE_COLS, INTERIORS_COLS } = TILESET_CONFIG;
 
-  if (MAP_CONFIG.version === "v1") {
-    if (gid >= 392) {
-      sourceImage = "/maps/Interiors_free_32x32.png";
-      columns = INTERIORS_COLS;
-      localId = gid - 392;
-    } else {
-      sourceImage = "/maps/Room_Builder_v2_32x32.png";
-      columns = ROOM_BUILDER_COLS;
-      localId = gid - 1;
-    }
-  } else if (MAP_CONFIG.version === "v3") {
+  if (mapVersion === "v3") {
     if (gid >= INTERIORS_FIRST_GID) {
       sourceImage = "/maps/Interiors_free_32x32.png";
       columns = INTERIORS_COLS;
@@ -86,6 +77,52 @@ export function getTileDataForGid(rawGid: number): TileData | null {
       new PIXI.Rectangle(tx, ty, WORLD_CONFIG.TILE_SIZE_RAW, WORLD_CONFIG.TILE_SIZE_RAW),
     );
     textureCache[gid] = texture;
+  }
+
+  return { texture, flipX, flipY };
+}
+
+export function getTileDataForGidFromTilesets(
+  rawGid: number,
+  tilesets: MapTileset[] | undefined,
+): TileData | null {
+  if (rawGid === 0 || !tilesets || tilesets.length === 0) return null;
+
+  const flipX = (rawGid & 0x80000000) !== 0;
+  const flipY = (rawGid & 0x40000000) !== 0;
+  const gid = rawGid & 0x1fffffff;
+  if (gid === 0) return null;
+
+  const sortedTilesets = [...tilesets]
+    .filter((t) => Number.isFinite(t.firstgid))
+    .sort((a, b) => b.firstgid - a.firstgid);
+  const activeTileset = sortedTilesets.find((t) => gid >= t.firstgid);
+  if (!activeTileset || !activeTileset.image) return null;
+
+  const tileSize = WORLD_CONFIG.TILE_SIZE_RAW;
+  const columns = activeTileset.columns || 1;
+  const localId = gid - activeTileset.firstgid;
+  if (localId < 0) return null;
+
+  const sourceImage = activeTileset.image.startsWith("/")
+    ? activeTileset.image
+    : `/maps/${activeTileset.image}`;
+
+  if (!baseTextures[sourceImage]) {
+    baseTextures[sourceImage] = PIXI.BaseTexture.from(sourceImage);
+  }
+
+  const tx = (localId % columns) * tileSize;
+  const ty = Math.floor(localId / columns) * tileSize;
+
+  const cacheKey = `${sourceImage}:${gid}`;
+  let texture = dynamicTileTextureCache[cacheKey];
+  if (!texture) {
+    texture = new PIXI.Texture(
+      baseTextures[sourceImage],
+      new PIXI.Rectangle(tx, ty, tileSize, tileSize),
+    );
+    dynamicTileTextureCache[cacheKey] = texture;
   }
 
   return { texture, flipX, flipY };

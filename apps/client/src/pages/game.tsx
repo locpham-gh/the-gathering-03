@@ -18,6 +18,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 import { resolveAvatarUrl } from "../lib/profile";
 import { loadPrejoinSettings, savePrejoinSettings } from "../lib/prejoin";
+import type { MapVersion } from "../components/game/config";
 
 export default function GamePage() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export default function GamePage() {
   const [activeView, setActiveView] = useState<
     "world" | "chat" | "community" | "calendar" | "ai"
   >("world");
+  const [roomMapVersion, setRoomMapVersion] = useState<MapVersion>("v3");
   const [cameraFocusTarget, setCameraFocusTarget] = useState<{
     x: number;
     y: number;
@@ -263,11 +265,51 @@ export default function GamePage() {
 
     // Join the room in the persistence layer
     if (roomId) {
-      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" }).catch((err) =>
-        console.error("Room join non-critical failure:", err),
-      );
+      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" })
+        .then((res) => {
+          const nextMapVersion = res?.room?.mapVersion;
+          if (nextMapVersion === "v2" || nextMapVersion === "v3" || nextMapVersion === "v4") {
+            setRoomMapVersion(nextMapVersion);
+          }
+        })
+        .catch((err) => console.error("Room join non-critical failure:", err));
     }
   }, [user, navigate, roomId]);
+
+  useEffect(() => {
+    // Gather-style behavior: prevent browser/page zoom in room.
+    // Map zoom is handled by GameCanvas camera only.
+    const onWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "+" || key === "-" || key === "=" || key === "0") {
+        event.preventDefault();
+      }
+    };
+    const onGesture = (event: Event) => {
+      event.preventDefault();
+    };
+
+    const wheelOptions: AddEventListenerOptions = { capture: true, passive: false };
+    document.addEventListener("wheel", onWheel, wheelOptions);
+    window.addEventListener("wheel", onWheel, wheelOptions);
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("gesturestart", onGesture, wheelOptions);
+    window.addEventListener("gesturechange", onGesture, wheelOptions);
+
+    return () => {
+      document.removeEventListener("wheel", onWheel, wheelOptions);
+      window.removeEventListener("wheel", onWheel, wheelOptions);
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("gesturestart", onGesture, wheelOptions);
+      window.removeEventListener("gesturechange", onGesture, wheelOptions);
+    };
+  }, []);
 
   const handleZoneChange = useCallback((zone: Zone | null) => {
     setCurrentZone(zone);
@@ -398,6 +440,7 @@ export default function GamePage() {
             updatePosition={updatePosition}
             localCharacter2d={user.character2d}
             authoritativeSelf={authoritativeSelf}
+            mapVersion={roomMapVersion}
           />
         </div>
 
@@ -433,7 +476,7 @@ export default function GamePage() {
           </div>
         )}
 
-        {cameraEnabled && (localRenderPosition || selfPlayer) && (
+        {activeView === "world" && cameraEnabled && (localRenderPosition || selfPlayer) && (
           <div
             className="absolute z-30 pointer-events-none rounded-xl overflow-hidden border-2 border-white bg-black shadow-[0_10px_30px_-10px_rgba(0,0,0,0.45)]"
             style={{

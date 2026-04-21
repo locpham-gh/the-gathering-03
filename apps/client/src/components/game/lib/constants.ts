@@ -7,6 +7,7 @@ export const WORLD_CONFIG = {
   TILE_SCALE: 2.01, // 0.01 extra to hide sub-pixel gaps
 
   // Keep close to authoritative server speed (8 units / 50ms tick ~= 160 px/s).
+  // Match server authority: 8 units / 50ms tick ~= 160 px/s => ~2.67 px/frame at 60fps.
   MOVEMENT_SPEED: 2.7,
   INTERACTION_RANGE: 64,
   PROXIMITY_RANGE: 120,

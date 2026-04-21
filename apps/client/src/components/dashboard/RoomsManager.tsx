@@ -14,11 +14,13 @@ import {
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import { apiFetch } from "../../lib/api";
+import { MAP_OPTIONS, type MapVersion } from "../game/config";
 
 export interface RoomData {
   _id: string;
   name: string;
   code: string;
+  mapVersion?: MapVersion;
   ownerId: { _id: string; displayName: string; avatarUrl: string };
   members: string[];
   createdAt: string;
@@ -42,6 +44,7 @@ export function DashboardOverview({
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomMapVersion, setNewRoomMapVersion] = useState<MapVersion>("v3");
   const [creating, setCreating] = useState(false);
 
   const handleCreateRoom = async (e: React.FormEvent) => {
@@ -52,11 +55,12 @@ export function DashboardOverview({
 
     const res = await apiFetch("/api/rooms", {
       method: "POST",
-      body: JSON.stringify({ name, code }),
+      body: JSON.stringify({ name, code, mapVersion: newRoomMapVersion }),
     });
 
     if (res.success) {
       setNewRoomName("");
+      setNewRoomMapVersion("v3");
       fetchRooms();
       navigate(`/room/${code}`);
     }
@@ -118,6 +122,20 @@ export function DashboardOverview({
                 <Calendar size={18} /> Schedule
               </button>
             </div>
+            <label className="block">
+              <span className="text-xs text-slate-500 font-medium">Map</span>
+              <select
+                value={newRoomMapVersion}
+                onChange={(e) => setNewRoomMapVersion(e.target.value as MapVersion)}
+                className="mt-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary text-sm transition-all"
+              >
+                {MAP_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </form>
         </div>
 
@@ -216,6 +234,9 @@ export function WorkspaceList({
                   </h4>
                   <p className="text-xs text-slate-400 font-mono">
                     {room.code}
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    {(MAP_OPTIONS.find((m) => m.value === room.mapVersion)?.label || "School (v3)")}
                   </p>
                 </div>
 
