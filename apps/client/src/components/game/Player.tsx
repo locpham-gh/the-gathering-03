@@ -23,12 +23,13 @@ interface PlayerProps {
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
   screenW: number;
   screenH: number;
+  selectedCharacter: string;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -42,6 +43,7 @@ export const Player: React.FC<PlayerProps> = ({
   worldRef,
   screenW,
   screenH,
+  selectedCharacter,
 }) => {
   // 1. Local State
   const [x, setX] = useState(WORLD_CONFIG.PLAYER_SPAWN_X);
@@ -176,7 +178,7 @@ export const Player: React.FC<PlayerProps> = ({
     updateCamera(x, y, delta);
 
     if (nextX !== x || nextY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(nextX, nextY, isSitting);
+      updatePosition(nextX, nextY, isSitting, selectedCharacter);
       lastSyncSit.current = isSitting;
     }
 
@@ -214,6 +216,7 @@ export const Player: React.FC<PlayerProps> = ({
       direction={direction}
       isMoving={isMoving}
       isSitting={isSitting}
+      character={selectedCharacter}
     />
   );
 };

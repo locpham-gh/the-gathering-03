@@ -30,43 +30,41 @@ export function getTileDataForGid(rawGid: number): TileData | null {
   let columns: number;
   let localId: number;
 
-  const { SERENE_VILLAGE_FIRST_GID, INTERIORS_FIRST_GID, ROOM_BUILDER_COLS, SERENE_VILLAGE_COLS, INTERIORS_COLS } = TILESET_CONFIG;
+  const {
+    SERENE_VILLAGE_FIRST_GID,
+    INTERIORS_FIRST_GID,
+    ROOM_BUILDER_COLS,
+    SERENE_VILLAGE_COLS,
+    INTERIORS_COLS,
+  } = TILESET_CONFIG;
 
-  if (MAP_CONFIG.version === "v1") {
-    if (gid >= 392) {
-      sourceImage = "/maps/Interiors_free_32x32.png";
-      columns = INTERIORS_COLS;
-      localId = gid - 392;
-    } else {
-      sourceImage = "/maps/Room_Builder_v2_32x32.png";
-      columns = ROOM_BUILDER_COLS;
-      localId = gid - 1;
-    }
-  } else if (MAP_CONFIG.version === "v3") {
+  if (MAP_CONFIG.type === "classroom") {
+    // Classroom mapping
     if (gid >= INTERIORS_FIRST_GID) {
-      sourceImage = "/maps/Interiors_free_32x32.png";
+      sourceImage = "/tilesets/Interiors_free_32x32.png";
       columns = INTERIORS_COLS;
       localId = gid - INTERIORS_FIRST_GID;
     } else if (gid >= 856) {
-      sourceImage = "/maps/Room_Builder_v2_32x32.png";
+      sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
       columns = ROOM_BUILDER_COLS;
       localId = gid - 856;
     } else {
-      sourceImage = "/maps/Serene_Village_32x32.png";
+      sourceImage = "/tilesets/Serene_Village_32x32.png";
       columns = SERENE_VILLAGE_COLS;
       localId = gid - 1;
     }
   } else {
+    // Office mapping (Default)
     if (gid >= INTERIORS_FIRST_GID) {
-      sourceImage = "/maps/Interiors_free_32x32.png";
+      sourceImage = "/tilesets/Interiors_free_32x32.png";
       columns = INTERIORS_COLS;
       localId = gid - INTERIORS_FIRST_GID;
     } else if (gid >= SERENE_VILLAGE_FIRST_GID) {
-      sourceImage = "/maps/Serene_Village_32x32.png";
+      sourceImage = "/tilesets/Serene_Village_32x32.png";
       columns = SERENE_VILLAGE_COLS;
       localId = gid - SERENE_VILLAGE_FIRST_GID;
     } else {
-      sourceImage = "/maps/Room_Builder_v2_32x32.png";
+      sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
       columns = ROOM_BUILDER_COLS;
       localId = gid - 1;
     }
@@ -83,7 +81,12 @@ export function getTileDataForGid(rawGid: number): TileData | null {
   if (!texture) {
     texture = new PIXI.Texture(
       baseTextures[sourceImage],
-      new PIXI.Rectangle(tx, ty, WORLD_CONFIG.TILE_SIZE_RAW, WORLD_CONFIG.TILE_SIZE_RAW),
+      new PIXI.Rectangle(
+        tx,
+        ty,
+        WORLD_CONFIG.TILE_SIZE_RAW,
+        WORLD_CONFIG.TILE_SIZE_RAW,
+      ),
     );
     textureCache[gid] = texture;
   }
@@ -92,13 +95,17 @@ export function getTileDataForGid(rawGid: number): TileData | null {
 }
 
 /**
- * Returns a texture slice for the Adam character spritesheet.
+ * Returns a texture slice for a character spritesheet.
  */
-export function getAdamTexture(row: number, col: number): PIXI.Texture {
-  const key = `${row}-${col}`;
+export function getCharacterTexture(
+  row: number,
+  col: number,
+  characterName: string = "Adam",
+): PIXI.Texture {
+  const key = `${characterName}-${row}-${col}`;
   if (adamTextureCache[key]) return adamTextureCache[key];
 
-  const source = "/sprites/Adam_16x16aa.png";
+  const source = `/sprites/${characterName}_16x16.png`;
   if (!baseTextures[source]) {
     baseTextures[source] = PIXI.BaseTexture.from(source);
   }
@@ -142,4 +149,3 @@ export function getNewDirection(
   }
   return dy > 0 ? "down" : "up";
 }
-

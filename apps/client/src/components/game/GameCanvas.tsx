@@ -49,7 +49,8 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, isSitting?: boolean) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
+  selectedCharacter: string;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -59,6 +60,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onNearbyPlayer,
   players,
   updatePosition,
+  selectedCharacter,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -74,9 +76,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    let mapFile = "/maps/office.json";
-    if (MAP_CONFIG.version === "v2") mapFile = "/maps/office_map_new.json";
-    else if (MAP_CONFIG.version === "v3") mapFile = "/maps/classroom_map.json";
+    let mapFile = "/maps/office_map.json";
+    if (MAP_CONFIG.type === "classroom") mapFile = "/maps/classroom_map.json";
 
     fetch(mapFile)
       .then((res) => res.json())
@@ -118,6 +119,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           worldRef={worldRef}
           screenW={dimensions.w}
           screenH={dimensions.h}
+          selectedCharacter={selectedCharacter}
         />
 
         {Object.values(players).map((player) => (

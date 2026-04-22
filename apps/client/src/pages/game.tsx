@@ -9,6 +9,7 @@ import { useMultiplayer } from "../hooks/useMultiplayer";
 import { LiveKitModal } from "../components/game/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
+import { CharacterSelector } from "../components/game/CharacterSelector";
 
 export default function GamePage() {
   const { user } = useAuth();
@@ -18,6 +19,7 @@ export default function GamePage() {
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
 
   const { players, updatePosition } = useMultiplayer(roomId);
 
@@ -116,6 +118,7 @@ export default function GamePage() {
             onNearbyPlayer={handleProximityCall}
             players={players}
             updatePosition={updatePosition}
+            selectedCharacter={selectedCharacter || "Adam"}
           />
         </div>
 
@@ -138,6 +141,10 @@ export default function GamePage() {
         )}
 
       </div>
+
+      {!selectedCharacter && (
+        <CharacterSelector onSelect={(id) => setSelectedCharacter(id)} />
+      )}
     </div>
   );
 }

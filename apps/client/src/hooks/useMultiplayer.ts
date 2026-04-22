@@ -7,6 +7,7 @@ export interface RemotePlayer {
   y: number;
   lastUpdate: number;
   isSitting?: boolean;
+  character?: string;
   displayName?: string;
   avatarUrl?: string;
 }
@@ -41,6 +42,7 @@ export function useMultiplayer(roomId?: string) {
             x: payload.x,
             y: payload.y,
             isSitting: payload.isSitting,
+            character: payload.character,
             lastUpdate: Date.now(),
             displayName: payload.displayName,
             avatarUrl: payload.avatarUrl,
@@ -71,7 +73,7 @@ export function useMultiplayer(roomId?: string) {
   const lastSent = useRef<number>(0);
   const lastSittingState = useRef<boolean | undefined>(undefined);
 
-  const updatePosition = useCallback((x: number, y: number, isSitting?: boolean) => {
+  const updatePosition = useCallback((x: number, y: number, isSitting?: boolean, character?: string) => {
     const now = Date.now();
     const stateChanged = isSitting !== lastSittingState.current;
 
@@ -86,6 +88,7 @@ export function useMultiplayer(roomId?: string) {
           x,
           y,
           isSitting,
+          character,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl
         }
