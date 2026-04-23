@@ -6,17 +6,17 @@ Last updated: 2026-04-23
 
 ## 1. Purpose
 
-Tai lieu nay dac ta use case theo format bang chuan SRS de phuc vu nop hoc phan va review de dang hon.
+This document specifies use cases using the standard SRS table format to facilitate academic review and easier documentation management.
 
 ## 2. Actors
 
-- Guest: nguoi chua dang nhap.
-- Authenticated User: nguoi da dang nhap.
-- Room Owner: chu so huu room.
-- Event Host: nguoi tao event.
-- Google Identity: dich vu xac thuc Google token.
-- SMTP Provider: dich vu gui email OTP va event invitation.
-- LiveKit: dich vu video call token/room.
+- Guest: Unauthenticated user.
+- Authenticated User: User who has successfully logged in.
+- Room Owner: The owner of a specific room.
+- Event Host: The creator of an event.
+- Google Identity: Authentication service for verifying Google tokens.
+- SMTP Provider: Email service for sending OTPs and event invitations.
+- LiveKit: Real-time video/audio communication service.
 
 ## 3. Use Case Overview
 
@@ -91,12 +91,12 @@ flowchart LR
 | Use Case Name | Login with Google |
 | Primary Actor | Guest |
 | Supporting Actors | Google Identity |
-| Preconditions | User dang o landing page; internet on dinh; Google script load thanh cong. |
-| Trigger | User nhan nut login Google. |
-| Basic Flow | 1. User chon login Google.<br>2. Client nhan Google credential.<br>3. Client goi `POST /api/auth/google`.<br>4. Server verify token voi Google Identity.<br>5. Server upsert user, tao JWT.<br>6. Client luu `token` va `user` vao local storage.<br>7. Client dieu huong sang `/home`. |
-| Alternative Flow | A1. User huy popup Google -> luu tai landing page, khong login.<br>A2. User da co session hop le -> bo qua login, vao thang `/home`. |
-| Exception Flow | E1. Google token invalid -> API tra `401`, client hien thong bao loi.<br>E2. Loi mang/API timeout -> client hien thong bao va cho phep thu lai. |
-| Postconditions | User da dang nhap thanh cong va co session JWT. |
+| Preconditions | User is on the landing page; stable internet connection; Google script loaded successfully. |
+| Trigger | User clicks the Google Login button. |
+| Basic Flow | 1. User selects Google login.<br>2. Client receives Google credential.<br>3. Client calls `POST /api/auth/google`.<br>4. Server verifies the token with Google Identity.<br>5. Server upserts the user and generates a JWT.<br>6. Client saves the `token` and `user` in local storage.<br>7. Client navigates to `/home`. |
+| Alternative Flow | A1. User cancels the Google popup -> stays on landing page, not logged in.<br>A2. User has a valid session -> skips login, enters `/home` directly. |
+| Exception Flow | E1. Invalid Google token -> API returns `401`, client displays error message.<br>E2. Network error/API timeout -> client displays notification and allows retry. |
+| Postconditions | User successfully logged in with a JWT session. |
 
 ### UC-02 - Login with Email OTP
 
@@ -106,12 +106,12 @@ flowchart LR
 | Use Case Name | Login with Email OTP |
 | Primary Actor | Guest |
 | Supporting Actors | SMTP Provider |
-| Preconditions | User co email hop le; SMTP service cau hinh dung. |
-| Trigger | User nhap email va chon request OTP. |
-| Basic Flow | 1. User nhap email.<br>2. Client goi `POST /api/auth/otp/request`.<br>3. Server tao OTP 6 chu so, set expiry 5 phut, luu DB.<br>4. Server gui OTP qua email.<br>5. User nhap OTP.<br>6. Client goi `POST /api/auth/otp/verify`.<br>7. Server verify OTP, tra JWT + user.<br>8. Client luu session va chuyen `/home`. |
-| Alternative Flow | A1. User nhap lai email khac truoc khi verify OTP.<br>A2. User quay lai login Google thay vi OTP. |
-| Exception Flow | E1. Email khong hop le -> client chan submit.<br>E2. OTP sai/het han -> API tra loi, user nhap lai OTP.<br>E3. Gui email that bai -> API tra loi, user thu lai request OTP. |
-| Postconditions | User dang nhap thanh cong bang OTP, session duoc tao. |
+| Preconditions | User provides a valid email; SMTP service is correctly configured. |
+| Trigger | User enters email and requests OTP. |
+| Basic Flow | 1. User enters email.<br>2. Client calls `POST /api/auth/otp/request`.<br>3. Server generates a 6-digit OTP, sets 5-minute expiry, and saves to DB.<br>4. Server sends OTP via email.<br>5. User enters OTP.<br>6. Client calls `POST /api/auth/otp/verify`.<br>7. Server verifies OTP and returns JWT + user data.<br>8. Client saves session and redirects to `/home`. |
+| Alternative Flow | A1. User enters a different email before verifying OTP.<br>A2. User switches to Google login instead of OTP. |
+| Exception Flow | E1. Invalid email format -> client prevents submission.<br>E2. Incorrect/expired OTP -> API returns error, user re-enters OTP.<br>E3. Email delivery failure -> API returns error, user retries OTP request. |
+| Postconditions | User successfully logged in via OTP, session created. |
 
 ### UC-03 - Update Profile
 
@@ -120,12 +120,12 @@ flowchart LR
 | Use Case ID | UC-03 |
 | Use Case Name | Update Profile |
 | Primary Actor | Authenticated User |
-| Preconditions | User da dang nhap, co JWT hop le. |
-| Trigger | User mo tab profile va nhan Save Changes. |
-| Basic Flow | 1. User mo trang profile.<br>2. User sua `displayName` va/hoac `avatarUrl`.<br>3. Client goi `PUT /api/auth/profile` kem JWT.<br>4. Server cap nhat user trong DB.<br>5. Client cap nhat AuthContext va local storage.<br>6. UI hien thong bao cap nhat thanh cong. |
-| Alternative Flow | A1. User chi cap nhat 1 truong (`displayName` hoac `avatarUrl`). |
-| Exception Flow | E1. JWT khong hop le -> unauthorized.<br>E2. Input invalid -> cap nhat that bai, hien thong bao loi. |
-| Postconditions | Thong tin profile moi duoc su dung tren dashboard va game room. |
+| Preconditions | User is logged in with a valid JWT. |
+| Trigger | User opens the profile tab and clicks Save Changes. |
+| Basic Flow | 1. User opens the profile page.<br>2. User modifies `displayName` and/or `avatarUrl`.<br>3. Client calls `PUT /api/auth/profile` with JWT.<br>4. Server updates user in DB.<br>5. Client updates AuthContext and local storage.<br>6. UI displays a success notification. |
+| Alternative Flow | A1. User only updates one field (`displayName` or `avatarUrl`). |
+| Exception Flow | E1. Invalid JWT -> unauthorized.<br>E2. Invalid input -> update fails, error message displayed. |
+| Postconditions | New profile information is used across the dashboard and game rooms. |
 
 ### UC-04 - Create Room
 
@@ -134,12 +134,12 @@ flowchart LR
 | Use Case ID | UC-04 |
 | Use Case Name | Create Room |
 | Primary Actor | Authenticated User |
-| Preconditions | User da dang nhap hop le. |
-| Trigger | User nhan Create/Start Instant tren dashboard. |
-| Basic Flow | 1. User nhap room name (co the bo trong).<br>2. Client tao room code va goi `POST /api/rooms`.<br>3. Server tao room, set owner = user, members ban dau = [owner].<br>4. Client refresh room list.<br>5. Client dieu huong vao `/room/:code`. |
-| Alternative Flow | A1. User khong nhap ten room -> he thong dung ten mac dinh. |
-| Exception Flow | E1. Room code trung hoac du lieu khong hop le -> API tra loi, user tao lai.<br>E2. Loi ket noi DB -> tao room that bai. |
-| Postconditions | Room moi ton tai va user tro thanh Room Owner. |
+| Preconditions | User is successfully logged in. |
+| Trigger | User clicks Create/Start Instant on the dashboard. |
+| Basic Flow | 1. User enters a room name (optional).<br>2. Client generates a room code and calls `POST /api/rooms`.<br>3. Server creates the room, sets owner = user, and initial members = [owner].<br>4. Client refreshes the room list.<br>5. Client redirects user to `/room/:code`. |
+| Alternative Flow | A1. User does not enter a room name -> system uses a default name. |
+| Exception Flow | E1. Duplicate room code or invalid data -> API returns error, user retries.<br>E2. Database connection error -> room creation fails. |
+| Postconditions | A new room exists and the user becomes the Room Owner. |
 
 ### UC-05 - Join Room by Code
 
@@ -148,12 +148,12 @@ flowchart LR
 | Use Case ID | UC-05 |
 | Use Case Name | Join Room by Code |
 | Primary Actor | Authenticated User |
-| Preconditions | User da dang nhap; co room code. |
-| Trigger | User nhap code va nhan Join, hoac truy cap `/room/:roomCode`. |
-| Basic Flow | 1. Client dieu huong vao route room theo code.<br>2. Client goi `POST /api/rooms/join/:code`.<br>3. Server tim room theo code.<br>4. Neu chua la member thi add user vao `members`.<br>5. User vao game room thanh cong. |
-| Alternative Flow | A1. User da la member -> bo qua buoc add, vao phong binh thuong. |
-| Exception Flow | E1. Room code khong ton tai -> API tra `404`.<br>E2. Token khong hop le -> API tra `401`. |
-| Postconditions | User tro thanh member room (neu truoc do chua la member). |
+| Preconditions | User is logged in and has a valid room code. |
+| Trigger | User enters code and clicks Join, or accesses `/room/:roomCode` directly. |
+| Basic Flow | 1. Client navigates to the room route based on the code.<br>2. Client calls `POST /api/rooms/join/:code`.<br>3. Server finds the room by code.<br>4. If the user is not already a member, server adds them to `members`.<br>5. User enters the game room successfully. |
+| Alternative Flow | A1. User is already a member -> skip addition step, enter room normally. |
+| Exception Flow | E1. Room code does not exist -> API returns `404`.<br>E2. Invalid token -> API returns `401`. |
+| Postconditions | User becomes a member of the room (if they weren't already). |
 
 ### UC-06 - Manage Room Members
 
@@ -162,12 +162,12 @@ flowchart LR
 | Use Case ID | UC-06 |
 | Use Case Name | Manage Room Members |
 | Primary Actor | Room Owner |
-| Preconditions | User la owner cua room. |
-| Trigger | Owner mo Room Manage Modal. |
-| Basic Flow | 1. Owner mo modal quan ly room.<br>2. Client goi `GET /api/rooms/:id/members` de lay member list.<br>3. Owner sua ten room -> `PATCH /api/rooms/:id`.<br>4. Owner co the kick member -> `POST /api/rooms/:id/kick`.<br>5. Client tai lai danh sach members sau khi thay doi. |
-| Alternative Flow | A1. Owner chi xem danh sach ma khong cap nhat gi. |
-| Exception Flow | E1. User khong phai owner thao tac update/kick -> API tra `403`.<br>E2. Room khong ton tai -> `404`. |
-| Postconditions | Cau hinh room va danh sach members duoc cap nhat theo quyen owner. |
+| Preconditions | User is the owner of the room. |
+| Trigger | Owner opens the Room Management Modal. |
+| Basic Flow | 1. Owner opens the room management modal.<br>2. Client calls `GET /api/rooms/:id/members` to fetch the member list.<br>3. Owner renames the room -> `PATCH /api/rooms/:id`.<br>4. Owner kicks a member -> `POST /api/rooms/:id/kick`.<br>5. Client reloads the member list after changes. |
+| Alternative Flow | A1. Owner views the list without making any updates. |
+| Exception Flow | E1. Non-owner tries to update/kick -> API returns `403`.<br>E2. Room does not exist -> `404`. |
+| Postconditions | Room configuration and member list are updated according to the owner's actions. |
 
 ### UC-07 - Enter 2D Room
 
@@ -176,12 +176,12 @@ flowchart LR
 | Use Case ID | UC-07 |
 | Use Case Name | Enter 2D Room |
 | Primary Actor | Authenticated User |
-| Preconditions | User da login; room code hop le; map assets ton tai. |
-| Trigger | User vao route `/room/:roomCode`. |
-| Basic Flow | 1. Client tai map JSON (office/classroom).<br>2. Client render stage PixiJS + layers + entities.<br>3. User chon nhan vat neu chua chon.<br>4. RoomSidebar hien participants/forum/events.<br>5. User bat dau di chuyen trong world 2D. |
-| Alternative Flow | A1. User roi room bang nut leave -> quay ve `/home`. |
-| Exception Flow | E1. Loi tai map/asset -> hien fallback loading/error.<br>E2. Token het han -> redirect ve trang dang nhap. |
-| Postconditions | User dang hien dien va tuong tac trong game room. |
+| Preconditions | User logged in; room code valid; map assets exist. |
+| Trigger | User navigates to route `/room/:roomCode`. |
+| Basic Flow | 1. Client loads map JSON (office/classroom).<br>2. Client renders PixiJS stage, layers, and entities.<br>3. User chooses a character if not previously selected.<br>4. RoomSidebar displays participants/forum/events.<br>5. User begins moving in the 2D world. |
+| Alternative Flow | A1. User leaves the room using the leave button -> redirects to `/home`. |
+| Exception Flow | E1. Error loading map/assets -> displays fallback loading/error state.<br>E2. Token expired -> redirects to login page. |
+| Postconditions | User is active and interacting within the game room. |
 
 ### UC-08 - Sync Multiplayer Position
 
@@ -191,12 +191,12 @@ flowchart LR
 | Use Case Name | Sync Multiplayer Position |
 | Primary Actor | Authenticated User |
 | Supporting Actors | WebSocket Server |
-| Preconditions | User dang trong room; WS ket noi thanh cong. |
-| Trigger | User di chuyen hoac thay doi trang thai (ngoi/dung). |
-| Basic Flow | 1. Client mo ket noi `WS /ws?room=<code>`.<br>2. Server gui `initial_state`.<br>3. Client gui `move` payload theo throttle 20Hz.<br>4. Server cap nhat `activePlayers` in-memory.<br>5. Server broadcast `player_moved` cho room.<br>6. Cac client render vi tri player moi.<br>7. Khi mot user disconnect, server phat `player_left`. |
-| Alternative Flow | A1. User dung yen, khong co message move moi gui len. |
-| Exception Flow | E1. Mat ket noi WS -> sync gian doan cho den khi reconnect.<br>E2. Server restart -> in-memory state reset. |
-| Postconditions | Tat ca user trong cung room thay duoc vi tri/trang thai cua nhau. |
+| Preconditions | User is in a room; WS connection successful. |
+| Trigger | User moves or changes state (sitting/standing). |
+| Basic Flow | 1. Client opens connection `WS /ws?room=<code>`.<br>2. Server sends `initial_state`.<br>3. Client sends `move` payload at 20Hz throttle.<br>4. Server updates `activePlayers` in-memory.<br>5. Server broadcasts `player_moved` to the room.<br>6. Clients render new player positions.<br>7. When a user disconnects, server broadcasts `player_left`. |
+| Alternative Flow | A1. User remains idle; no new move messages are sent. |
+| Exception Flow | E1. WS connection lost -> sync interrupted until reconnection.<br>E2. Server restart -> in-memory state reset. |
+| Postconditions | All users in the same room see each other's positions and states. |
 
 ### UC-09 - Start Proximity Call
 
@@ -206,12 +206,12 @@ flowchart LR
 | Use Case Name | Start Proximity Call |
 | Primary Actor | Authenticated User |
 | Supporting Actors | LiveKit |
-| Preconditions | Co player o gan theo logic proximity; LiveKit env dung. |
-| Trigger | He thong phat hien co player trong khoang cach call. |
-| Basic Flow | 1. Client xac dinh target player gan nhat.<br>2. Client goi `GET /api/livekit/token?room=...&username=...`.<br>3. Server tao LiveKit JWT va tra token.<br>4. Client mo LiveKit modal va join room call.<br>5. User trao doi voice/video realtime. |
-| Alternative Flow | A1. User di xa khoi vung proximity -> ngat call va dong modal. |
-| Exception Flow | E1. Khong lay duoc token -> call khong bat dau.<br>E2. LiveKit server unavailable -> join that bai. |
-| Postconditions | User tham gia phong call khi du dieu kien proximity. |
+| Preconditions | Other players nearby based on proximity logic; LiveKit environment configured. |
+| Trigger | System detects players within proximity range. |
+| Basic Flow | 1. Client identifies the nearest target player.<br>2. Client calls `GET /api/livekit/token?room=...&username=...`.<br>3. Server generates and returns LiveKit JWT token.<br>4. Client opens LiveKit modal and joins calling room.<br>5. Users exchange real-time voice/video. |
+| Alternative Flow | A1. User moves away from proximity range -> disconnects call and closes modal. |
+| Exception Flow | E1. Unable to fetch token -> call does not start.<br>E2. LiveKit server unavailable -> join fails. |
+| Postconditions | User joins the call room when proximity conditions are met. |
 
 ### UC-10 - Schedule Event
 
@@ -221,12 +221,12 @@ flowchart LR
 | Use Case Name | Schedule Event |
 | Primary Actor | Event Host |
 | Supporting Actors | SMTP Provider |
-| Preconditions | User da login; co quyen tao event. |
-| Trigger | Host nhan Luu trong Schedule Event Modal. |
-| Basic Flow | 1. Host nhap thong tin event (title, description, start/end).<br>2. Host chon room co san hoac tao room moi (`roomId=new`).<br>3. Host nhap danh sach guest emails.<br>4. Client goi `POST /api/events`.<br>5. Server tao event (va tao room moi neu can).<br>6. Server gui email moi den guest list.<br>7. Client hien thong bao thanh cong va refresh danh sach. |
-| Alternative Flow | A1. Host khong nhap guest emails -> tao event khong gui mail.<br>A2. Host tao event tu room list hoac trong room sidebar. |
-| Exception Flow | E1. Thoi gian ket thuc <= bat dau -> client chan submit.<br>E2. SMTP loi -> API tra loi gui email/event. |
-| Postconditions | Event duoc luu DB va hien trong Events Manager. |
+| Preconditions | User logged in; has event creation permissions. |
+| Trigger | Host clicks Save in the Schedule Event Modal. |
+| Basic Flow | 1. Host enters event details (title, description, start/end).<br>2. Host selects existing room or creates new one (`roomId=new`).<br>3. Host enters guest email list.<br>4. Client calls `POST /api/events`.<br>5. Server creates event (and new room if required).<br>6. Server sends invitation emails to the guest list.<br>7. Client displays success notification and refreshes list. |
+| Alternative Flow | A1. Host omits guest emails -> event created without sending invitations.<br>A2. Host creates event from room list or room sidebar. |
+| Exception Flow | E1. End time <= start time -> client prevents submission.<br>E2. SMTP error -> API returns error regarding email/event creation. |
+| Postconditions | Event saved to DB and visible in Events Manager. |
 
 ### UC-11 - Manage Own Events
 
@@ -235,12 +235,12 @@ flowchart LR
 | Use Case ID | UC-11 |
 | Use Case Name | Manage Own Events |
 | Primary Actor | Event Host |
-| Preconditions | User da dang nhap. |
-| Trigger | User mo tab Events. |
-| Basic Flow | 1. Client goi `GET /api/events`.<br>2. He thong hien event sap toi/da qua.<br>3. User mo chi tiet event tu card.<br>4. Neu la host thi co quyen xoa (`DELETE /api/events/:id`).<br>5. Danh sach duoc tai lai sau khi xoa. |
-| Alternative Flow | A1. User chi xem event ma khong thay doi du lieu. |
-| Exception Flow | E1. User khong phai host ma xoa event -> `403`.<br>E2. Event da bi xoa truoc do -> `404`. |
-| Postconditions | Event list cua user duoc cap nhat chinh xac. |
+| Preconditions | User is successfully logged in. |
+| Trigger | User opens the Events tab. |
+| Basic Flow | 1. Client calls `GET /api/events`.<br>2. System displays upcoming/past events.<br>3. User opens event details from the card.<br>4. If user is the host, they can delete it (`DELETE /api/events/:id`).<br>5. List reloads after deletion. |
+| Alternative Flow | A1. User views events without making any changes. |
+| Exception Flow | E1. Non-host tries to delete event -> `403`.<br>E2. Event was already deleted -> `404`. |
+| Postconditions | User's event list is accurately updated. |
 
 ### UC-12 - Post/Reply Forum Topic
 
@@ -249,12 +249,12 @@ flowchart LR
 | Use Case ID | UC-12 |
 | Use Case Name | Post/Reply Forum Topic |
 | Primary Actor | Authenticated User |
-| Preconditions | User da login va co JWT hop le. |
-| Trigger | User gui topic moi hoac reply moi. |
-| Basic Flow | 1. Client lay danh sach topics (`GET /api/forum/topics`).<br>2. User tao topic (`POST /api/forum/topics`).<br>3. User tra loi topic (`POST /api/forum/topics/:id/replies`).<br>4. Author co quyen xoa topic (`DELETE /api/forum/topics/:id`).<br>5. Feed duoc tai lai voi du lieu moi. |
-| Alternative Flow | A1. User chi doc forum ma khong post/reply. |
-| Exception Flow | E1. Khong co token -> unauthorized cho action post/reply/delete.<br>E2. Xoa topic khong dung author -> forbidden. |
-| Postconditions | Topic va replies duoc luu va hien thi trong feed forum. |
+| Preconditions | User logged in with a valid JWT. |
+| Trigger | User submits a new topic or reply. |
+| Basic Flow | 1. Client fetches topic list (`GET /api/forum/topics`).<br>2. User creates a topic (`POST /api/forum/topics`).<br>3. User replies to a topic (`POST /api/forum/topics/:id/replies`).<br>4. Author can delete their own topic (`DELETE /api/forum/topics/:id`).<br>5. Feed reloads with fresh data. |
+| Alternative Flow | A1. User reads forum without posting or replying. |
+| Exception Flow | E1. Missing token -> unauthorized for post/reply/delete actions.<br>E2. Deleting topic as non-author -> forbidden. |
+| Postconditions | Topic and replies are saved and displayed in the forum feed. |
 
 ### UC-13 - Access Digital Library
 
@@ -263,12 +263,12 @@ flowchart LR
 | Use Case ID | UC-13 |
 | Use Case Name | Access Digital Library |
 | Primary Actor | Authenticated User |
-| Preconditions | User dang trong game room; vao dung `library` zone. |
-| Trigger | User tuong tac voi zone library (phim E). |
-| Basic Flow | 1. He thong mo Library Modal.<br>2. Client goi `GET /api/resources` co bo loc `search/type/tag`.<br>3. Server tra resources da loc.<br>4. Client hien danh sach card va resource detail.<br>5. User tim tai lieu mong muon. |
-| Alternative Flow | A1. User clear bo loc de quay ve danh sach tong. |
-| Exception Flow | E1. Khong co resources phu hop -> hien empty state.<br>E2. API loi -> hien thong bao tai du lieu that bai. |
-| Postconditions | User truy cap thu vien va xem duoc noi dung resources. |
+| Preconditions | User is in a game room; enters the `library` zone. |
+| Trigger | User interacts with the library zone (E key). |
+| Basic Flow | 1. System opens the Library Modal.<br>2. Client calls `GET /api/resources` with filters `search/type/tag`.<br>3. Server returns filtered resources.<br>4. Client displays cards and resource details.<br>5. User searches for desired documents. |
+| Alternative Flow | A1. User clears filters to return to the full list. |
+| Exception Flow | E1. No matching resources found -> displays empty state.<br>E2. API error -> displays data fetch fail notification. |
+| Postconditions | User accesses the library and can view resource content. |
 
 ## 6. Traceability
 

@@ -6,41 +6,41 @@ Last updated: 2026-04-23
 
 ## 1. Scope
 
-Tai lieu nay mo ta cac yeu cau phi chuc nang cho he thong The Gathering phu hop voi kien truc hien tai (Bun + Elysia + React + Pixi + MongoDB + WebSocket + LiveKit).
+This document describes the non-functional requirements for the The Gathering system, aligned with its current architecture (Bun + Elysia + React + Pixi + MongoDB + WebSocket + LiveKit).
 
 ## 2. Non-Functional Requirements
 
 | ID | Category | Requirement |
 |----|----------|-------------|
-| NFR-01 | Availability | He thong phai hoat dong o moi truong dev/staging voi uptime muc tieu >= 99.0% trong gio van hanh da dinh nghia. |
-| NFR-02 | Startup | Backend phai khoi dong thanh cong voi cau hinh `.env` hop le va ket noi duoc MongoDB truoc khi phuc vu request nghiep vu. |
-| NFR-03 | API Performance | Cac API CRUD thong thuong (`/api/rooms`, `/api/events`, `/api/forum/topics`, `/api/resources`) nen dat p95 < 500ms trong dieu kien tai trung binh (khong tinh network ben ngoai). |
-| NFR-04 | Realtime Latency | Thong diep WebSocket `move` -> `player_moved` phai co do tre cam nhan thap, muc tieu <= 200ms trong LAN/Internet on dinh. |
-| NFR-05 | Client UX | Trang giao dien chinh (landing, home, game) phai responsive tren desktop va laptop pho bien, khong vo layout o viewport >= 1280x720. |
-| NFR-06 | Browser Compatibility | Ung dung web phai hoat dong tren Chrome/Edge phien ban hien hanh (2 major versions gan nhat). |
-| NFR-07 | Security - Auth | Tat ca route can bao ve phai yeu cau JWT hop le qua header `Authorization: Bearer <token>`. |
-| NFR-08 | Security - Input Validation | API phai validate schema body/query bang Elysia `t.Object(...)` cho cac endpoint co du lieu dau vao quan trong. |
-| NFR-09 | Security - Secret Management | Khong hardcode credentials san xuat trong source; thong tin nhay cam (`JWT_SECRET`, SMTP, LiveKit keys) phai lay tu environment variables. |
-| NFR-10 | Data Integrity | Cac truong duy nhat quan trong phai duoc rang buoc unique o DB (`users.email`, `rooms.code`). |
-| NFR-11 | Error Handling | API phai tra status code phu hop (4xx/5xx) va payload loi co cau truc (`success: false`, `error/message`) de client xu ly. |
-| NFR-12 | Session Persistence | Trang thai dang nhap phai duoc giu sau refresh browser thong qua local storage token/user. |
-| NFR-13 | Maintainability | Source phai duoc tach module theo domain (auth, room, event, forum, resource, game) de de test va de mo rong. |
-| NFR-14 | Code Quality | Frontend phai duoc lint voi ESLint; TypeScript duoc su dung cho ca client va server. |
-| NFR-15 | Observability | Backend phai ghi log su kien quan trong (DB connect, WS connect/disconnect, loi runtime) de debug van hanh. |
-| NFR-16 | Scalability (Current Limit) | Realtime state hien tai la in-memory map; he thong chap nhan mat state sau restart va duoc danh dau can nang cap khi scale nhieu instance. |
-| NFR-17 | Scalability (Future) | Kien truc phai san sang thay in-memory realtime bang shared store (vi du Redis) de scale ngang trong future versions. |
-| NFR-18 | Email Reliability | Neu gui OTP/event email that bai, he thong phai tra loi that bai ro rang cho client va khong crash process. |
-| NFR-19 | Privacy | He thong chi luu tru thong tin user can thiet cho nghiep vu (email, displayName, avatar, auth metadata), khong thu thap du lieu ngoai pham vi tinh nang. |
-| NFR-20 | Documentation | Tai lieu ky thuat (`SRS`, `implement`, `api_schema`) phai duoc cap nhat dong bo khi thay doi route/schema quan trong. |
+| NFR-01 | Availability | The system must operate in dev/staging environments with a target uptime >= 99.0% during defined operational hours. |
+| NFR-02 | Startup | The backend must start successfully with valid `.env` configuration and connect to MongoDB before serving business requests. |
+| NFR-03 | API Performance | Standard CRUD APIs (`/api/rooms`, `/api/events`, `/api/forum/topics`, `/api/resources`) should achieve p95 < 500ms under average load (excluding external network latency). |
+| NFR-04 | Real-time Latency | WebSocket `move` -> `player_moved` messages must have low perceived latency, targeting <= 200ms on stable LAN/Internet. |
+| NFR-05 | Client UX | The main interface pages (landing, home, game) must be responsive on common desktops and laptops, maintaining layout integrity at viewports >= 1280x720. |
+| NFR-06 | Browser Compatibility | The web application must function on current versions of Chrome and Edge (latest 2 major versions). |
+| NFR-07 | Security - Auth | All protected routes must require a valid JWT via the `Authorization: Bearer <token>` header. |
+| NFR-08 | Security - Input Validation | APIs must validate body/query schemas using Elysia `t.Object(...)` for endpoints with critical input data. |
+| NFR-10 | Security - Secret Management | Do not hardcode production credentials in source; sensitive information (`JWT_SECRET`, SMTP, LiveKit keys) must be retrieved from environment variables. |
+| NFR-10 | Data Integrity | Critical unique fields must be constrained at the DB level (`users.email`, `rooms.code`). |
+| NFR-11 | Error Handling | The API must return appropriate status codes (4xx/5xx) and structured error payloads (`success: false`, `error/message`) for client consumption. |
+| NFR-12 | Session Persistence | Login state must be maintained after browser refresh via local storage token/user data. |
+| NFR-13 | Maintainability | Source code must be modularized by domain (auth, room, event, forum, resource, game) for easier testing and extension. |
+| NFR-14 | Code Quality | Frontend must be linted with ESLint; TypeScript must be used for both client and server. |
+| NFR-15 | Observability | The backend must log critical events (DB connection, WS connect/disconnect, runtime errors) for operational debugging. |
+| NFR-16 | Scalability (Current Limit) | Real-time state is currently an in-memory map; the system accepts state loss upon restart and is marked for upgrade when scaling to multiple instances. |
+| NFR-17 | Scalability (Future) | The architecture should be prepared to replace in-memory real-time state with a shared store (e.g., Redis) to enable horizontal scaling in future versions. |
+| NFR-18 | Email Reliability | If sending OTP/event emails fails, the system must return a clear error to the client without crashing the process. |
+| NFR-19 | Privacy | The system only stores user information necessary for business logic (email, displayName, avatar, auth metadata), without collecting data outside the feature scope. |
+| NFR-20 | Documentation | Technical documentation (`SRS`, `implement`, `api_schema`) must be updated synchronously when critical routes or schemas change. |
 
 ## 3. Constraints and Known Trade-offs
 
-- Realtime multiplayer state chua duoc persist sau restart backend.
-- JWT chua bat buoc expiration cứng trong logic hien tai.
-- Email delivery phu thuoc SMTP provider va network ben ngoai.
+- Real-time multiplayer state is not persisted after a backend restart.
+- JWT does not currently enforce a strict expiration date in the existing logic.
+- Email delivery depends on the SMTP provider and external network.
 
 ## 4. Validation Strategy
 
-- API test thu cong qua Postman/Thunder Client cho auth, room, event, forum, resource.
-- E2E smoke test thu cong: login -> create room -> join room -> move multiplayer -> schedule event -> forum post/reply.
-- Performance spot-check qua browser devtools + server logs.
+- Manual API testing via Postman/Thunder Client for auth, room, event, forum, and resources.
+- Manual E2E smoke tests: login -> create room -> join room -> move multiplayer -> schedule event -> forum post/reply.
+- Performance spot-checks via browser devtools and server logs.

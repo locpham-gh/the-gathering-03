@@ -10,51 +10,51 @@ Date: 2026-04-23
 
 ### 1. Purpose
 
-Tai lieu nay dac ta yeu cau he thong cho The Gathering, mot nen tang virtual co-working ket hop:
+This document specifies the system requirements for The Gathering, a virtual co-working platform combining:
 
-- dashboard SaaS (rooms, events, forum, profile), va
-- khong gian 2D realtime (PixiJS + WebSocket + LiveKit proximity call).
+- SaaS dashboard (rooms, events, forum, profile), and
+- 2D realtime space (PixiJS + WebSocket + LiveKit proximity call).
 
-Tai lieu dung de dong bo giua team phat trien, QA, va stakeholder ve pham vi, chuc nang, rang buoc va tieu chi chat luong cua he thong.
+This document serves to synchronize the development team, QA, and stakeholders regarding the scope, functionality, constraints, and quality criteria of the system.
 
 ### 2. Scope
 
-The Gathering cung cap:
+The Gathering provides:
 
-- xac thuc nguoi dung (Google One Tap, Email OTP),
-- quan ly phong hop/lam viec ao,
-- quan ly su kien va gui email moi,
-- dien dan cong dong,
-- thu vien so (digital library),
-- multiplayer 2D office/classroom voi giao tiep realtime.
+- User authentication (Google One Tap, Email OTP),
+- Virtual meeting/workspace management,
+- Event management and invitation email delivery,
+- Community forum,
+- Digital library,
+- Multiplayer 2D office/classroom with realtime communication.
 
 ### 3. Definitions
 
-- Room: khong gian lam viec ao co `code` de tham gia.
-- Event: lich hen lien ket voi mot room.
-- Topic: bai viet forum, co replies.
-- Library Zone: khu vuc trong map de mo Digital Library.
-- Proximity Call: video call kich hoat khi hai player o gan nhau.
+- Room: A virtual workspace joined via a `code`.
+- Event: A scheduled meeting linked to a room.
+- Topic: A forum post with replies.
+- Library Zone: An area on the map that triggers the Digital Library.
+- Proximity Call: A video call activated when two players are near each other.
 
 ## II. Overall Description
 
 ### 1. Product Perspective
 
-He thong la monorepo gom 2 ung dung:
+The system is a monorepo consisting of 2 applications:
 
 - `apps/client`: React SPA + game canvas
 - `apps/server`: Elysia REST API + WebSocket + DB integration
 
 ### 2. User Classes
 
-- Guest: xem landing, thuc hien dang nhap.
-- Authenticated User: su dung dashboard va game.
-- Room Owner: co them quyen quan tri room (rename/delete/kick).
-- Event Host: tao/xoa event cua minh.
+- Guest: Views the landing page, performs login.
+- Authenticated User: Uses the dashboard and game.
+- Room Owner: Has additional room management permissions (rename/delete/kick).
+- Event Host: Creates/deletes their own events.
 
 ### 3. Operating Environment
 
-- Client: Browser (Chrome/Edge), giao tiep HTTP + WS.
+- Client: Browser (Chrome/Edge), communicates via HTTP + WS.
 - Server: Bun runtime, ElysiaJS.
 - DB: MongoDB (local/Atlas).
 - Third-party: Google Identity, Gmail SMTP, LiveKit.
@@ -115,18 +115,18 @@ flowchart TB
 
 ## III. Functional Requirements
 
-Danh sach chuan nam o `docs/FunctionalRequirement.md`.
+The full list of requirements is available in `docs/FunctionalRequirement.md`.
 
-Tom tat nhom chuc nang:
+Summary of functional groups:
 
 - Authentication: Google One Tap, OTP request/verify, JWT session.
-- User Profile: cap nhat display name/avatar.
-- Room Management: tao/join/list/rename/delete room, member list, kick member.
-- 2D Multiplayer: render tilemap, di chuyen player, WS sync, hien thi online state.
-- Event Management: tao event, xem event, xoa event, gui email moi.
-- Forum: tao topic, reply topic, xoa topic (author).
-- Digital Library: search/filter resources theo text/type/tag.
-- In-game Utilities: room sidebar tabs (participants/forum/events), library zone interaction.
+- User Profile: Update display name/avatar.
+- Room Management: Create/join/list/rename/delete room, member list, kick member.
+- 2D Multiplayer: Render tilemap, player movement, WS sync, display online state.
+- Event Management: Create event, view event, delete event, send invitation emails.
+- Forum: Create topic, reply to topic, delete topic (author).
+- Digital Library: Search/filter resources by text/type/tag.
+- In-game Utilities: Room sidebar tabs (participants/forum/events), library zone interaction.
 
 ### 1. Use Flow (Mermaid)
 
@@ -162,9 +162,9 @@ flowchart TD
 
 ### 1. API Interface
 
-API chi tiet nam o `docs/api_schema_2026.md`.
+Detailed API documentation is in `docs/api_schema_2026.md`.
 
-Nhom endpoint chinh:
+Main endpoint groups:
 
 - `/api/auth/*`
 - `/api/rooms/*`
@@ -184,7 +184,7 @@ Message types:
 
 ### 3. Data Interface (MongoDB)
 
-Collection chinh: `users`, `rooms`, `events`, `forumtopics`, `resources`, `services`.
+Main collections: `users`, `rooms`, `events`, `forumtopics`, `resources`, `services`.
 
 ERD (logical view):
 
@@ -248,44 +248,44 @@ erDiagram
 
 ## V. Non-Functional Requirements
 
-Danh sach day du nam o `docs/NonFunctionalRequirement.md`.
+The full list of requirements is available in `docs/NonFunctionalRequirement.md`.
 
-Tom tat:
+Summary:
 
 - Security: JWT-protected routes, env secrets, input validation.
-- Performance: API p95 muc tieu duoi 500ms (tai trung binh), realtime latency thap.
-- Reliability: error handling co cau truc, khong crash khi email service loi.
-- Maintainability: module theo domain, TypeScript + ESLint.
-- Scalability: hien tai WS state in-memory, can path nang cap shared state.
-- Documentation: cap nhat dong bo giua SRS, implement, api_schema.
+- Performance: API p95 target under 500ms (average load), low realtime latency.
+- Reliability: Structured error handling, no crash when email service fails.
+- Maintainability: Domain-driven modules, TypeScript + ESLint.
+- Scalability: Current WS state is in-memory; needs a shared state upgrade path.
+- Documentation: Synchronized updates between SRS, implementation, and api_schema.
 
 ## VI. Constraints and Assumptions
 
 ### 1. Constraints
 
-- Runtime va package manager: Bun.
-- Client chay tren web browser (khong co native mobile app trong codebase hien tai).
-- Realtime player state hien tai khong persist sau server restart.
+- Runtime and package manager: Bun.
+- Client runs on a web browser (no native mobile app in the current codebase).
+- Current realtime player state does not persist after server restart.
 
 ### 2. Assumptions
 
-- MongoDB va cac bien moi truong duoc cau hinh dung.
-- Google, SMTP, LiveKit credentials hop le khi test full flow.
+- MongoDB and environment variables are correctly configured.
+- Google, SMTP, and LiveKit credentials are valid for testing the full flow.
 
 ## VII. Out of Scope (Current Release)
 
-- Admin dashboard va role management tong the.
-- Service directory business flow day du (chi co model).
+- Overall admin dashboard and role management.
+- Full service directory business flow (only the model exists).
 - Multi-instance distributed realtime state.
 
 ## VIII. Acceptance Criteria (High-Level)
 
-- Dang nhap thanh cong qua Google hoac OTP va truy cap duoc dashboard.
-- User tao/join room duoc va vao khong gian 2D theo room code.
-- Nhieu user trong cung room thay duoc nhau va dong bo vi tri realtime.
-- Event tao thanh cong, host xem/xoa duoc event, email moi gui duoc (neu SMTP dung).
-- Topic forum tao/reply/xoa theo quyen author.
-- Library modal tim kiem/filter resources theo dung tham so.
+- Successful login via Google or OTP and access to the dashboard.
+- User can create/join a room and enter the 2D space using the room code.
+- Multiple users in the same room can see each other and sync positions in realtime.
+- Event created successfully, host can view/delete event, invitation emails sent (if SMTP is correct).
+- Forum topic created/replied/deleted according to author permissions.
+- Library modal searches/filters resources according to correct parameters.
 
 ## IX. Document References
 
