@@ -61,7 +61,13 @@ export const Player: React.FC<PlayerProps> = ({
 
   // 3. Custom Logic Hooks
   const { checkCollision } = useCollision(mapData);
-  const { updateCamera } = useCamera(worldRef, screenW, screenH);
+  const { updateCamera } = useCamera(
+    worldRef, 
+    screenW, 
+    screenH, 
+    mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL, 
+    mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL
+  );
 
   const handleInteraction = () => {
     if (isPaused) return;

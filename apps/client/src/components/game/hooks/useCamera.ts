@@ -7,7 +7,9 @@ import * as PIXI from "pixi.js";
 export function useCamera(
   worldRef: React.RefObject<PIXI.Container>,
   screenW: number,
-  screenH: number
+  screenH: number,
+  mapWidth: number,
+  mapHeight: number
 ) {
   // Track float state so Lerp is fluid, but Container snap is rounded 
   const camExactPos = useRef({ x: 0, y: 0 });
@@ -15,11 +17,27 @@ export function useCamera(
   const updateCamera = useCallback((playerX: number, playerY: number, delta: number) => {
     if (!worldRef.current) return;
 
-    // Follow player with a slight vertical offset (64px) to keep character centered-bottom
-    const targetCamX = screenW / 2 - playerX;
-    const targetCamY = screenH / 2 - playerY + 64; 
+    // 1. Calculate ideal target (centered on player)
+    // Vertical offset (64px) to keep character centered-bottom
+    let targetCamX = screenW / 2 - playerX;
+    let targetCamY = screenH / 2 - playerY + 64; 
 
-    // Initial snap or Lerp
+    // 2. ✅ CAMERA CLAMPING
+    // Limit X: Clamp between -(mapWidth - screenW) and 0
+    if (mapWidth > screenW) {
+      targetCamX = Math.min(0, Math.max(targetCamX, -(mapWidth - screenW)));
+    } else {
+      targetCamX = screenW / 2 - mapWidth / 2; // Center map if smaller than screen
+    }
+
+    // Limit Y: Clamp between -(mapHeight - screenH) and 0
+    if (mapHeight > screenH) {
+      targetCamY = Math.min(0, Math.max(targetCamY, -(mapHeight - screenH)));
+    } else {
+      targetCamY = screenH / 2 - mapHeight / 2;
+    }
+
+    // 3. Initial snap or Lerp
     if (camExactPos.current.x === 0 && camExactPos.current.y === 0) {
       camExactPos.current.x = targetCamX;
       camExactPos.current.y = targetCamY;
@@ -29,11 +47,10 @@ export function useCamera(
     }
     
     // ✅ DPI-AWARE ROUNDING: Snaps to physical pixels rather than CSS pixels.
-    // This prevents the "wall shifting" and jittering when zoomed.
     const dpr = window.devicePixelRatio || 1;
     worldRef.current.x = Math.round(camExactPos.current.x * dpr) / dpr;
     worldRef.current.y = Math.round(camExactPos.current.y * dpr) / dpr;
-  }, [worldRef, screenW, screenH]);
+  }, [worldRef, screenW, screenH, mapWidth, mapHeight]);
 
   return { updateCamera };
 }

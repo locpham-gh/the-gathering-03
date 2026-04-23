@@ -1,164 +1,128 @@
 # Project Context — The Gathering (2026-04-23 Snapshot)
 
-> File này dùng để cung cấp context đầy đủ cho AI agent làm việc với dự án.
+> File này cung cấp context đầy đủ cho AI agent làm việc với dự án The Gathering.
 
 ---
 
-## Tổng quan Dự án
+## 🚀 Công nghệ & Kiến trúc (Tech Stack)
 
-**The Gathering** là một **virtual co-working space** dạng 2D multiplayer — tương tự Gather.town.  
-Người dùng di chuyển nhân vật pixel trong map, tự động join video call khi đứng gần nhau (proximity-based), và có thể truy cập thư viện tài nguyên học tập, diễn đàn cộng đồng, lịch sự kiện.
-
-**Đối tượng:** Cộng đồng học tập / làm việc chung  
-**Scale:** Medium, 2-5 người phát triển  
-**Trạng thái:** Active development
+| Thành phần | Công nghệ |
+|------------|-----------|
+| **Core Runtime** | [Bun](https://bun.sh/) (v1.x) |
+| **Frontend** | React + Vite + TailwindCSS (v4) + PixiJS (Game engine) |
+| **Backend** | [ElysiaJS](https://elysiajs.com/) (High-performance Bun framework) |
+| **Database** | MongoDB (Mongoose ODM) |
+| **Real-time** | Bun Native WebSockets |
+| **Video/Audio** | LiveKit (Proximity-based) |
+| **Authentication** | Google One Tap + JWT + OTP Email |
 
 ---
 
-## User Flow
+## 🗺️ Luồng Người Dùng (User Flow)
 
 ```
 Landing (/) → Auth (Google/OTP) → Home (/home) → Vào Room (/room/:code)
 Home tabs: Rooms | Events | Forum | Profile
 Game room: GameCanvas + Sidebar + Zone Modals + LiveKit video
+(Tính năng Lên lịch sự kiện đã được chuyển sang Modal Pattern hiển thị đè trên mọi màn hình)
 ```
 
 ---
 
-## Cấu trúc Thư Mục
+## 📂 Cấu trúc Thư Mục (Client)
 
 ```
 apps/client/src/
   App.tsx                      # Router + AuthProvider
-  contexts/AuthContext.tsx      # Auth state global
-  hooks/useMultiplayer.ts       # WebSocket + player sync
-  lib/api.ts                    # apiFetch + API wrappers
+  contexts/AuthContext.tsx      # Quản lý state login/user toàn cục
+  hooks/useMultiplayer.ts       # Logic WebSocket sync vị trí người chơi
+  lib/api.ts                    # Wrapper apiFetch & API utilities
   pages/
-    index.tsx  home.tsx  game.tsx  schedule.tsx  auth/
+    index.tsx  home.tsx  game.tsx  auth/
   components/
     dashboard/
-      RoomsManager.tsx          # Tạo/join/list rooms
-      CommunityForum.tsx        # Forum topics + replies
-      EventsManager.tsx         # View/create events (in-game sidebar)
-      ProfileSettings.tsx       # Cập nhật profile
+      rooms/                    # Module quản lý phòng (Refactored < 400 lines)
+        DashboardOverview.tsx   # Widget tạo/join nhanh
+        WorkspaceList.tsx       # Danh sách phòng & action quản lý
+        RoomManageModal.tsx     # Modal cấu hình phòng, kick member
+      events/                   # Module quản lý sự kiện
+        EventsManager.tsx       # Tab danh sách sự kiện
+        EventCard.tsx           # UI item cho từng event
+        EventDetailModal.tsx    # Modal xem chi tiết/vào phòng/xóa
+        EventsEmptyState.tsx    # Giao diện khi không có lịch
+        GuestListManager.tsx    # Logic thêm/xóa khách mời qua email
+      ScheduleEventModal.tsx    # Modal tạo sự kiện (dùng createPortal ra body)
+      CommunityForum.tsx        # Diễn đàn thảo luận
+      ProfileSettings.tsx       # Cài đặt cá nhân
+    ui/
+      Toast.tsx                 # Hệ thống thông báo popup toàn cục
     game/
-      core/
-        GameCanvas.tsx          # Pixi Stage, map + players
-        MapRender.tsx           # Render tile layers
-        config.ts               # MAP_CONFIG, CHARACTER_CONFIG
-        zones.ts                # Zone definitions + collision check
-      entities/
-        Player.tsx              # Local player: input, move, collision, sit
-        OtherPlayer.tsx         # Remote player: lerp render
-        AnimatedPlayerSprite.tsx
-      hooks/
-        useCamera.ts  useCollision.ts  usePlayerInput.ts
-      lib/
-        gameTypes.ts  constants.ts  tileUtils.ts
+      core/                     # Game Engine (PixiJS)
+        GameCanvas.tsx          # Stage chính, quản lý layer
+        MapRender.tsx           # Tiled JSON parser & renderer
+        config.ts               # Tọa độ Spawn, Sprite config, Map switch
+        zones.ts                # Định nghĩa khu vực tương tác (Library, v.v.)
+      entities/                 # Nhân vật & Vật thể
+        Player.tsx              # Local player (Input, Move, Collision)
+        OtherPlayer.tsx         # Remote player (Network lerp)
       ui/
-        RoomSidebar.tsx         # Sidebar: members/chat/events
-        ZoneOverlay.tsx         # HUD "Press E"
-        LiveKitModal.tsx        # Video call modal
-        CharacterSelector.tsx   # Chọn nhân vật lần đầu
-      library/
-        LibraryModal.tsx  LibraryGrid.tsx  LibraryCard.tsx
-        LibraryHeader.tsx  LibrarySidebar.tsx  ResourceDetail.tsx
-
-apps/server/src/
-  index.ts             # Elysia app + WS handler + LiveKit token
-  db/connection.ts     # MongoDB connect
-  models/              # User Room Event ForumTopic Resource Service
-  routes/              # auth room event forum resource
-  controllers/         # auth forum resource
-  services/email.service.ts
+        RoomSidebar.tsx         # Sidebar tích hợp Chat/Members/Events
+        LiveKitModal.tsx        # Cửa sổ Video Call Proximity
 ```
 
 ---
 
-## Multiplayer (WebSocket)
+## 🗄️ Database Schema (MongoDB)
 
-**Endpoint:** `ws://localhost:3000/ws?room=<roomCode>`  
-**State:** In-memory `Map<roomId, Map<wsId, playerData>>` — mất khi restart server.
-
-**Client → Server:**
-```json
-{ "type": "move", "payload": { "x": 0, "y": 0, "isSitting": false, "character": "Adam", "userId": "...", "displayName": "...", "avatarUrl": "..." } }
-```
-
-**Server → Client:**
-| type | payload |
-|------|---------|
-| `initial_state` | `{ players: Record<wsId, playerData> }` |
-| `player_moved` | `{ id, x, y, isSitting, character, userId, displayName, avatarUrl }` |
-| `player_left` | `{ id }` |
-
-**Throttle:** 20Hz (50ms), bypass khi thay đổi `isSitting`.
+| Collection | Trường chính | Ghi chú |
+|------------|--------------|---------|
+| **Users** | `email`, `displayName`, `avatarUrl`, `googleId`, `otpCode` | Lưu thông tin định danh & Auth |
+| **Rooms** | `name`, `code`, `ownerId` (Ref User), `members` (Array User) | Không gian làm việc riêng |
+| **Events** | `title`, `roomId`, `hostId`, `startTime`, `endTime`, `guestEmails` | Lịch họp & Email mời |
+| **ForumTopics**| `title`, `content`, `authorId`, `replies` | Diễn đàn cộng đồng |
+| **Resources** | `title`, `url`, `category`, `tags` | Thư viện tài liệu (PDF, Link) |
 
 ---
 
-## Game Engine
+## 🔌 API Routes (Backend)
 
-- **Renderer:** PixiJS v7 + @pixi/react
-- **Map format:** Tiled JSON (32px raw tiles → 64px virtual render, scale 2.01×)
-- **Collision:** AABB tile-based, hitbox `(+16, +32) to (+48, +64)` trên sprite 64×64
-- **Solid layers:** Mọi layer KHÔNG phải `Floor/floor/ground/Tile Layer 1`
-- **Spawn:** `(1600, 1600)` pixel
-- **Camera:** World container offset để player luôn ở center màn hình
-
-**Maps:**
-| File | Kích hoạt |
-|------|-----------|
-| `office_map.json` | `MAP_CONFIG.type = "office"` |
-| `classroom_map.json` | `MAP_CONFIG.type = "classroom"` (default hiện tại) |
-
-> Switch map: Sửa `apps/client/src/components/game/core/config.ts`
-
-**Characters:** Adam, Bob, Amelia, Alex (`/sprites/<Name>_16x16.png`)  
-Sprite sheet: 16×16px/frame, 4 hướng × 8 frame walk cycle.
+| Module | Endpoint | Method | Chức năng |
+|--------|----------|--------|-----------|
+| **Auth** | `/api/auth/google` | POST | Login qua Google One Tap |
+| | `/api/auth/otp/send` | POST | Gửi mã OTP về email |
+| | `/api/auth/otp/verify` | POST | Xác thực OTP & cấp JWT |
+| **Room** | `/api/rooms` | GET/POST | Lấy danh sách / Tạo phòng mới |
+| | `/api/rooms/:id` | PATCH/DELETE | Sửa tên / Xóa phòng |
+| | `/api/rooms/:id/members`| GET | Lấy danh sách thành viên trong phòng |
+| | `/api/rooms/:id/kick` | POST | Đuổi thành viên ra khỏi phòng |
+| **Event** | `/api/events` | GET/POST | Lấy lịch họp / Lên lịch mới & Gửi mail |
+| | `/api/events/:id` | DELETE | Hủy lịch họp |
+| **Forum** | `/api/forum/topics` | GET/POST | Lấy danh sách bài viết / Đăng bài |
 
 ---
 
-## Zones
+## 🌐 Multiplayer & Real-time
 
-| ID | Label | Office (x,y,w,h) | Classroom (x,y,w,h) |
-|----|-------|-----------------|---------------------|
-| `library` | Library | 2000,350,600,600 | 1984,1408,512,832 |
-
-Kích hoạt: bước vào zone → ZoneOverlay "Press E" → E → mở LibraryModal.
-
----
-
-## Auth (Client)
-
-```typescript
-interface AuthContextType {
-  user: { id, email, displayName, avatarUrl? } | null;
-  token: string | null;
-  loading: boolean;
-  login(userData, token): void;
-  logout(): void;
-  updateUser(userData): void;
-}
-```
-
-Session: `localStorage.token` (JWT) + `localStorage.user` (JSON).  
-Không dùng cookie, không có refresh token.
+- **WebSocket:** `ws://localhost:3000/ws?room=<roomCode>`
+- **Sync Logic:** Server broadcast vị trí (`x`, `y`) và trạng thái (`isSitting`, `character`) cho mọi người trong cùng phòng.
+- **State:** Hiện tại lưu In-memory (Mất khi restart).
+- **Video:** Tự động kết nối LiveKit khi player bước vào vùng Proximity (dựa trên khoảng cách Euclidean giữa các sprites).
 
 ---
 
-## Known Issues (tính đến 2026-04)
+## 🛠️ Cải tiến gần đây (Changelog)
 
-1. **WS state in-memory** — mất khi server restart, cần Redis nếu scale.
-2. **Room member data corruption** — có self-heal logic trong `GET /api/rooms` cho ObjectId bị corrupt thành Buffer (legacy bug).
-3. **JWT không set exp** — cần thêm expiration cho production.
-4. **RoomSidebar online check** — `players[*].userId === member._id` (WS wsId ≠ DB userId, cần userId trong payload).
+1. **Refactor Clean Code (2026-04-23):**
+   - Tách tất cả các file component > 400 dòng thành các module nhỏ (`rooms/`, `events/`).
+   - Chuyển `ScheduleEvent` từ Route sang Modal Pattern (dùng `createPortal` để hiển thị trên cùng, tránh bị sidebar map 2D chèn ép).
+   - Fix lỗi `verbatimModuleSyntax` bằng cách sử dụng `import type`.
+   - Chuẩn hóa hệ thống thông báo `Toast` thành component dùng chung.
+2. **Fix Bug 500:** Xóa index unique lỗi `eventId` trong MongoDB giúp việc tạo lịch họp hoạt động ổn định.
 
 ---
 
-## Ports (Development)
+## ⚠️ Known Issues
 
-| Service | Port |
-|---------|------|
-| Backend (ElysiaJS + Bun) | 3000 |
-| Frontend (Vite) | 5173 |
-| MongoDB | 27017 |
+1. **In-memory State:** Server restart sẽ làm mất vị trí các player đang online.
+2. **JWT Expiration:** Token hiện chưa có thời hạn hết hạn cứng (cần bổ sung `exp` field).
+3. **Room Sidebar Sync:** Đôi khi danh sách Member Online không cập nhật ngay lập tức nếu WS disconnect đột ngột.
