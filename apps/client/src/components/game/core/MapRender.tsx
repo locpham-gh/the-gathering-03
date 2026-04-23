@@ -1,8 +1,8 @@
 import React from "react";
 import { Container, Sprite } from "@pixi/react";
-import { getTileDataForGid } from "./lib/tileUtils";
-import { WORLD_CONFIG } from "./lib/constants";
-import type { MapData } from "./lib/gameTypes";
+import { getTileDataForGid } from "../lib/tileUtils";
+import { WORLD_CONFIG } from "../lib/constants";
+import type { MapData } from "../lib/gameTypes";
 
 interface MapRenderProps {
   mapData: MapData;

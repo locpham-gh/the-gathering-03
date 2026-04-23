@@ -7,9 +7,10 @@ import {
   LogOut,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch } from "../../lib/api";
-import { CommunityForum } from "../dashboard/CommunityForum";
-import { EventsManager } from "../dashboard/EventsManager";
+import { apiFetch } from "../../../lib/api";
+import { CommunityForum } from "../../dashboard/CommunityForum";
+import { EventsManager } from "../../dashboard/EventsManager";
+import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
 interface Member {
   _id: string;
@@ -20,7 +21,7 @@ interface Member {
 interface RoomSidebarProps {
   roomId?: string;
   user: { id: string; avatarUrl: string; displayName: string };
-  players: Record<string, unknown>;
+  players: Record<string, RemotePlayer>;
 }
 
 export const RoomSidebar: React.FC<RoomSidebarProps> = ({
@@ -116,10 +117,10 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
           {activeTab === "users" && (
             <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300 relative z-10 px-2 py-4">
               {members.map((member) => {
-                let isOnline = false;
-                // user is self
-                if (member._id === user.id) isOnline = true;
-                else if (players[member._id]) isOnline = true;
+                // Check if any of the active players has this member's ID
+                const isOnline = 
+                  member._id === user.id || 
+                  Object.values(players).some(p => p.userId === member._id);
 
                 return (
                   <div

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Sprite, useTick } from "@pixi/react";
-import { DIR_COL_OFFSET, getCharacterTexture } from "./lib/tileUtils";
-import type { DirString } from "./lib/gameTypes";
+import { DIR_COL_OFFSET, getCharacterTexture } from "../lib/tileUtils";
+import type { DirString } from "../lib/gameTypes";
 
 interface AnimatedPlayerSpriteProps {
   x: number;

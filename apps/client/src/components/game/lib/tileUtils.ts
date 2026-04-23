@@ -1,5 +1,5 @@
 import * as PIXI from "pixi.js";
-import { MAP_CONFIG } from "../config";
+import { MAP_CONFIG } from "../core/config";
 import { WORLD_CONFIG, TILESET_CONFIG } from "./constants";
 import type { DirString, TileData } from "./gameTypes";
 

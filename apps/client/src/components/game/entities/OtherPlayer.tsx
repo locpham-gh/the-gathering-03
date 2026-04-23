@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { useTick } from "@pixi/react";
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
-import { getNewDirection } from "./lib/tileUtils";
-import type { DirString } from "./lib/gameTypes";
-import type { RemotePlayer } from "../../hooks/useMultiplayer";
+import { getNewDirection } from "../lib/tileUtils";
+import type { DirString } from "../lib/gameTypes";
+import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
 interface OtherPlayerProps {
   player: RemotePlayer;

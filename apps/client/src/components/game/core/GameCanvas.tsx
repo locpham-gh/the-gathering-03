@@ -5,13 +5,13 @@ import * as PIXI from "pixi.js";
 // Internal modules
 import { MAP_CONFIG } from "./config";
 import { MapRender } from "./MapRender";
-import { Player } from "./Player";
-import { OtherPlayer } from "./OtherPlayer";
+import { Player } from "../entities/Player";
+import { OtherPlayer } from "../entities/OtherPlayer";
 import { ZONES } from "./zones";
 
 // Types
 import type { Zone } from "./zones";
-import type { RemotePlayer } from "../../hooks/useMultiplayer";
+import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
 // Pixi Settings
 const pixiSettings = PIXI.settings as unknown as { 

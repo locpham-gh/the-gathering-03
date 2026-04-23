@@ -1,14 +1,14 @@
 import React, { useEffect, useState, useMemo, useDeferredValue } from "react";
-import { resourcesApi } from "../../lib/api";
+import { resourcesApi } from "../../../lib/api";
 import { Filter, BookOpen, FileText, Video, X } from "lucide-react";
 import { motion } from "framer-motion";
 
 // Sub-components
-import { LibrarySidebar } from "./library/LibrarySidebar";
-import { LibraryHeader } from "./library/LibraryHeader";
-import { LibraryGrid } from "./library/LibraryGrid";
-import { ResourceDetail } from "./library/ResourceDetail";
-import type { Resource, Category } from "./library/types";
+import { LibrarySidebar } from "./LibrarySidebar";
+import { LibraryHeader } from "./LibraryHeader";
+import { LibraryGrid } from "./LibraryGrid";
+import { ResourceDetail } from "./ResourceDetail";
+import type { Resource, Category } from "./types";
 
 export const LibraryModal: React.FC<{ onClose: () => void }> = ({
   onClose,

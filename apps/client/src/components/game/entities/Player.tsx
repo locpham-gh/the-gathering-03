@@ -3,20 +3,20 @@ import { useTick } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Libs & Types
-import { WORLD_CONFIG } from "./lib/constants";
-import { getNewDirection } from "./lib/tileUtils";
-import type { Zone } from "./zones";
-import type { RemotePlayer } from "../../hooks/useMultiplayer";
-import type { DirString, MapData } from "./lib/gameTypes";
+import { WORLD_CONFIG } from "../lib/constants";
+import { getNewDirection } from "../lib/tileUtils";
+import { ZONES, checkZoneCollision } from "../core/zones";
+import type { Zone } from "../core/zones";
+import type { RemotePlayer } from "../../../hooks/useMultiplayer";
+import type { DirString, MapData } from "../lib/gameTypes";
 
 // Hooks
-import { usePlayerInput } from "./hooks/usePlayerInput";
-import { useCollision } from "./hooks/useCollision";
-import { useCamera } from "./hooks/useCamera";
+import { usePlayerInput } from "../hooks/usePlayerInput";
+import { useCollision } from "../hooks/useCollision";
+import { useCamera } from "../hooks/useCamera";
 
 // Components
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
-import { ZONES, checkZoneCollision } from "./zones";
 
 interface PlayerProps {
   mapData: MapData;

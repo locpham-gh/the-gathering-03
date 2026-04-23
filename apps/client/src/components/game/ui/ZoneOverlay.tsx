@@ -1,4 +1,4 @@
-import type { Zone } from "./zones";
+import type { Zone } from "../core/zones";
 
 interface ZoneOverlayProps {
   zone: Zone | null;

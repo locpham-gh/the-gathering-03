@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { CHARACTER_CONFIG } from "./config";
+import { CHARACTER_CONFIG } from "../core/config";
 
 interface CharacterSelectorProps {
   onSelect: (characterId: string) => void;

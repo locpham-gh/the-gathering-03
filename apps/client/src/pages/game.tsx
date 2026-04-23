@@ -1,15 +1,15 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { GameCanvas } from "../components/game/GameCanvas";
-import type { Zone } from "../components/game/zones";
-import { ZoneOverlay } from "../components/game/ZoneOverlay";
-import { LibraryModal } from "../components/game/LibraryModal";
-import { RoomSidebar } from "../components/game/RoomSidebar";
+import { GameCanvas } from "../components/game/core/GameCanvas";
+import type { Zone } from "../components/game/core/zones";
+import { ZoneOverlay } from "../components/game/ui/ZoneOverlay";
+import { LibraryModal } from "../components/game/library/LibraryModal";
+import { RoomSidebar } from "../components/game/ui/RoomSidebar";
 import { useMultiplayer } from "../hooks/useMultiplayer";
-import { LiveKitModal } from "../components/game/LiveKitModal";
+import { LiveKitModal } from "../components/game/ui/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { CharacterSelector } from "../components/game/CharacterSelector";
+import { CharacterSelector } from "../components/game/ui/CharacterSelector";
 
 export default function GamePage() {
   const { user } = useAuth();

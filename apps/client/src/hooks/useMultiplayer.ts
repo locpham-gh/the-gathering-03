@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 
 export interface RemotePlayer {
-  id: string;
+  id: string; // Socket ID
+  userId?: string; // Database User ID
   x: number;
   y: number;
   lastUpdate: number;
@@ -39,6 +40,7 @@ export function useMultiplayer(roomId?: string) {
           [payload.id]: {
             ...prev[payload.id],
             id: payload.id,
+            userId: payload.userId,
             x: payload.x,
             y: payload.y,
             isSitting: payload.isSitting,
@@ -89,6 +91,7 @@ export function useMultiplayer(roomId?: string) {
           y,
           isSitting,
           character,
+          userId: user.id,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl
         }
