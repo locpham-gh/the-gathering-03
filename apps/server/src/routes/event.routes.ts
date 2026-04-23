@@ -24,9 +24,10 @@ export const eventRoutes: any = new Elysia({ prefix: "/api/events" })
     if (!user) return new Response("Unauthorized", { status: 401 });
     
     try {
+      const userId = user.userId || user.id;
       const events = await Event.find({
         $or: [
-          { hostId: user.id },
+          { hostId: userId },
           { guestEmails: user.email }
         ]
       })
@@ -38,6 +39,26 @@ export const eventRoutes: any = new Elysia({ prefix: "/api/events" })
     } catch (e: any) {
       console.error(e);
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+  })
+  .delete("/:id", async ({ params, user, set }: any) => {
+    if (!user) { set.status = 401; return { success: false, error: "Unauthorized" }; }
+
+    try {
+      const userId = (user.userId || user.id)?.toString();
+      const event = await Event.findById(params.id);
+
+      if (!event) { set.status = 404; return { success: false, error: "Event not found" }; }
+      if (event.hostId.toString() !== userId) {
+        set.status = 403;
+        return { success: false, error: "Only the host can delete this event" };
+      }
+
+      await Event.findByIdAndDelete(params.id);
+      return { success: true, message: "Event deleted" };
+    } catch (e: any) {
+      set.status = 500;
+      return { success: false, error: e.message };
     }
   })
   .post("/", async ({ body, headers, user }: any) => {
@@ -94,13 +115,14 @@ export const eventRoutes: any = new Elysia({ prefix: "/api/events" })
           startTime,
           endTime,
           roomLink,
-          hostName: host ? host.displayName : 'A Gathering Member'
+          hostName: host?.displayName ?? 'A Gathering Member'
         });
       }
 
       return { success: true, event: newEvent };
     } catch (e: any) {
       console.error(e);
+      require('fs').writeFileSync('error.log', e.stack || e.message);
       return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
   }, {

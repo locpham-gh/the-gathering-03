@@ -1,0 +1,6 @@
+Error: E11000 duplicate key error collection: the-gathering.events index: eventId_1 dup key: { eventId: null }
+    at handleOk (C:\dev\apps\the-gathering-03\node_modules\.bun\mongodb@6.20.0+6b2545528a740742\node_modules\mongodb\lib\operations\insert.js:51:31)
+    at tryOperation (C:\dev\apps\the-gathering-03\node_modules\.bun\mongodb@6.20.0+6b2545528a740742\node_modules\mongodb\lib\operations\execute_operation.js:214:34)
+    at async executeOperation (C:\dev\apps\the-gathering-03\node_modules\.bun\mongodb@6.20.0+6b2545528a740742\node_modules\mongodb\lib\operations\execute_operation.js:78:22)
+    at async insertOne (C:\dev\apps\the-gathering-03\node_modules\.bun\mongodb@6.20.0+6b2545528a740742\node_modules\mongodb\lib\collection.js:154:46)
+    at processTicksAndRejections (native:7:39)

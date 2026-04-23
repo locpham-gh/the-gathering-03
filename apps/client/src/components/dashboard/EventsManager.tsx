@@ -1,107 +1,172 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, MapPin } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus } from "lucide-react";
 import { apiFetch } from "../../lib/api";
+import { ScheduleEventModal } from "./ScheduleEventModal";
+import type { EventItem } from "./events/types";
+import { isUpcoming } from "./events/utils";
+import { EventCard } from "./events/EventCard";
+import { EventDetailModal } from "./events/EventDetailModal";
+import { EventsEmptyState } from "./events/EventsEmptyState";
 
-interface Event {
-  _id: string;
-  title: string;
-  startTime: string;
-  endTime: string;
-  hostId: { _id: string };
-  roomId: { code: string };
-  guestEmails: string[];
-}
-
-export function EventsManager({ user }: { user: { id: string } }) {
-  const navigate = useNavigate();
-  const [events, setEvents] = useState<Event[]>([]);
+export function EventsManager({
+  user,
+  initialRoomId,
+}: {
+  user: { id: string };
+  initialRoomId?: string;
+}) {
+  const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setLoading(true);
-      try {
-        const res = await apiFetch("/api/events");
-        if (res.success) {
-          setEvents(res.events);
-        }
-      } catch (err) {
-        console.error("Failed to load events", err);
-      } finally {
-        setLoading(false);
+  const fetchEvents = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiFetch("/api/events");
+      if (res.success) {
+        // Sort ascending by startTime
+        const sorted = [...res.events].sort(
+          (a: EventItem, b: EventItem) =>
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime(),
+        );
+        setEvents(sorted);
       }
-    };
-    fetchEvents();
+    } catch (err) {
+      console.error("Failed to load events", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
+
+  const upcomingEvents = events.filter((e) => isUpcoming(e.startTime));
+  const pastEvents = events.filter((e) => !isUpcoming(e.startTime)).reverse();
+  const displayedEvents = tab === "upcoming" ? upcomingEvents : pastEvents;
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Xoá sự kiện này? Hành động không thể hoàn tác.")) return;
+    setDeleting(true);
+    try {
+      const res = await apiFetch(`/api/events/${id}`, { method: "DELETE" });
+      if (res.success) {
+        setSelectedEvent(null);
+        fetchEvents();
+      } else {
+        alert("Lỗi: " + res.error);
+      }
+    } catch (err) {
+      alert("Lỗi khi xoá: " + String(err));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-right duration-500">
+    <div className="space-y-6 animate-in fade-in slide-in-from-right duration-500 relative">
+      {/* Header */}
       <div className="flex justify-between items-center">
-        <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
-          Lịch Họp Của Bạn
-        </h3>
-        <button 
-          onClick={() => navigate('/schedule/new')}
-          className="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
+        <div>
+          <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
+            Lịch Sự Kiện
+          </h3>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {upcomingEvents.length} sắp tới · {pastEvents.length} đã qua
+          </p>
+        </div>
+        <button
+          onClick={() => setIsScheduleModalOpen(true)}
+          className="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
         >
-          <Calendar size={16} /> Lên lịch mới
+          <Plus size={16} /> Lên lịch mới
         </button>
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl w-fit">
+        {(["upcoming", "past"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+              tab === t
+                ? "bg-white text-slate-800 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            {t === "upcoming" ? "Sắp tới" : "Đã qua"}
+            <span
+              className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
+                tab === t
+                  ? "bg-teal-100 text-teal-700"
+                  : "bg-slate-200 text-slate-500"
+              }`}
+            >
+              {t === "upcoming" ? upcomingEvents.length : pastEvents.length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
       {loading ? (
-        <div className="py-20 text-center text-slate-400 animate-pulse font-medium">Bơm dữ liệu từ hệ thống...</div>
-      ) : events.length === 0 ? (
-        <div className="py-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
-           <p className="text-slate-400">Bạn chưa có lịch họp hoặc sự kiện nào sắp diễn ra.</p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-24 bg-slate-100 rounded-2xl animate-pulse"
+            />
+          ))}
         </div>
+      ) : displayedEvents.length === 0 ? (
+        <EventsEmptyState
+          tab={tab}
+          onSchedule={() => setIsScheduleModalOpen(true)}
+        />
       ) : (
-        <div className="flex flex-col gap-4">
-          {events.map((evt) => {
-            const startDate = new Date(evt.startTime);
-            const endDate = new Date(evt.endTime);
-            const isHost = evt.hostId?._id === user.id;
+        <div className="flex flex-col gap-3">
+          {displayedEvents.map((evt) => (
+            <EventCard
+              key={evt._id}
+              event={evt}
+              userId={user.id}
+              onClick={() => setSelectedEvent(evt)}
+            />
+          ))}
+        </div>
+      )}
 
-            return (
-              <div key={evt._id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center gap-6 hover:shadow-md transition-shadow group">
-                <div className="flex flex-col items-center justify-center w-20 h-20 bg-slate-50 rounded-lg border border-slate-200 shrink-0">
-                  <span className="text-xs font-bold text-red-500 uppercase">{startDate.toLocaleString('en-US', { month: 'short' })}</span>
-                  <span className="text-2xl font-black text-slate-800">{startDate.getDate()}</span>
-                </div>
-                
-                <div className="flex-[2]">
-                  <h4 className="text-lg font-bold text-slate-800 mb-1 flex items-center gap-2">
-                    {evt.title}
-                    {isHost && <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-100 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">Host</span>}
-                  </h4>
-                  <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
-                    <div className="flex items-center gap-1">
-                      <Clock size={14} className="text-slate-400" />
-                      {startDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} - {endDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin size={14} className="text-slate-400" />
-                      <span className="font-mono text-xs">{evt.roomId?.code || 'Virtual Room'}</span>
-                    </div>
-                  </div>
-                </div>
+      {/* Detail Modal */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          userId={user.id}
+          onClose={() => setSelectedEvent(null)}
+          onDelete={handleDelete}
+        />
+      )}
 
-                <div className="flex items-center gap-3">
-                  <div className="hidden md:flex flex-col items-end mr-4">
-                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Khách mời</span>
-                    <span className="text-sm font-medium text-slate-700">{evt.guestEmails?.length || 0} Emails</span>
-                  </div>
-                  
-                  <button
-                    onClick={() => navigate(`/room/${evt.roomId?.code}`)}
-                    className="flex-1 md:flex-none px-6 py-2.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg shadow-sm transition-transform active:scale-95 text-sm whitespace-nowrap"
-                  >
-                    Vào phòng
-                  </button>
-                </div>
-              </div>
-            )
-          })}
+      {/* Schedule Modal */}
+      <ScheduleEventModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => {
+          setIsScheduleModalOpen(false);
+          fetchEvents();
+        }}
+        initialRoomId={initialRoomId}
+      />
+
+      {deleting && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30">
+          <div className="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+            <span className="font-medium text-slate-700">Đang xoá...</span>
+          </div>
         </div>
       )}
     </div>

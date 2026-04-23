@@ -118,9 +118,9 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
             <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300 relative z-10 px-2 py-4">
               {members.map((member) => {
                 // Check if any of the active players has this member's ID
-                const isOnline = 
-                  member._id === user.id || 
-                  Object.values(players).some(p => p.userId === member._id);
+                const isOnline =
+                  member._id === user.id ||
+                  Object.values(players).some((p) => p.userId === member._id);
 
                 return (
                   <div
@@ -159,7 +159,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
           )}
           {activeTab === "events" && (
             <div className="scale-[0.95] origin-top">
-              <EventsManager user={user} />
+              <EventsManager user={user} initialRoomId={roomId} />
             </div>
           )}
         </div>

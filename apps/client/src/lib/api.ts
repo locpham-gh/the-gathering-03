@@ -64,4 +64,5 @@ export const eventsApi = {
       body: JSON.stringify(data),
     }),
     getMyEvents: () => apiFetch(`/api/events`),
+    deleteEvent: (id: string) => apiFetch(`/api/events/${id}`, { method: "DELETE" }),
 };

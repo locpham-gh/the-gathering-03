@@ -4,11 +4,9 @@ import { useLocation } from "react-router-dom";
 import { DashboardLayout } from "../components/layout/DashboardLayout";
 import { apiFetch } from "../lib/api";
 
-import {
-  DashboardOverview,
-  WorkspaceList,
-} from "../components/dashboard/RoomsManager";
-import type { RoomData } from "../components/dashboard/RoomsManager";
+import { DashboardOverview } from "../components/dashboard/rooms/DashboardOverview";
+import { WorkspaceList } from "../components/dashboard/rooms/WorkspaceList";
+import type { RoomData } from "../components/dashboard/rooms/types";
 import { EventsManager } from "../components/dashboard/EventsManager";
 import { CommunityForum } from "../components/dashboard/CommunityForum";
 import { ProfileSettings } from "../components/dashboard/ProfileSettings";
