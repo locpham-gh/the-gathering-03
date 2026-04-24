@@ -41,11 +41,17 @@ export const forumApi = {
         method: "POST",
         body: JSON.stringify({ title }),
     }),
-    addReply: (topicId: string, content: string) => apiFetch(`/api/forum/topics/${topicId}/replies`, {
+    addReply: (topicId: string, content: string, replyToId?: string) => apiFetch(`/api/forum/topics/${topicId}/replies`, {
         method: "POST",
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, replyToId }),
     }),
     deleteTopic: (topicId: string) => apiFetch(`/api/forum/topics/${topicId}`, {
+        method: "DELETE"
+    }),
+    toggleLike: (topicId: string) => apiFetch(`/api/forum/topics/${topicId}/like`, {
+        method: "POST"
+    }),
+    deleteReply: (topicId: string, replyId: string) => apiFetch(`/api/forum/topics/${topicId}/replies/${replyId}`, {
         method: "DELETE"
     }),
 };

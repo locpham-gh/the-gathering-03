@@ -19,19 +19,29 @@ export function useMultiplayer(roomId?: string) {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    if (!user || !roomId) return;
+    if (!user) return;
 
+    const effectiveRoomId = roomId || "lobby";
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     // Use the backend URL from env or fallback to current host with port 3000
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const host = apiUrl.replace(/^https?:\/\//, "");
     
     let isClosing = false;
-    const ws = new WebSocket(`${protocol}//${host}/ws?room=${roomId}`);
+    const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}`);
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log(`✅ WS Connected to room: ${roomId}`);
+    };
+
+    ws.onerror = (error) => {
+      console.error("❌ WS Connection Error:", error);
+    };
 
     ws.onmessage = (event) => {
       if (isClosing) return;
+      console.log("📩 WS Received:", event.data);
       const { type, payload } = JSON.parse(event.data);
       
       if (type === "player_moved") {
@@ -58,6 +68,9 @@ export function useMultiplayer(roomId?: string) {
           delete next[payload.id];
           return next;
         });
+      } else if (type === "forum_refresh") {
+        console.log("WS: Received forum_refresh signal");
+        window.dispatchEvent(new CustomEvent("forum-refresh"));
       }
     };
 

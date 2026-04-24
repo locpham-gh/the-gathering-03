@@ -2,6 +2,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 
 interface IReply {
   authorId: Types.ObjectId;
+  replyTo?: Types.ObjectId; // Optional: The user being replied to
   content: string;
   createdAt: Date;
 }
@@ -9,11 +10,13 @@ interface IReply {
 export interface IForumTopic extends Document {
   title: string;
   authorId: Types.ObjectId;
+  likes: Types.ObjectId[];
   replies: IReply[];
 }
 
 const ReplySchema = new Schema<IReply>({
   authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  replyTo: { type: Schema.Types.ObjectId, ref: 'User' },
   content: { type: String, required: true },
   createdAt: { type: Date, default: Date.now }
 });
@@ -22,6 +25,7 @@ const ForumTopicSchema = new Schema<IForumTopic>(
   {
     title: { type: String, required: true },
     authorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
     replies: [ReplySchema],
   },
   { timestamps: true }
