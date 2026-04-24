@@ -35,6 +35,16 @@ export const broadcastForumUpdate = () => {
   app.server.publish("global-forum", message);
 };
 
+export const broadcastNotification = (userId: string) => {
+  if (!app.server) return;
+  console.log(`📢 Broadcasting notification to user-${userId}`);
+  const message = JSON.stringify({
+    type: "new_notification",
+    payload: { timestamp: Date.now() }
+  });
+  app.server.publish(`user-${userId}`, message);
+};
+
 // 1. Plugins & Routes
 app.use(cors());
 app.use(jwtConfig);
@@ -67,16 +77,25 @@ app.get(
 
 // 3. WebSocket Setup
 app.ws("/ws", {
-  query: t.Object({ room: t.Optional(t.String()) }),
+  query: t.Object({ 
+    room: t.Optional(t.String()),
+    userId: t.Optional(t.String())
+  }),
   body: t.Object({ type: t.String(), payload: t.Any() }),
   open(ws: any) {
     const roomId = ws.data.query.room || "lobby";
-    console.log(`📡 New connection in room ${roomId}: ${ws.id}`);
+    const userId = ws.data.query.userId;
+    
+    console.log(`📡 New connection in room ${roomId}: ${ws.id}${userId ? ` (User: ${userId})` : ""}`);
     
     if (roomId !== "lobby") {
       ws.subscribe(`room-${roomId}`);
     }
     ws.subscribe("global-forum");
+    
+    if (userId) {
+      ws.subscribe(`user-${userId}`);
+    }
 
     if (roomId !== "lobby") {
       if (!activePlayers.has(roomId)) {

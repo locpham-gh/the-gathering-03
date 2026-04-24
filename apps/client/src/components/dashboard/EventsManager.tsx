@@ -50,7 +50,7 @@ export function EventsManager({
   const displayedEvents = tab === "upcoming" ? upcomingEvents : pastEvents;
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Xoá sự kiện này? Hành động không thể hoàn tác.")) return;
+    if (!confirm("Delete this event? This action cannot be undone.")) return;
     setDeleting(true);
     try {
       const res = await apiFetch(`/api/events/${id}`, { method: "DELETE" });
@@ -58,10 +58,10 @@ export function EventsManager({
         setSelectedEvent(null);
         fetchEvents();
       } else {
-        alert("Lỗi: " + res.error);
+        alert("Error: " + res.error);
       }
     } catch (err) {
-      alert("Lỗi khi xoá: " + String(err));
+      alert("Error while deleting: " + String(err));
     } finally {
       setDeleting(false);
     }
@@ -73,17 +73,17 @@ export function EventsManager({
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Lịch Sự Kiện
+            Event Schedule
           </h3>
           <p className="text-sm text-slate-400 mt-0.5">
-            {upcomingEvents.length} sắp tới · {pastEvents.length} đã qua
+            {upcomingEvents.length} upcoming · {pastEvents.length} past
           </p>
         </div>
         <button
           onClick={() => setIsScheduleModalOpen(true)}
           className="bg-teal-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
         >
-          <Plus size={16} /> Lên lịch mới
+          <Plus size={16} /> Schedule Event
         </button>
       </div>
 
@@ -99,7 +99,7 @@ export function EventsManager({
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            {t === "upcoming" ? "Sắp tới" : "Đã qua"}
+            {t === "upcoming" ? "Upcoming" : "Past"}
             <span
               className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${
                 tab === t
@@ -165,7 +165,7 @@ export function EventsManager({
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/30">
           <div className="bg-white rounded-2xl px-8 py-6 shadow-2xl flex items-center gap-3">
             <div className="w-5 h-5 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
-            <span className="font-medium text-slate-700">Đang xoá...</span>
+            <span className="font-medium text-slate-700">Deleting...</span>
           </div>
         </div>
       )}

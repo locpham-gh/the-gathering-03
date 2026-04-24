@@ -26,7 +26,7 @@ export function ScheduleEventModal({
   const { user } = useAuth();
 
   // Form state
-  const [title, setTitle] = useState("Cuộc họp mới");
+  const [title, setTitle] = useState("New Meeting");
   const [description, setDescription] = useState("");
 
   const roundToNext30 = () => {
@@ -64,7 +64,7 @@ export function ScheduleEventModal({
   // Reset state when opening
   useEffect(() => {
     if (isOpen) {
-      setTitle("Cuộc họp mới");
+      setTitle("New Meeting");
       setDescription("");
       setStartTime(toLocalISO(roundToNext30()));
       setEndTime(
@@ -88,9 +88,9 @@ export function ScheduleEventModal({
   if (!isOpen || !user) return null;
 
   const validate = () => {
-    if (!title.trim()) return "Vui lòng nhập tiêu đề sự kiện.";
+    if (!title.trim()) return "Please enter the event title.";
     if (new Date(startTime) >= new Date(endTime))
-      return "Thời gian kết thúc phải sau thời gian bắt đầu.";
+      return "End time must be after start time.";
     return null;
   };
 
@@ -114,13 +114,13 @@ export function ScheduleEventModal({
         guestEmails: guests,
       };
       await eventsApi.scheduleMeeting(payload);
-      showToast("✅ Lên lịch và gửi email thành công!", "success");
+      showToast("✅ Scheduled and emails sent successfully!", "success");
       setTimeout(() => {
         onClose();
       }, 1500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      showToast("Lỗi: " + msg, "error");
+      showToast("Error: " + msg, "error");
     } finally {
       setLoading(false);
     }
@@ -130,8 +130,8 @@ export function ScheduleEventModal({
     initialRoomId && initialRoomId !== "new"
       ? `Room: ${initialRoomId}`
       : selectedRoomId === "new"
-        ? "Tự động tạo phòng mới"
-        : rooms.find((r) => r._id === selectedRoomId)?.name || "Chọn phòng";
+        ? "Auto-create new room"
+        : rooms.find((r) => r._id === selectedRoomId)?.name || "Select room";
 
   return createPortal(
     <div className="fixed inset-0 z-[999] flex justify-center items-start bg-black/60 p-4 font-sans text-slate-800 overflow-y-auto backdrop-blur-sm">
@@ -149,7 +149,7 @@ export function ScheduleEventModal({
           </button>
 
           <p className="text-sm font-bold text-slate-500 tracking-wide">
-            Lên lịch sự kiện
+            Schedule Event
           </p>
 
           <button
@@ -162,7 +162,7 @@ export function ScheduleEventModal({
             ) : (
               <Save size={16} />
             )}
-            Lưu
+            Save
           </button>
         </div>
 
@@ -177,7 +177,7 @@ export function ScheduleEventModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 autoFocus
-                placeholder="Tiêu đề sự kiện"
+                placeholder="Event Title"
                 className="w-full text-3xl md:text-4xl font-extrabold outline-none border-b-2 border-transparent focus:border-teal-500 pb-2 transition-colors placeholder:text-slate-200 text-slate-900"
               />
             </div>
@@ -191,7 +191,7 @@ export function ScheduleEventModal({
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Bắt đầu
+                      Start
                     </label>
                     <input
                       type="datetime-local"
@@ -213,7 +213,7 @@ export function ScheduleEventModal({
                   <span className="text-slate-400 text-sm pt-4">→</span>
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                      Kết thúc
+                      End
                     </label>
                     <input
                       type="datetime-local"
@@ -236,9 +236,9 @@ export function ScheduleEventModal({
               </div>
               <div className="flex-1 space-y-2">
                 <div className="bg-teal-50 border border-teal-100 text-teal-700 p-3 rounded-xl text-sm font-medium">
-                  Tham gia qua The Gathering Metaverse
+                  Join via The Gathering Metaverse
                   <p className="text-xs font-normal text-teal-500 mt-0.5">
-                    Hỗ trợ tới 100 người · Proximity video · Breakout rooms 2D
+                    Supports up to 100 people · Proximity video · 2D Breakout rooms
                   </p>
                 </div>
 
@@ -250,7 +250,7 @@ export function ScheduleEventModal({
                       disabled={loadingRooms}
                       className="w-full appearance-none px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-teal-400 transition-colors pr-10 disabled:opacity-50"
                     >
-                      <option value="new">✨ Tự động tạo phòng mới</option>
+                      <option value="new">✨ Auto-create new room</option>
                       {rooms.map((r) => (
                         <option key={r._id} value={r._id}>
                           {r.name} ({r.code})
@@ -280,7 +280,7 @@ export function ScheduleEventModal({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Thêm mô tả, chương trình nghị sự hoặc link tài liệu..."
+                placeholder="Add description, agenda or document links..."
                 rows={4}
                 className="flex-1 text-sm outline-none bg-slate-50 border border-slate-200 rounded-xl p-4 resize-none focus:border-teal-400 focus:bg-white transition-all placeholder:text-slate-300"
               />

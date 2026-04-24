@@ -7,6 +7,8 @@ import {
   deleteTopic,
   toggleLikeTopic,
   deleteReply,
+  getUserNotifications,
+  markNotificationAsRead,
 } from "../controllers/forum.controller.js";
 
 export const forumRoutes = new Elysia({ prefix: "/api/forum" })
@@ -159,4 +161,50 @@ export const forumRoutes = new Elysia({ prefix: "/api/forum" })
         return { success: false, message: error.message };
       }
     },
-  );
+  )
+  .get("/notifications", async ({ jwt, set, headers }: any) => {
+    try {
+      const authHeader = headers["authorization"];
+      if (!authHeader) {
+        set.status = 401;
+        return { success: false, message: "Unauthorized" };
+      }
+
+      const token = authHeader.split(" ")[1];
+      const payload = await jwt.verify(token);
+
+      if (!payload || !payload.userId) {
+        set.status = 401;
+        return { success: false, message: "Unauthorized" };
+      }
+
+      const notifications = await getUserNotifications(payload.userId);
+      return { success: true, notifications };
+    } catch (error: any) {
+      set.status = 500;
+      return { success: false, message: error.message };
+    }
+  })
+  .post("/notifications/:id/read", async ({ params, jwt, set, headers }: any) => {
+    try {
+      const authHeader = headers["authorization"];
+      if (!authHeader) {
+        set.status = 401;
+        return { success: false, message: "Unauthorized" };
+      }
+
+      const token = authHeader.split(" ")[1];
+      const payload = await jwt.verify(token);
+
+      if (!payload || !payload.userId) {
+        set.status = 401;
+        return { success: false, message: "Unauthorized" };
+      }
+
+      await markNotificationAsRead(params.id, payload.userId);
+      return { success: true };
+    } catch (error: any) {
+      set.status = 500;
+      return { success: false, message: error.message };
+    }
+  });
