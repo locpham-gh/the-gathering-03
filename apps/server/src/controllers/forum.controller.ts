@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 import { ForumTopic, IForumTopic } from "../models/ForumTopic.js";
 import { User } from "../models/User.js";
-import { Notification } from "../models/Notification.js";
-import { broadcastNotification } from "../index.js";
 
 // List all topics with author info (lean is faster and more similar to plain JSON)
 export const getAllTopics = async () => {
@@ -48,38 +46,14 @@ export const addReply = async (topicId: string, content: string, authorId: strin
             throw new Error("Topic not found");
         }
 
-        const reply = {
+        topic.replies.push({
             authorId: new mongoose.Types.ObjectId(authorId) as any,
             replyTo: replyToId ? new mongoose.Types.ObjectId(replyToId) as any : undefined,
             content,
             createdAt: new Date()
-        };
+        });
 
-        topic.replies.push(reply);
         await topic.save();
-
-        // Notification Logic
-        let recipientId;
-        if (replyToId) {
-            // If replying to a specific user, notify them
-            recipientId = replyToId;
-        } else {
-            // Otherwise notify the topic author
-            recipientId = topic.authorId;
-        }
-
-        // Only create notification if recipient is not the sender
-        if (recipientId && recipientId.toString() !== authorId) {
-            await Notification.create({
-                recipient: recipientId,
-                sender: authorId,
-                type: "reply",
-                topicId: topicId,
-                content: content.substring(0, 50) + (content.length > 50 ? "..." : "")
-            });
-            broadcastNotification(recipientId.toString());
-        }
-
         return topic;
     } catch (error) {
         console.error("Error adding reply:", error);
@@ -117,31 +91,8 @@ export const toggleLikeTopic = async (topicId: string, userId: string) => {
 
         if (index === -1) {
             topic.likes.push(userObjectId);
-            
-            // Notification Logic: Notify author when liked (only if not liking own topic)
-            if (topic.authorId.toString() !== userId) {
-                // Check if there's already an unread "like" notification from this user to avoid spam
-                const existingNotif = await Notification.findOne({
-                    recipient: topic.authorId,
-                    sender: userId,
-                    type: "like",
-                    topicId: topicId,
-                    isRead: false
-                });
-
-                if (!existingNotif) {
-                    await Notification.create({
-                        recipient: topic.authorId,
-                        sender: userId,
-                        type: "like",
-                        topicId: topicId
-                    });
-                    broadcastNotification(topic.authorId.toString());
-                }
-            }
         } else {
             topic.likes.splice(index, 1);
-            // Optionally delete notification if unliked? (Usually not needed for performance)
         }
 
         await topic.save();
@@ -170,31 +121,5 @@ export const deleteReply = async (topicId: string, replyId: string, userId: stri
     } catch (error) {
         console.error("Error deleting reply:", error);
         throw new Error("Failed to delete reply");
-    }
-};
-
-export const getUserNotifications = async (userId: string) => {
-    try {
-        return await Notification.find({ recipient: userId })
-            .populate('sender', 'displayName avatarUrl')
-            .populate('topicId', 'title')
-            .sort({ createdAt: -1 })
-            .limit(20);
-    } catch (error) {
-        console.error("Error fetching notifications:", error);
-        throw new Error("Failed to fetch notifications");
-    }
-};
-
-export const markNotificationAsRead = async (notificationId: string, userId: string) => {
-    try {
-        await Notification.findOneAndUpdate(
-            { _id: notificationId, recipient: userId },
-            { isRead: true }
-        );
-        return true;
-    } catch (error) {
-        console.error("Error marking notification as read:", error);
-        throw new Error("Failed to mark notification as read");
     }
 };

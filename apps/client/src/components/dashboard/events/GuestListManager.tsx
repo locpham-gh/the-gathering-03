@@ -31,7 +31,7 @@ export function GuestListManager({
     <div className="w-full md:w-80 bg-white p-8 flex flex-col border-t md:border-t-0 border-slate-100">
       <div className="flex items-center gap-2 mb-6 pb-3 border-b border-slate-100">
         <Users size={18} className="text-teal-500" />
-        <span className="font-bold text-slate-700">Guests</span>
+        <span className="font-bold text-slate-700">Khách mời</span>
         {guests.length > 0 && (
           <span className="ml-auto text-xs bg-teal-50 text-teal-700 border border-teal-100 px-2 py-0.5 rounded-full font-bold">
             {guests.length}
@@ -70,7 +70,7 @@ export function GuestListManager({
           <p className="text-sm font-bold text-slate-800 leading-tight">
             {user.displayName}
           </p>
-          <p className="text-xs text-teal-600 font-medium">Host</p>
+          <p className="text-xs text-teal-600 font-medium">Chủ tọa</p>
         </div>
       </div>
 
@@ -78,7 +78,7 @@ export function GuestListManager({
       <div className="flex-1 overflow-y-auto space-y-2 max-h-[30vh]">
         {guests.length === 0 && (
           <p className="text-xs text-slate-400 text-center py-4">
-            No guests added yet. Confirmation emails will be sent automatically.
+            Chưa có khách mời nào. Email xác nhận sẽ được gửi tự động.
           </p>
         )}
         {guests.map((email) => (

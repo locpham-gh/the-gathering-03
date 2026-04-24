@@ -72,10 +72,3 @@ export const eventsApi = {
     getMyEvents: () => apiFetch(`/api/events`),
     deleteEvent: (id: string) => apiFetch(`/api/events/${id}`, { method: "DELETE" }),
 };
-
-export const notificationsApi = {
-    getNotifications: () => apiFetch("/api/forum/notifications"),
-    markAsRead: (id: string) => apiFetch(`/api/forum/notifications/${id}/read`, {
-        method: "POST"
-    }),
-};

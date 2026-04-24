@@ -16,7 +16,7 @@ export function EventCard({ event, userId, onClick }: EventCardProps) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left bg-white border rounded-xl p-5 flex items-center gap-5 hover:shadow-md transition-all group ${
+      className={`w-full text-left bg-white border rounded-2xl p-5 flex items-center gap-5 hover:shadow-md transition-all group ${
         upcoming
           ? "border-slate-200 hover:border-teal-200"
           : "border-slate-100 opacity-60 hover:opacity-80"
@@ -24,14 +24,14 @@ export function EventCard({ event, userId, onClick }: EventCardProps) {
     >
       {/* Date Block */}
       <div
-        className={`flex flex-col items-center justify-center w-16 h-16 rounded-lg border shrink-0 ${
+        className={`flex flex-col items-center justify-center w-16 h-16 rounded-xl border shrink-0 ${
           upcoming
             ? "bg-teal-50 border-teal-100 text-teal-700"
             : "bg-slate-50 border-slate-200 text-slate-400"
         }`}
       >
         <span className="text-[10px] font-bold uppercase">
-          {startDate.toLocaleString("en-US", { month: "short" })}
+          {startDate.toLocaleString("vi-VN", { month: "short" })}
         </span>
         <span className="text-2xl font-black leading-none">
           {startDate.getDate()}
@@ -49,7 +49,7 @@ export function EventCard({ event, userId, onClick }: EventCardProps) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-          <span className="flex items-center gap-1 font-sans">
+          <span className="flex items-center gap-1">
             <Clock size={11} />
             {formatTime(event.startTime)} — {formatTime(event.endTime)}
             <span className="text-slate-400 ml-1">
@@ -63,7 +63,7 @@ export function EventCard({ event, userId, onClick }: EventCardProps) {
           {event.guestEmails?.length > 0 && (
             <span className="flex items-center gap-1">
               <Users size={11} />
-              {event.guestEmails.length} guests
+              {event.guestEmails.length} khách
             </span>
           )}
         </div>

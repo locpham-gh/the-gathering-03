@@ -26,7 +26,7 @@ export function EventDetailModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Color bar top */}
@@ -39,12 +39,12 @@ export function EventDetailModal({
               <div className="flex items-center gap-2 mb-2">
                 {isHost && (
                   <span className="text-[10px] bg-teal-50 text-teal-700 border border-teal-100 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                    You are host
+                    Bạn là host
                   </span>
                 )}
                 {!upcoming && (
                   <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
-                    Ended
+                    Đã kết thúc
                   </span>
                 )}
               </div>
@@ -54,7 +54,7 @@ export function EventDetailModal({
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 transition shrink-0"
+              className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition shrink-0"
             >
               <X size={20} />
             </button>
@@ -65,10 +65,10 @@ export function EventDetailModal({
             <div className="flex items-start gap-3">
               <Clock size={16} className="text-teal-500 mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-slate-800 font-sans">
+                <p className="font-semibold text-slate-800">
                   {formatDate(event.startTime)}
                 </p>
-                <p className="text-slate-500 font-sans">
+                <p className="text-slate-500">
                   {formatTime(event.startTime)} — {formatTime(event.endTime)}
                   <span className="ml-2 text-slate-400">
                     ({getDuration(event.startTime, event.endTime)})
@@ -104,10 +104,10 @@ export function EventDetailModal({
                     alt=""
                   />
                 )}
-                <span className="text-slate-700 font-medium font-sans">
+                <span className="text-slate-700 font-medium">
                   {event.hostId?.displayName || "Host"}
                 </span>
-                <span className="text-slate-400 text-xs">(Host)</span>
+                <span className="text-slate-400">(Chủ tọa)</span>
               </div>
             </div>
 
@@ -115,7 +115,7 @@ export function EventDetailModal({
             {event.description && (
               <div className="flex items-start gap-3">
                 <CalendarDays size={16} className="text-slate-400 mt-0.5 shrink-0" />
-                <p className="text-slate-600 leading-relaxed italic font-sans">
+                <p className="text-slate-600 leading-relaxed">
                   {event.description}
                 </p>
               </div>
@@ -127,14 +127,14 @@ export function EventDetailModal({
                 <div className="flex items-center gap-2 mb-3">
                   <Mail size={14} className="text-slate-400" />
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                    Guests ({event.guestEmails.length})
+                    Khách mời ({event.guestEmails.length})
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {event.guestEmails.map((email) => (
                     <span
                       key={email}
-                      className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg"
+                      className="inline-flex items-center gap-1.5 text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full"
                     >
                       <div className="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold text-[10px] shrink-0">
                         {email.charAt(0).toUpperCase()}
@@ -152,15 +152,15 @@ export function EventDetailModal({
             {upcoming && event.roomId?.code && (
               <button
                 onClick={() => navigate(`/room/${event.roomId.code}`)}
-                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-lg font-bold text-sm transition-all shadow-sm"
+                className="flex-1 flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white py-3 rounded-xl font-bold text-sm transition-all shadow-sm"
               >
-                <ExternalLink size={16} /> Join Meeting
+                <ExternalLink size={16} /> Vào phòng họp
               </button>
             )}
             {isHost && (
               <button
                 onClick={() => onDelete(event._id)}
-                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg font-bold text-sm transition-all"
+                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-sm transition-all"
               >
                 <Trash2 size={16} />
               </button>
