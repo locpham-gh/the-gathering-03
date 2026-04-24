@@ -16,6 +16,7 @@ interface Reply {
     displayName: string;
   };
   content: string;
+  likes: string[]; // Added likes for replies
   createdAt: string;
 }
 
@@ -117,12 +118,14 @@ const ReplyItem = ({
   currentUserId,
   onDelete,
   onReply,
+  onToggleLike,
 }: {
   reply: Reply;
   isLast: boolean;
   currentUserId: string;
   onDelete: () => void;
   onReply: () => void;
+  onToggleLike: () => void;
 }) => (
   <div className="group flex gap-4 relative">
     {!isLast && (
@@ -167,12 +170,28 @@ const ReplyItem = ({
           {reply.content}
         </p>
       </div>
-      <button
-        onClick={onReply}
-        className="mt-1.5 ml-1 text-[11px] font-bold text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors"
-      >
-        Trả lời
-      </button>
+      <div className="flex items-center gap-4 mt-1 ml-1">
+        <button
+          onClick={onReply}
+          className="text-[11px] font-bold text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors"
+        >
+          Trả lời
+        </button>
+        <button
+          onClick={onToggleLike}
+          className={`flex items-center gap-1.5 text-[11px] font-bold transition-all ${
+            reply.likes?.includes(currentUserId)
+              ? "text-red-500"
+              : "text-slate-400 hover:text-red-500"
+          }`}
+        >
+          <Heart
+            size={12}
+            className={reply.likes?.includes(currentUserId) ? "fill-current" : ""}
+          />
+          {reply.likes?.length > 0 && <span>{reply.likes.length}</span>}
+        </button>
+      </div>
     </div>
   </div>
 );
@@ -336,6 +355,33 @@ export function CommunityForum({ user }: { user: User }) {
     }
   };
 
+  const handleToggleLikeReply = async (topicId: string, replyId: string) => {
+    // Optimistic UI
+    setTopics((prev) =>
+      prev.map((t) => {
+        if (t._id === topicId) {
+          const newReplies = t.replies.map((r) => {
+            if (r._id === replyId) {
+              const hasLiked = r.likes.includes(user.id);
+              const newLikes = hasLiked
+                ? r.likes.filter((id) => id !== user.id)
+                : [...r.likes, user.id];
+              return { ...r, likes: newLikes };
+            }
+            return r;
+          });
+          return { ...t, replies: newReplies };
+        }
+        return t;
+      }),
+    );
+    try {
+      await forumApi.toggleLikeReply(topicId, replyId);
+    } catch {
+      loadTopics();
+    }
+  };
+
   const handleDeleteReply = async (topicId: string, replyId: string) => {
     if (confirm("Delete this reply?")) {
       const res = await forumApi.deleteReply(topicId, replyId);
@@ -462,6 +508,7 @@ export function CommunityForum({ user }: { user: User }) {
                             topicId: topic._id,
                           });
                         }}
+                        onToggleLike={() => handleToggleLikeReply(topic._id, reply._id)}
                       />
                     ))}
                   </div>

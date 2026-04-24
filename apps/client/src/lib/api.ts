@@ -54,6 +54,9 @@ export const forumApi = {
     deleteReply: (topicId: string, replyId: string) => apiFetch(`/api/forum/topics/${topicId}/replies/${replyId}`, {
         method: "DELETE"
     }),
+    toggleLikeReply: (topicId: string, replyId: string) => apiFetch(`/api/forum/topics/${topicId}/replies/${replyId}/like`, {
+        method: "POST"
+    }),
 };
 
 export const eventsApi = {
