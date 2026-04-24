@@ -11,6 +11,7 @@ import {
   Calendar,
   MessageCircle
 } from "lucide-react";
+import { NotificationCenter } from "../dashboard/NotificationCenter";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -96,13 +97,20 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
            <h2 className="text-lg font-bold text-slate-700">
              {menuItems.find(i => i.path === location.pathname)?.name || "Dashboard"}
            </h2>
-           <button 
-             onClick={() => navigate("/home")}
-             className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
-           >
-             <PlusCircle size={18} />
-             <span>Create Room</span>
-           </button>
+           <div className="flex items-center gap-4">
+             <NotificationCenter user={{ 
+               id: user.id, 
+               displayName: user.displayName, 
+               avatarUrl: user.avatarUrl || "" 
+             }} />
+             <button 
+               onClick={() => navigate("/home")}
+               className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
+             >
+               <PlusCircle size={18} />
+               <span>Create Room</span>
+             </button>
+           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 relative">
