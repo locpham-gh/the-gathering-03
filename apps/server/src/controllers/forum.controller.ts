@@ -52,6 +52,7 @@ export const addReply = async (topicId: string, content: string, authorId: strin
             authorId: new mongoose.Types.ObjectId(authorId) as any,
             replyTo: replyToId ? new mongoose.Types.ObjectId(replyToId) as any : undefined,
             content,
+            likes: [],
             createdAt: new Date()
         };
 
@@ -149,6 +150,53 @@ export const toggleLikeTopic = async (topicId: string, userId: string) => {
     } catch (error) {
         console.error("Error toggling like:", error);
         throw new Error("Failed to toggle like");
+    }
+};
+
+export const toggleLikeReply = async (topicId: string, replyId: string, userId: string) => {
+    try {
+        const topic = await ForumTopic.findById(topicId);
+        if (!topic) throw new Error("Topic not found");
+
+        const reply = topic.replies.find(r => (r as any)._id.toString() === replyId);
+        if (!reply) throw new Error("Reply not found");
+
+        const userObjectId = userId as any;
+        const index = reply.likes.indexOf(userObjectId);
+
+        if (index === -1) {
+            reply.likes.push(userObjectId);
+            
+            // Notification Logic: Notify reply author
+            if (reply.authorId.toString() !== userId) {
+                const existingNotif = await Notification.findOne({
+                    recipient: reply.authorId,
+                    sender: userId,
+                    type: "reply_like",
+                    topicId: topicId,
+                    isRead: false
+                });
+
+                if (!existingNotif) {
+                    await Notification.create({
+                        recipient: reply.authorId,
+                        sender: userId,
+                        type: "reply_like",
+                        topicId: topicId,
+                        content: reply.content.substring(0, 30)
+                    });
+                    broadcastNotification(reply.authorId.toString());
+                }
+            }
+        } else {
+            reply.likes.splice(index, 1);
+        }
+
+        await topic.save();
+        return topic;
+    } catch (error) {
+        console.error("Error toggling reply like:", error);
+        throw new Error("Failed to toggle reply like");
     }
 };
 

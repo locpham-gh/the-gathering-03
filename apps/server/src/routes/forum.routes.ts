@@ -6,6 +6,7 @@ import {
   addReply,
   deleteTopic,
   toggleLikeTopic,
+  toggleLikeReply,
   deleteReply,
   getUserNotifications,
   markNotificationAsRead,
@@ -131,6 +132,37 @@ export const forumRoutes = new Elysia({ prefix: "/api/forum" })
       return { success: false, message: error.message };
     }
   })
+  .post(
+    "/topics/:id/replies/:replyId/like",
+    async ({ params, jwt, set, headers }: any) => {
+      try {
+        const authHeader = headers["authorization"];
+        if (!authHeader) {
+          set.status = 401;
+          return { success: false, message: "Unauthorized" };
+        }
+
+        const token = authHeader.split(" ")[1];
+        const payload = await jwt.verify(token);
+
+        if (!payload || !payload.userId) {
+          set.status = 401;
+          return { success: false, message: "Unauthorized" };
+        }
+
+        const topic = await toggleLikeReply(
+          params.id,
+          params.replyId,
+          payload.userId,
+        );
+        broadcastForumUpdate();
+        return { success: true, topic };
+      } catch (error: any) {
+        set.status = 500;
+        return { success: false, message: error.message };
+      }
+    },
+  )
   .delete(
     "/topics/:id/replies/:replyId",
     async ({ params, jwt, set, headers }: any) => {

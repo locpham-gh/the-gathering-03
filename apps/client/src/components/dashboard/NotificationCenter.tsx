@@ -9,7 +9,7 @@ interface Notification {
     displayName: string;
     avatarUrl: string;
   };
-  type: "like" | "reply";
+  type: "like" | "reply" | "reply_like";
   topicId: {
     _id: string;
     title: string;
@@ -144,16 +144,17 @@ export function NotificationCenter({ user }: { user: User }) {
                       alt="Avatar"
                     />
                     <div className={`absolute -bottom-1 -right-1 p-1 rounded-full text-white ${
-                      n.type === 'like' ? 'bg-red-500' : 'bg-teal-500'
+                      (n.type === 'like' || n.type === 'reply_like') ? 'bg-red-500' : 'bg-teal-500'
                     }`}>
-                      {n.type === 'like' ? <Heart size={10} className="fill-current" /> : <MessageCircle size={10} />}
+                      {(n.type === 'like' || n.type === 'reply_like') ? <Heart size={10} className="fill-current" /> : <MessageCircle size={10} />}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-800 leading-snug">
                       <span className="font-bold">{n.sender.displayName}</span>
                       {" "}
-                      {n.type === 'like' ? 'liked your post' : 'replied to you'}
+                      {n.type === 'like' ? 'liked your post' : 
+                       n.type === 'reply_like' ? 'liked your comment' : 'replied to you'}
                       {": "}
                       <span className="text-slate-500 italic">"{n.topicId.title}"</span>
                     </p>
