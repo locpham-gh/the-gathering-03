@@ -12,6 +12,7 @@ import {
   MessageCircle
 } from "lucide-react";
 import { NotificationCenter } from "../dashboard/NotificationCenter";
+import { QuickCreateRoomModal } from "../dashboard/rooms/QuickCreateRoomModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -30,10 +31,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { name: "Profile", path: "/home/profile", icon: <Settings size={20} /> },
   ];
 
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = React.useState(false);
+
   if (!user) return null;
 
   return (
     <div className="flex h-screen bg-slate-50 font-sans text-slate-900 overflow-hidden">
+      <QuickCreateRoomModal 
+        isOpen={isQuickCreateOpen} 
+        onClose={() => setIsQuickCreateOpen(false)} 
+        userDisplayName={user.displayName}
+      />
+      
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm">
         <div className="p-6">
@@ -104,7 +113,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                avatarUrl: user.avatarUrl || "" 
              }} />
              <button 
-               onClick={() => navigate("/home")}
+               onClick={() => setIsQuickCreateOpen(true)}
                className="bg-primary text-white px-5 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-teal-700 transition-all shadow-sm"
              >
                <PlusCircle size={18} />

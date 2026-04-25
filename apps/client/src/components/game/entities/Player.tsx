@@ -23,13 +23,14 @@ interface PlayerProps {
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string, customName?: string) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
   screenW: number;
   screenH: number;
   selectedCharacter: string;
+  customDisplayName?: string;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -44,10 +45,15 @@ export const Player: React.FC<PlayerProps> = ({
   screenW,
   screenH,
   selectedCharacter,
+  customDisplayName,
 }) => {
   // 1. Local State
-  const [x, setX] = useState(WORLD_CONFIG.PLAYER_SPAWN_X);
-  const [y, setY] = useState(WORLD_CONFIG.PLAYER_SPAWN_Y);
+  // Default to office_2 spawn (approx middle-bottom)
+  const initialX = mapData.width === 31 ? 512 : WORLD_CONFIG.PLAYER_SPAWN_X;
+  const initialY = mapData.width === 31 ? 1000 : WORLD_CONFIG.PLAYER_SPAWN_Y;
+  
+  const [x, setX] = useState(initialX);
+  const [y, setY] = useState(initialY);
   const [direction, setDirection] = useState<DirString>("down");
   const [isMoving, setIsMoving] = useState(false);
   const [isSitting, setIsSitting] = useState(false);
@@ -184,7 +190,7 @@ export const Player: React.FC<PlayerProps> = ({
     updateCamera(x, y, delta);
 
     if (nextX !== x || nextY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(nextX, nextY, isSitting, selectedCharacter);
+      updatePosition(nextX, nextY, isSitting, selectedCharacter, customDisplayName || undefined);
       lastSyncSit.current = isSitting;
     }
 
@@ -193,6 +199,38 @@ export const Player: React.FC<PlayerProps> = ({
     if (zone !== currentZone) {
       setCurrentZone(zone);
       onZoneChange?.(zone);
+    }
+
+    // Teleportation logic for merged map
+    const floorLayer = mapData.layers.find(l => l.name === "floorLayer") as any;
+    if (floorLayer && floorLayer.objects) {
+      const scale = WORLD_CONFIG.TILE_SIZE_VIRTUAL / 32; // Usually 2
+      for (const obj of floorLayer.objects) {
+        const ox = obj.x * scale;
+        const oy = obj.y * scale;
+        const ow = obj.width * scale;
+        const oh = obj.height * scale;
+
+        // Check if player center is within object
+        const px = nextX + 32;
+        const py = nextY + 32;
+
+        if (px >= ox && px <= ox + ow && py >= oy && py <= oy + oh) {
+          if (obj.name === "to-conference") {
+            // Teleport to conference start (from-office in conference)
+            // Original from-office was at x:640, y:128. In merged (offset 100): x:640, y:3200+128=3328
+            setX(640 * scale);
+            setY(3328 * scale);
+            return; // Skip rest of tick to prevent immediate re-teleport
+          } else if (obj.name === "to-office") {
+            // Teleport back to office start (from-conference in office)
+            // Original from-conference was at x:64, y:544
+            setX(128 * scale);
+            setY(544 * scale);
+            return;
+          }
+        }
+      }
     }
 
     const now = Date.now();

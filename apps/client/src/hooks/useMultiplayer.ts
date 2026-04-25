@@ -47,6 +47,9 @@ export function useMultiplayer(roomId?: string) {
         // Skip if this is the local player
         if (payload.userId === user.id) return;
 
+        // Skip if coordinates are 0 (prevents ghost NPC at top left)
+        if (payload.x === 0 && payload.y === 0) return;
+
         setPlayers((prev) => ({
           ...prev,
           [payload.id]: {
@@ -66,7 +69,7 @@ export function useMultiplayer(roomId?: string) {
         // Filter out local player from initial state
         const filteredPlayers: Record<string, RemotePlayer> = {};
         Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
-          if (p.userId !== user.id) {
+          if (p.userId !== user.id && (p.x !== 0 || p.y !== 0)) {
             filteredPlayers[id] = p;
           }
         });
@@ -79,6 +82,8 @@ export function useMultiplayer(roomId?: string) {
         });
       } else if (type === "forum_refresh") {
         window.dispatchEvent(new CustomEvent("forum-refresh"));
+      } else if (type === "chat_message") {
+        window.dispatchEvent(new CustomEvent("chat-message", { detail: payload }));
       }
     };
 
@@ -96,7 +101,7 @@ export function useMultiplayer(roomId?: string) {
   const lastSent = useRef<number>(0);
   const lastSittingState = useRef<boolean | undefined>(undefined);
 
-  const updatePosition = useCallback((x: number, y: number, isSitting?: boolean, character?: string) => {
+  const updatePosition = useCallback((x: number, y: number, isSitting?: boolean, character?: string, customName?: string) => {
     const now = Date.now();
     const stateChanged = isSitting !== lastSittingState.current;
 
@@ -113,7 +118,7 @@ export function useMultiplayer(roomId?: string) {
           isSitting,
           character,
           userId: user.id,
-          displayName: user.displayName,
+          displayName: customName || user.displayName,
           avatarUrl: user.avatarUrl
         }
       }));
@@ -122,5 +127,22 @@ export function useMultiplayer(roomId?: string) {
     }
   }, [user]);
 
-  return { players, updatePosition };
+  const sendChatMessage = useCallback((payload: any) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: "chat_message",
+        payload
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleSendChat = (e: CustomEvent) => {
+      sendChatMessage(e.detail);
+    };
+    window.addEventListener("send-chat-message", handleSendChat as EventListener);
+    return () => window.removeEventListener("send-chat-message", handleSendChat as EventListener);
+  }, [sendChatMessage]);
+
+  return { players, updatePosition, sendChatMessage };
 }

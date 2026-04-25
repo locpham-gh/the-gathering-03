@@ -24,8 +24,7 @@ export function DashboardOverview({
   const maps = [
     { id: "office", name: "Modern Office", image: "/maps/office_preview.png" },
     { id: "classroom", name: "Classroom", image: "/maps/classroom_preview.png" },
-    { id: "office_2", name: "Office (Floor 1)", image: "/maps/office_2_preview.png" },
-    { id: "conference", name: "Conference (Floor 2)", image: "/maps/conference_preview.png" },
+    { id: "office_combined", name: "Map Office 2", image: "/maps/office_2_preview.png" },
   ];
 
   const handleCreateRoom = async (e: React.FormEvent) => {

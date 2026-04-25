@@ -9,7 +9,8 @@ import { useMultiplayer } from "../hooks/useMultiplayer";
 import { LiveKitModal } from "../components/game/ui/LiveKitModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
-import { CharacterSelector } from "../components/game/ui/CharacterSelector";
+import { PreJoinScreen } from "../components/game/ui/PreJoinScreen";
+import { ConferenceModal } from "../components/game/ui/ConferenceModal";
 
 export default function GamePage() {
   const { user } = useAuth();
@@ -21,6 +22,8 @@ export default function GamePage() {
   const [isCalling, setIsCalling] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [room, setRoom] = useState<any>(null);
+  const [isJoined, setIsJoined] = useState(false);
+  const [customDisplayName, setCustomDisplayName] = useState<string | null>(null);
 
   const { players, updatePosition } = useMultiplayer(roomId);
 
@@ -30,7 +33,6 @@ export default function GamePage() {
       return;
     }
 
-    // Join the room and get room details
     if (roomId) {
       apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" })
         .then((res) => {
@@ -43,6 +45,12 @@ export default function GamePage() {
         );
     }
   }, [user, navigate, roomId]);
+
+  const handleJoin = (data: { displayName: string; characterId: string }) => {
+    setCustomDisplayName(data.displayName);
+    setSelectedCharacter(data.characterId);
+    setIsJoined(true);
+  };
 
   const handleZoneChange = useCallback((zone: Zone | null) => {
     setCurrentZone(zone);
@@ -72,9 +80,10 @@ export default function GamePage() {
         setIsCalling(true);
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         const roomName = [user.id, playerId].sort().join("--");
+        const displayName = customDisplayName || user.displayName;
 
         const res = await fetch(
-          `${apiUrl}/api/livekit/token?room=${roomName}&username=${user.displayName}`,
+          `${apiUrl}/api/livekit/token?room=${roomName}&username=${displayName}`,
         );
         const data = await res.json();
 
@@ -88,7 +97,7 @@ export default function GamePage() {
         setIsCalling(false);
       }
     },
-    [user, liveKitToken, isCalling],
+    [user, liveKitToken, isCalling, customDisplayName],
   );
 
   useEffect(() => {
@@ -108,14 +117,16 @@ export default function GamePage() {
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
       
-      {/* 1. Gather.town Style Sidebar */}
       <RoomSidebar 
         roomId={roomId} 
-        user={{ ...user, avatarUrl: user.avatarUrl || "" }} 
+        user={{ 
+          ...user, 
+          displayName: customDisplayName || user.displayName,
+          avatarUrl: user.avatarUrl || "" 
+        }} 
         players={players} 
       />
 
-      {/* 2. Main Game Viewport */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         <div className="relative pointer-events-auto w-full h-full">
           <GameCanvas
@@ -126,15 +137,19 @@ export default function GamePage() {
             players={players}
             updatePosition={updatePosition}
             selectedCharacter={selectedCharacter || "Adam"}
+            customDisplayName={customDisplayName || undefined}
             mapType={room?.map}
           />
         </div>
 
-        {/* 3. In-Game Modals & Overlays */}
         <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 
         {activeZone && activeZone.id === "library" && (
           <LibraryModal onClose={handleZoneClose} />
+        )}
+
+        {activeZone && activeZone.id === ("conference" as any) && (
+          <ConferenceModal onClose={handleZoneClose} />
         )}
 
         {liveKitToken && (
@@ -150,8 +165,8 @@ export default function GamePage() {
 
       </div>
 
-      {!selectedCharacter && (
-        <CharacterSelector onSelect={(id) => setSelectedCharacter(id)} />
+      {!isJoined && (
+        <PreJoinScreen user={user} onJoin={handleJoin} />
       )}
     </div>
   );

@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../../lib/api";
-import { CommunityForum } from "../../dashboard/CommunityForum";
 import { EventsManager } from "../../dashboard/EventsManager";
+import { DiscordChat } from "./DiscordChat";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
 interface Member {
@@ -45,7 +45,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
 
   const tabs = [
     { id: "users", icon: Users, label: "Room Participants" },
-    { id: "chat", icon: MessageCircle, label: "Community Chat" },
+    { id: "chat", icon: MessageCircle, label: "Discord Chat" },
     { id: "events", icon: CalendarDays, label: "Events & Meetings" },
   ];
 
@@ -95,7 +95,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
       <div
         className={`absolute top-0 left-16 h-full bg-white text-slate-800 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden flex flex-col z-20 shadow-[20px_0_40px_-15px_rgba(0,0,0,0.2)] pointer-events-auto border-r border-slate-200 ${
           activeTab
-            ? "w-[320px] opacity-100"
+            ? activeTab === "chat" ? "w-[700px] opacity-100" : "w-[320px] opacity-100"
             : "w-0 opacity-0 border-transparent shadow-none"
         }`}
       >
@@ -113,7 +113,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 relative p-4">
+        <div className={`flex-1 overflow-y-auto ${activeTab === "chat" ? "p-0 bg-[#313338]" : "p-4 custom-scrollbar bg-slate-50"} relative`}>
           {activeTab === "users" && (
             <div className="space-y-3 animate-in fade-in slide-in-from-top-4 duration-300 relative z-10 px-2 py-4">
               {members.map((member) => {
@@ -153,9 +153,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
             </div>
           )}
           {activeTab === "chat" && (
-            <div className="scale-[0.95] origin-top">
-              <CommunityForum user={user} />
-            </div>
+            <DiscordChat user={user} roomId={roomId} />
           )}
           {activeTab === "events" && (
             <div className="scale-[0.95] origin-top">

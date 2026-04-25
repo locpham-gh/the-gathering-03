@@ -7,6 +7,7 @@ import { resourceRoutes } from "./routes/resource.routes.js";
 import { forumRoutes } from "./routes/forum.routes.js";
 import { roomRoutes } from "./routes/room.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
+import { chatRoutes } from "./routes/chat.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 
 // Boot up MongoDB
@@ -53,6 +54,7 @@ app.use(resourceRoutes);
 app.use(forumRoutes);
 app.use(roomRoutes);
 app.use(eventRoutes);
+app.use(chatRoutes);
 
 // 2. HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
@@ -126,6 +128,11 @@ app.ws("/ws", {
       ws.publish(`room-${roomId}`, {
         type: "player_moved",
         payload: { id: ws.id, ...payload },
+      });
+    } else if (type === "chat_message") {
+      ws.publish(`room-${roomId}`, {
+        type: "chat_message",
+        payload,
       });
     }
   },

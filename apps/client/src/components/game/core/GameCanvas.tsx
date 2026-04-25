@@ -43,8 +43,9 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
+  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string, customName?: string) => void;
   selectedCharacter: string;
+  customDisplayName?: string;
   mapType?: string;
 }
 
@@ -56,6 +57,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   players,
   updatePosition,
   selectedCharacter,
+  customDisplayName,
   mapType = "office",
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
@@ -116,6 +118,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           screenW={dimensions.w}
           screenH={dimensions.h}
           selectedCharacter={selectedCharacter}
+          customDisplayName={customDisplayName}
         />
 
         {Object.values(players).map((player) => (
