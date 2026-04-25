@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Hash, Send, Settings, User } from "lucide-react";
+import { Hash, Send } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 
 interface Message {

@@ -47,13 +47,37 @@ export const Player: React.FC<PlayerProps> = ({
   selectedCharacter,
   customDisplayName,
 }) => {
-  // 1. Local State
-  // Default to office_2 spawn (approx middle-bottom)
-  const initialX = mapData.width === 31 ? 512 : WORLD_CONFIG.PLAYER_SPAWN_X;
-  const initialY = mapData.width === 31 ? 1000 : WORLD_CONFIG.PLAYER_SPAWN_Y;
+  // Default to middle of the map
+  const defaultSpawnX = (mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2;
+  const defaultSpawnY = (mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2;
+
+  // Restore saved position from localStorage
+  const posKey = `savedPos_${customDisplayName || "guest"}_${mapData.width}`;
   
-  const [x, setX] = useState(initialX);
-  const [y, setY] = useState(initialY);
+  const getInitialPosition = () => {
+    try {
+      const saved = localStorage.getItem(posKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === "number" && typeof parsed.y === "number") {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse saved position", e);
+    }
+    return { x: defaultSpawnX, y: defaultSpawnY };
+  };
+
+  const initialPos = getInitialPosition();
+  const [x, setX] = useState(initialPos.x);
+  const [y, setY] = useState(initialPos.y);
+
+  // Save position when it changes
+  React.useEffect(() => {
+    localStorage.setItem(posKey, JSON.stringify({ x, y }));
+  }, [x, y, posKey]);
+
   const [direction, setDirection] = useState<DirString>("down");
   const [isMoving, setIsMoving] = useState(false);
   const [isSitting, setIsSitting] = useState(false);
@@ -102,25 +126,30 @@ export const Player: React.FC<PlayerProps> = ({
     const focusCol = Math.floor((focusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const focusRow = Math.floor((focusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
 
-    const layer4 = mapData.layers.find(
-      (l) =>
-        l.name === "Tile Layer 4" ||
-        l.name === "Furniture" ||
-        l.name === "object",
-    );
-
     let foundChair = false;
-    if (layer4 && focusCol >= 0 && focusRow >= 0) {
-      const tileIndex = focusRow * mapData.width + focusCol;
-      const rawGid = layer4.data[tileIndex] & 0x1fffffff;
+    for (let i = mapData.layers.length - 1; i >= 0; i--) {
+      const layer = mapData.layers[i];
+      if (layer.name === "floor" || layer.name === "ground" || layer.name === "Tile Layer 1") continue;
+      
+      if (layer.data && focusCol >= 0 && focusRow >= 0 && focusCol < mapData.width && focusRow < mapData.height) {
+        const tileIndex = focusRow * mapData.width + focusCol;
+        const rawGid = layer.data[tileIndex] & 0x1fffffff;
 
-      // Chair logic (LocalID 542 context)
-      if (rawGid >= 392 && rawGid - 392 === 542) {
-        setIsSitting(true);
-        sitOrigin.current = { x, y };
-        setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-        setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-        foundChair = true;
+        // Seat whitelist: Desks, Couches, Classroom desks, Library chairs
+        const isSeat = 
+          (rawGid >= 1400 && rawGid <= 1550) || 
+          (rawGid >= 1810 && rawGid <= 1850) || 
+          (rawGid >= 1860 && rawGid <= 1890) || 
+          rawGid === 2306 || rawGid === 2322;
+
+        if (isSeat) {
+          setIsSitting(true);
+          sitOrigin.current = { x, y };
+          setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+          setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+          foundChair = true;
+          break;
+        }
       }
     }
 
@@ -161,41 +190,63 @@ export const Player: React.FC<PlayerProps> = ({
     }
 
     // Movement calculation
-    let nextX = x;
-    let nextY = y;
+    let moveX = 0;
+    let moveY = 0;
     const speed = WORLD_CONFIG.MOVEMENT_SPEED;
 
-    if (keys.has("w") || keys.has("arrowup")) nextY -= speed * delta;
-    if (keys.has("s") || keys.has("arrowdown")) nextY += speed * delta;
-    if (keys.has("a") || keys.has("arrowleft")) nextX -= speed * delta;
-    if (keys.has("d") || keys.has("arrowright")) nextX += speed * delta;
+    if (keys.has("w") || keys.has("arrowup")) moveY -= 1;
+    if (keys.has("s") || keys.has("arrowdown")) moveY += 1;
+    if (keys.has("a") || keys.has("arrowleft")) moveX -= 1;
+    if (keys.has("d") || keys.has("arrowright")) moveX += 1;
 
-    const dx = nextX - x;
-    const dy = nextY - y;
+    let finalX = x;
+    let finalY = y;
 
-    if (dx !== 0 || dy !== 0) {
+    if (moveX !== 0 || moveY !== 0) {
       setIsMoving(true);
+      
+      // Normalize diagonal movement
+      if (moveX !== 0 && moveY !== 0) {
+        const length = Math.sqrt(moveX * moveX + moveY * moveY);
+        moveX /= length;
+        moveY /= length;
+      }
+
+      const dx = moveX * speed * delta;
+      const dy = moveY * speed * delta;
+      
       setDirection((prevDir) => getNewDirection(dx, dy, prevDir));
 
-      // Apply collision
-      if (!checkCollision(nextX, nextY)) {
-        setX(nextX);
-        setY(nextY);
+      // Apply collision independently for sliding
+      const intendedX = x + dx;
+      const intendedY = y + dy;
+
+      if (!checkCollision(intendedX, y)) {
+        finalX = intendedX;
+      }
+      
+      if (!checkCollision(finalX, intendedY)) {
+        finalY = intendedY;
+      }
+
+      if (finalX !== x || finalY !== y) {
+        setX(finalX);
+        setY(finalY);
       }
     } else {
       setIsMoving(false);
     }
 
     // Camera & Sync
-    updateCamera(x, y, delta);
+    updateCamera(finalX, finalY, delta);
 
-    if (nextX !== x || nextY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(nextX, nextY, isSitting, selectedCharacter, customDisplayName || undefined);
+    if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current) {
+      updatePosition(finalX, finalY, isSitting, selectedCharacter, customDisplayName || undefined);
       lastSyncSit.current = isSitting;
     }
 
     // Zone & Proximity Check
-    const zone = checkZoneCollision(nextX, nextY, ZONES);
+    const zone = checkZoneCollision(finalX, finalY, ZONES);
     if (zone !== currentZone) {
       setCurrentZone(zone);
       onZoneChange?.(zone);
@@ -212,8 +263,8 @@ export const Player: React.FC<PlayerProps> = ({
         const oh = obj.height * scale;
 
         // Check if player center is within object
-        const px = nextX + 32;
-        const py = nextY + 32;
+        const px = finalX + 32;
+        const py = finalY + 32;
 
         if (px >= ox && px <= ox + ow && py >= oy && py <= oy + oh) {
           if (obj.name === "to-conference") {
@@ -238,7 +289,7 @@ export const Player: React.FC<PlayerProps> = ({
       let foundPlayerId: string | null = null;
       for (const [id, remoteUser] of Object.entries(players)) {
         const dist = Math.sqrt(
-          Math.pow(nextX - remoteUser.x, 2) + Math.pow(nextY - remoteUser.y, 2),
+          Math.pow(finalX - remoteUser.x, 2) + Math.pow(finalY - remoteUser.y, 2),
         );
         if (dist < WORLD_CONFIG.PROXIMITY_RANGE) {
           foundPlayerId = id;

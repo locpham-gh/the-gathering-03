@@ -47,7 +47,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
       sourceImage = sourceImage.substring(sourceImage.indexOf("/tilesets/"));
     }
 
-    columns = tileset.columns;
+    columns = tileset.columns || 0;
     localId = gid - tileset.firstgid;
   } else {
     // Fallback for legacy maps with external .tsx tilesets
@@ -59,7 +59,11 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
       INTERIORS_COLS,
     } = TILESET_CONFIG;
 
-    if (mapData.width === 30) { // classroom_map.json width is 30
+    // Determine tileset structure by checking firstgid and source
+    const hasOutdoorAt1 = mapData.tilesets.some(ts => ts.firstgid === 1 && ts.source?.toLowerCase().includes("outdor"));
+    
+    if (hasOutdoorAt1 || mapData.width === 30) { 
+      // Classroom/Outdoor-first mapping
       if (gid >= INTERIORS_FIRST_GID) {
         sourceImage = "/tilesets/Interiors_free_32x32.png";
         columns = INTERIORS_COLS;
@@ -74,7 +78,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
         localId = gid - 1;
       }
     } else {
-      // Office mapping (Default)
+      // Office mapping (Default: Room Builder at 1, Serene at 392)
       if (gid >= INTERIORS_FIRST_GID) {
         sourceImage = "/tilesets/Interiors_free_32x32.png";
         columns = INTERIORS_COLS;

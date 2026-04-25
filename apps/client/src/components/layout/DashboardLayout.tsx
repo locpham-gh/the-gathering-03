@@ -1,6 +1,6 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import { useLocation, Link } from "react-router-dom";
 import { 
   Home, 
   Layout, 
@@ -20,7 +20,6 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
 
   const menuItems = [

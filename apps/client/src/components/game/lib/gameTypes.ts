@@ -12,12 +12,13 @@ export interface MapLayer {
 
 export interface MapTileset {
   firstgid: number;
-  image: string;
-  imagewidth: number;
-  imageheight: number;
-  tilewidth: number;
-  tileheight: number;
-  columns: number;
+  image?: string;
+  source?: string;
+  imagewidth?: number;
+  imageheight?: number;
+  tilewidth?: number;
+  tileheight?: number;
+  columns?: number;
 }
 
 export interface MapData {
