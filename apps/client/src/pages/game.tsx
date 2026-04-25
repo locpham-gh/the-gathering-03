@@ -20,6 +20,7 @@ export default function GamePage() {
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const [room, setRoom] = useState<any>(null);
 
   const { players, updatePosition } = useMultiplayer(roomId);
 
@@ -29,11 +30,17 @@ export default function GamePage() {
       return;
     }
 
-    // Join the room in the persistence layer
+    // Join the room and get room details
     if (roomId) {
-      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" }).catch((err) =>
-        console.error("Room join non-critical failure:", err),
-      );
+      apiFetch(`/api/rooms/join/${roomId}`, { method: "POST" })
+        .then((res) => {
+          if (res.success) {
+            setRoom(res.room);
+          }
+        })
+        .catch((err) =>
+          console.error("Room join failure:", err),
+        );
     }
   }, [user, navigate, roomId]);
 
@@ -119,6 +126,7 @@ export default function GamePage() {
             players={players}
             updatePosition={updatePosition}
             selectedCharacter={selectedCharacter || "Adam"}
+            mapType={room?.map}
           />
         </div>
 

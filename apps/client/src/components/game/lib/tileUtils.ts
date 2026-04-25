@@ -1,7 +1,6 @@
 import * as PIXI from "pixi.js";
-import { MAP_CONFIG } from "../core/config";
 import { WORLD_CONFIG, TILESET_CONFIG } from "./constants";
-import type { DirString, TileData } from "./gameTypes";
+import type { DirString, TileData, MapData } from "./gameTypes";
 
 export const baseTextures: Record<string, PIXI.BaseTexture> = {};
 export const textureCache: Record<number, PIXI.Texture> = {};
@@ -17,7 +16,7 @@ export const DIR_COL_OFFSET: Record<DirString, number> = {
 /**
  * Maps a Tiled GID to a PIXI Texture and flip flags.
  */
-export function getTileDataForGid(rawGid: number): TileData | null {
+export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | null {
   if (rawGid === 0) return null;
 
   const flipX = (rawGid & 0x80000000) !== 0;
@@ -26,52 +25,84 @@ export function getTileDataForGid(rawGid: number): TileData | null {
   const gid = rawGid & 0x1fffffff;
   if (gid === 0) return null;
 
-  let sourceImage: string;
-  let columns: number;
-  let localId: number;
+  let sourceImage: string = "";
+  let columns: number = 0;
+  let localId: number = 0;
 
-  const {
-    SERENE_VILLAGE_FIRST_GID,
-    INTERIORS_FIRST_GID,
-    ROOM_BUILDER_COLS,
-    SERENE_VILLAGE_COLS,
-    INTERIORS_COLS,
-  } = TILESET_CONFIG;
-
-  if (MAP_CONFIG.type === "classroom") {
-    // Classroom mapping
-    if (gid >= INTERIORS_FIRST_GID) {
-      sourceImage = "/tilesets/Interiors_free_32x32.png";
-      columns = INTERIORS_COLS;
-      localId = gid - INTERIORS_FIRST_GID;
-    } else if (gid >= 856) {
-      sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
-      columns = ROOM_BUILDER_COLS;
-      localId = gid - 856;
-    } else {
-      sourceImage = "/tilesets/Serene_Village_32x32.png";
-      columns = SERENE_VILLAGE_COLS;
-      localId = gid - 1;
-    }
-  } else {
-    // Office mapping (Default)
-    if (gid >= INTERIORS_FIRST_GID) {
-      sourceImage = "/tilesets/Interiors_free_32x32.png";
-      columns = INTERIORS_COLS;
-      localId = gid - INTERIORS_FIRST_GID;
-    } else if (gid >= SERENE_VILLAGE_FIRST_GID) {
-      sourceImage = "/tilesets/Serene_Village_32x32.png";
-      columns = SERENE_VILLAGE_COLS;
-      localId = gid - SERENE_VILLAGE_FIRST_GID;
-    } else {
-      sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
-      columns = ROOM_BUILDER_COLS;
-      localId = gid - 1;
+  // Find the tileset for this GID
+  let tileset = null;
+  for (let i = mapData.tilesets.length - 1; i >= 0; i--) {
+    if (gid >= mapData.tilesets[i].firstgid) {
+      tileset = mapData.tilesets[i];
+      break;
     }
   }
 
+  if (tileset && tileset.image) {
+    sourceImage = tileset.image;
+    // Handle relative paths from Tiled
+    if (sourceImage.startsWith("tilesets/")) {
+      sourceImage = "/" + sourceImage;
+    } else if (sourceImage.includes("../tilesets/")) {
+      sourceImage = sourceImage.substring(sourceImage.indexOf("/tilesets/"));
+    }
+
+    columns = tileset.columns;
+    localId = gid - tileset.firstgid;
+  } else {
+    // Fallback for legacy maps with external .tsx tilesets
+    const {
+      SERENE_VILLAGE_FIRST_GID,
+      INTERIORS_FIRST_GID,
+      ROOM_BUILDER_COLS,
+      SERENE_VILLAGE_COLS,
+      INTERIORS_COLS,
+    } = TILESET_CONFIG;
+
+    if (mapData.width === 30) { // classroom_map.json width is 30
+      if (gid >= INTERIORS_FIRST_GID) {
+        sourceImage = "/tilesets/Interiors_free_32x32.png";
+        columns = INTERIORS_COLS;
+        localId = gid - INTERIORS_FIRST_GID;
+      } else if (gid >= 856) {
+        sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
+        columns = ROOM_BUILDER_COLS;
+        localId = gid - 856;
+      } else {
+        sourceImage = "/tilesets/Serene_Village_32x32.png";
+        columns = SERENE_VILLAGE_COLS;
+        localId = gid - 1;
+      }
+    } else {
+      // Office mapping (Default)
+      if (gid >= INTERIORS_FIRST_GID) {
+        sourceImage = "/tilesets/Interiors_free_32x32.png";
+        columns = INTERIORS_COLS;
+        localId = gid - INTERIORS_FIRST_GID;
+      } else if (gid >= SERENE_VILLAGE_FIRST_GID) {
+        sourceImage = "/tilesets/Serene_Village_32x32.png";
+        columns = SERENE_VILLAGE_COLS;
+        localId = gid - SERENE_VILLAGE_FIRST_GID;
+      } else {
+        sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
+        columns = ROOM_BUILDER_COLS;
+        localId = gid - 1;
+      }
+    }
+  }
+
+  if (!sourceImage) {
+    console.warn(`[getTileDataForGid] No sourceImage for GID: ${gid}`);
+    return null;
+  }
+
   if (!baseTextures[sourceImage]) {
-    baseTextures[sourceImage] = PIXI.BaseTexture.from(sourceImage);
+    try {
+      baseTextures[sourceImage] = PIXI.BaseTexture.from(sourceImage);
+    } catch (err) {
+      console.error(`[getTileDataForGid] Failed to load texture: ${sourceImage}`, err);
+      return null;
+    }
   }
 
   const tx = (localId % columns) * WORLD_CONFIG.TILE_SIZE_RAW;

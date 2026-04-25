@@ -3,7 +3,6 @@ import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Internal modules
-import { MAP_CONFIG } from "./config";
 import { MapRender } from "./MapRender";
 import { Player } from "../entities/Player";
 import { OtherPlayer } from "../entities/OtherPlayer";
@@ -12,6 +11,7 @@ import { ZONES } from "./zones";
 // Types
 import type { Zone } from "./zones";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
+import type { MapData } from "../lib/gameTypes";
 
 // Pixi Settings
 const pixiSettings = PIXI.settings as unknown as { 
@@ -35,13 +35,7 @@ console.warn = (...args: unknown[]) => {
   originalWarn(...args);
 };
 
-interface MapData {
-  width: number;
-  height: number;
-  tilewidth: number;
-  tileheight: number;
-  layers: { name: string; data: number[] }[];
-}
+// MapData is now imported from gameTypes.ts
 
 interface GameCanvasProps {
   onZoneChange?: (zone: Zone | null) => void;
@@ -51,6 +45,7 @@ interface GameCanvasProps {
   players: Record<string, RemotePlayer>;
   updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
   selectedCharacter: string;
+  mapType?: string;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -61,6 +56,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   players,
   updatePosition,
   selectedCharacter,
+  mapType = "office",
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -76,13 +72,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    let mapFile = "/maps/office_map.json";
-    if (MAP_CONFIG.type === "classroom") mapFile = "/maps/classroom_map.json";
+    const mapFile = `/maps/${mapType}_map.json`;
 
     fetch(mapFile)
       .then((res) => res.json())
-      .then((data) => setMapData(data));
-  }, []);
+      .then((data) => setMapData(data))
+      .catch((err) => console.error("Failed to load map:", err));
+  }, [mapType]);
 
   if (!mapData) {
     return (

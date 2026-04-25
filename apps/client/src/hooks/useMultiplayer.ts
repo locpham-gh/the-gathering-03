@@ -41,10 +41,12 @@ export function useMultiplayer(roomId?: string) {
 
     ws.onmessage = (event) => {
       if (isClosing) return;
-      console.log("📩 WS Received:", event.data);
       const { type, payload } = JSON.parse(event.data);
       
       if (type === "player_moved") {
+        // Skip if this is the local player
+        if (payload.userId === user.id) return;
+
         setPlayers((prev) => ({
           ...prev,
           [payload.id]: {
@@ -61,7 +63,14 @@ export function useMultiplayer(roomId?: string) {
           },
         }));
       } else if (type === "initial_state") {
-        setPlayers(payload.players);
+        // Filter out local player from initial state
+        const filteredPlayers: Record<string, RemotePlayer> = {};
+        Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
+          if (p.userId !== user.id) {
+            filteredPlayers[id] = p;
+          }
+        });
+        setPlayers(filteredPlayers);
       } else if (type === "player_left") {
         setPlayers((prev) => {
           const next = { ...prev };
@@ -69,7 +78,6 @@ export function useMultiplayer(roomId?: string) {
           return next;
         });
       } else if (type === "forum_refresh") {
-        console.log("WS: Received forum_refresh signal");
         window.dispatchEvent(new CustomEvent("forum-refresh"));
       }
     };

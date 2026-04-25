@@ -17,8 +17,16 @@ export function DashboardOverview({
   const navigate = useNavigate();
   const [roomCode, setRoomCode] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
+  const [selectedMap, setSelectedMap] = useState("office");
   const [creating, setCreating] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+
+  const maps = [
+    { id: "office", name: "Modern Office", image: "/maps/office_preview.png" },
+    { id: "classroom", name: "Classroom", image: "/maps/classroom_preview.png" },
+    { id: "office_2", name: "Office (Floor 1)", image: "/maps/office_2_preview.png" },
+    { id: "conference", name: "Conference (Floor 2)", image: "/maps/conference_preview.png" },
+  ];
 
   const handleCreateRoom = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +36,7 @@ export function DashboardOverview({
 
     const res = await apiFetch("/api/rooms", {
       method: "POST",
-      body: JSON.stringify({ name, code }),
+      body: JSON.stringify({ name, code, map: selectedMap }),
     });
 
     if (res.success) {
@@ -64,34 +72,58 @@ export function DashboardOverview({
             <Video size={28} />
           </div>
           <h3 className="text-xl font-bold text-slate-800 mb-2">
-            Create New Meeting
+            Create New Room
           </h3>
           <p className="text-slate-500 text-sm mb-6 leading-relaxed">
-            Start an instant session with a professional virtual room code.
+            Start a new session with a custom map and name.
           </p>
 
-          <form onSubmit={handleCreateRoom} className="space-y-3">
-            <input
-              type="text"
-              placeholder="Room Name (Optional)"
-              value={newRoomName}
-              onChange={(e) => setNewRoomName(e.target.value)}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary text-sm transition-all"
-            />
-            <div className="flex gap-2">
+          <form onSubmit={handleCreateRoom} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Room Name</label>
+              <input
+                type="text"
+                placeholder="E.g. Morning Standup"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary text-sm transition-all"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Map</label>
+              <div className="grid grid-cols-2 gap-3">
+                {maps.map((map) => (
+                  <button
+                    key={map.id}
+                    type="button"
+                    onClick={() => setSelectedMap(map.id)}
+                    className={`p-3 rounded-xl border-2 transition-all text-left ${
+                      selectedMap === map.id
+                        ? "border-primary bg-teal-50 text-primary"
+                        : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
+                    }`}
+                  >
+                    <div className="font-bold text-sm">{map.name}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
               <button
                 type="submit"
                 disabled={creating}
-                className="w-full bg-primary text-white py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-teal-700 transition-all shadow-sm disabled:opacity-50"
+                className="w-full bg-primary text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-teal-700 transition-all shadow-md shadow-teal-100 disabled:opacity-50"
               >
-                {creating ? "Creating..." : "Start Instant"}
+                {creating ? "Creating..." : "Create Room"}
               </button>
               <button
                 type="button"
                 onClick={() => setIsScheduleOpen(true)}
-                className="w-full bg-teal-50 text-teal-700 py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-teal-100 transition-all shadow-sm"
+                className="px-4 bg-teal-50 text-teal-700 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-teal-100 transition-all"
               >
-                <Calendar size={18} /> Schedule
+                <Calendar size={20} />
               </button>
             </div>
           </form>

@@ -113,15 +113,16 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
         return { success: false, error: "Unauthorized" };
       }
 
-      const { name, code } = body;
+        const { name, code, map } = body;
 
-      try {
-        const room = await Room.create({
-          name,
-          code,
-          ownerId: userId,
-          members: [userId],
-        });
+        try {
+          const room = await Room.create({
+            name,
+            code,
+            map: map || "office",
+            ownerId: userId,
+            members: [userId],
+          });
 
         return { success: true, room };
       } catch (err: any) {
@@ -133,6 +134,7 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
       body: t.Object({
         name: t.String(),
         code: t.String(),
+        map: t.Optional(t.String()),
       }),
     },
   )
