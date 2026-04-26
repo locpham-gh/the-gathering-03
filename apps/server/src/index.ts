@@ -61,8 +61,29 @@ app.get("/", () => "Hello from The Gathering Backend");
 
 app.get(
   "/api/livekit/token",
-  async ({ query }: any) => {
+  async ({ query, jwt, headers, set }: any) => {
+    // 1. Verify Authorization Header
+    const auth = headers["authorization"];
+    if (!auth || !auth.startsWith("Bearer ")) {
+      set.status = 401;
+      return { error: "Unauthorized: Missing or invalid token" };
+    }
+
+    const sessionToken = auth.split(" ")[1];
+    const profile = await jwt.verify(sessionToken);
+    
+    if (!profile) {
+      set.status = 401;
+      return { error: "Unauthorized: Invalid session token" };
+    }
+
     const { room, username } = query;
+    // Basic authorization check: verify identity matches
+    if (profile.userId !== username) {
+      set.status = 403;
+      return { error: "Forbidden: Identity mismatch" };
+    }
+
     const effectiveRoomId = room || "lobby";
     const at = new AccessToken(
       process.env.LIVEKIT_API_KEY!,
@@ -134,14 +155,37 @@ app.ws("/ws", {
         type: "chat_message",
         payload,
       });
+    } else if (type === "emote") {
+      ws.publish(`room-${roomId}`, {
+        type: "emote",
+        payload: { id: ws.id, ...payload },
+      });
     }
   },
   close(ws: any) {
     const roomId = ws.data.query.room || "lobby";
+    const userId = ws.data.query.userId;
     console.log(`🔌 Connection closed in room ${roomId}: ${ws.id}`);
 
     const room = activePlayers.get(roomId);
     if (room) {
+      const playerData = room.get(ws.id);
+      
+      // Save position to DB asynchronously
+      if (playerData && userId && roomId !== "lobby") {
+        import("./models/Room.js").then(({ Room }) => {
+          Room.findOne({ code: roomId }).then(dbRoom => {
+             if (dbRoom) {
+               if (!dbRoom.savedPositions) {
+                 dbRoom.savedPositions = new Map();
+               }
+               dbRoom.savedPositions.set(userId, { x: playerData.x, y: playerData.y });
+               dbRoom.save().catch(e => console.error("Error saving position:", e));
+             }
+          }).catch(console.error);
+        }).catch(console.error);
+      }
+
       room.delete(ws.id);
       if (room.size === 0) activePlayers.delete(roomId);
     }

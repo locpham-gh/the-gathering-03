@@ -52,12 +52,15 @@ This document lists all functional requirements currently in the The Gathering c
 | FR-30 | The system must allow searching/filtering resources by text, type, and tag. | Must | Implemented |
 | FR-31 | The system should display room members and their online/offline status in the RoomSidebar. | Should | Implemented |
 | FR-32 | The system should allow users to open the forum and events manager directly within the RoomSidebar. | Should | Implemented |
+| FR-33 | The system must allow users to toggle between Light and Dark themes in the 2D space. | Must | Implemented |
+| FR-34 | The system must save and persist the user's theme preference. | Must | Implemented |
+| FR-35 | The system must provide fullscreen immersive views for Chat and Calendar modules. | Must | Implemented |
 
 ## 4. Out of Scope (Current Version)
 
 - Overall admin dashboard and role-based moderation.
 - Service directory UI/API (only the `Service` model is implemented).
-- Persistence of real-time player state after server restart.
+- persistence of real-time positions is implemented; full state (emotes, current zone) persistence is future work.
 
 ## 5. Traceability to Main Modules
 

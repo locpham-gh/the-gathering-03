@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { Room } from "../models/Room.js";
 import { jwt } from "@elysiajs/jwt";
 import mongoose from "mongoose";
+import { sendInviteEmail } from "../services/email.service.js";
 
 /**
  * Using 'any' for the export to resolve the TypeScript error:
@@ -165,12 +166,60 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
         await room.save();
       }
 
-      return { success: true, room };
+      // Extract user's saved position (safe for old rooms without savedPositions)
+      let userPosition = null;
+      try {
+        if (room.savedPositions && typeof room.savedPositions.get === "function") {
+          userPosition = room.savedPositions.get(userId) ?? null;
+        }
+      } catch (_) { /* field may not exist on old documents */ }
+
+      return { success: true, room, userPosition };
     } catch (err: any) {
       set.status = 500;
       return { success: false, error: err.message };
     }
   })
+  .post(
+    "/invite",
+    async ({ body, user, set }: any) => {
+      const userId = (user?.userId || user?.id)?.toString();
+      if (!userId || userId.length !== 24) {
+        set.status = 401;
+        return { success: false, error: "Unauthorized" };
+      }
+
+      try {
+        const { email, roomName, roomCode, inviteLink, inviterName } = body;
+        
+        const sent = await sendInviteEmail(email, {
+          roomName,
+          roomCode,
+          inviteLink,
+          inviterName,
+        });
+
+        if (sent) {
+          return { success: true, message: "Invite sent successfully" };
+        } else {
+          set.status = 500;
+          return { success: false, error: "Failed to send email" };
+        }
+      } catch (err: any) {
+        set.status = 500;
+        return { success: false, error: err.message };
+      }
+    },
+    {
+      body: t.Object({
+        email: t.String(),
+        roomName: t.String(),
+        roomCode: t.String(),
+        inviteLink: t.String(),
+        inviterName: t.String(),
+      }),
+    },
+  )
   .get("/:id/members", async ({ params, user, set }: any) => {
     const userId = (user?.userId || user?.id)?.toString();
     if (!userId || userId.length !== 24) {

@@ -1,6 +1,6 @@
 import { MAP_CONFIG } from "./config";
 
-export type ZoneType = "library";
+export type ZoneType = "library" | "whiteboard" | "conference";
 
 export interface Zone {
   id: ZoneType;
@@ -22,13 +22,21 @@ export const ZONES: Zone[] = [
     description: "Knowledge resources and documentation",
   },
   {
-    id: "conference" as any,
+    id: "conference",
     label: "Conference Room",
     x: 64,
     y: 6592,
     width: 440,
     height: 640,
     description: "Virtual meeting space",
+  },
+  {
+    id: "whiteboard",
+    label: "Whiteboard Area",
+    ...(MAP_CONFIG.type === "classroom"
+      ? { x: 500, y: 500, width: 300, height: 300 } // Dummy classroom whiteboard location
+      : { x: 2600, y: 1400, width: 500, height: 500 }), // Office whiteboard location
+    description: "Collaborative drawing and brainstorming",
   },
 ];
 

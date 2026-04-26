@@ -3,7 +3,8 @@ import { WORLD_CONFIG, TILESET_CONFIG } from "./constants";
 import type { DirString, TileData, MapData } from "./gameTypes";
 
 export const baseTextures: Record<string, PIXI.BaseTexture> = {};
-export const textureCache: Record<number, PIXI.Texture> = {};
+// Keyed by "sourceImage-localId" to avoid GID collisions between maps
+export const textureCache: Record<string, PIXI.Texture> = {};
 export const adamTextureCache: Record<string, PIXI.Texture> = {};
 
 export const DIR_COL_OFFSET: Record<DirString, number> = {
@@ -29,7 +30,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
   let columns: number = 0;
   let localId: number = 0;
 
-  // Find the tileset for this GID
+  // 1. Find the tileset definition for this GID
   let tileset = null;
   for (let i = mapData.tilesets.length - 1; i >= 0; i--) {
     if (gid >= mapData.tilesets[i].firstgid) {
@@ -38,61 +39,53 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     }
   }
 
-  if (tileset && tileset.image) {
+  if (!tileset) return null;
+
+  // 2. Determine image and column count
+  if (tileset.image) {
+    // Modern maps with embedded tileset info
     sourceImage = tileset.image;
-    // Handle relative paths from Tiled
     if (sourceImage.startsWith("tilesets/")) {
       sourceImage = "/" + sourceImage;
     } else if (sourceImage.includes("../tilesets/")) {
       sourceImage = sourceImage.substring(sourceImage.indexOf("/tilesets/"));
     }
-
-    columns = tileset.columns || 0;
+    columns = tileset.columns || 1;
     localId = gid - tileset.firstgid;
   } else {
-    // Fallback for legacy maps with external .tsx tilesets
+    // Legacy maps with external .tsx tilesets
     const {
-      SERENE_VILLAGE_FIRST_GID,
-      INTERIORS_FIRST_GID,
       ROOM_BUILDER_COLS,
       SERENE_VILLAGE_COLS,
       INTERIORS_COLS,
     } = TILESET_CONFIG;
 
-    // Determine tileset structure by checking firstgid and source
-    const hasOutdoorAt1 = mapData.tilesets.some(ts => ts.firstgid === 1 && ts.source?.toLowerCase().includes("outdor"));
+    const sourceLower = tileset.source?.toLowerCase() || "";
     
-    if (hasOutdoorAt1 || mapData.width === 30) { 
-      // Classroom/Outdoor-first mapping
-      if (gid >= INTERIORS_FIRST_GID) {
-        sourceImage = "/tilesets/Interiors_free_32x32.png";
-        columns = INTERIORS_COLS;
-        localId = gid - INTERIORS_FIRST_GID;
-      } else if (gid >= 856) {
-        sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
-        columns = ROOM_BUILDER_COLS;
-        localId = gid - 856;
-      } else {
-        sourceImage = "/tilesets/Serene_Village_32x32.png";
-        columns = SERENE_VILLAGE_COLS;
-        localId = gid - 1;
-      }
+    if (sourceLower.includes("interiors")) {
+      sourceImage = "/tilesets/Interiors_free_32x32.png";
+      columns = INTERIORS_COLS;
+    } else if (sourceLower.includes("room_builder")) {
+      sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
+      columns = ROOM_BUILDER_COLS;
+    } else if (sourceLower.includes("outdor") || sourceLower.includes("serene")) {
+      sourceImage = "/tilesets/Serene_Village_32x32.png";
+      columns = SERENE_VILLAGE_COLS;
     } else {
-      // Office mapping (Default: Room Builder at 1, Serene at 392)
-      if (gid >= INTERIORS_FIRST_GID) {
+      // Fallback fallback - try to guess by ranges if source name is missing/weird
+      if (gid >= 1247) {
         sourceImage = "/tilesets/Interiors_free_32x32.png";
         columns = INTERIORS_COLS;
-        localId = gid - INTERIORS_FIRST_GID;
-      } else if (gid >= SERENE_VILLAGE_FIRST_GID) {
-        sourceImage = "/tilesets/Serene_Village_32x32.png";
-        columns = SERENE_VILLAGE_COLS;
-        localId = gid - SERENE_VILLAGE_FIRST_GID;
-      } else {
+      } else if (gid >= 856 || (mapData.width === 50 && gid < 392)) {
         sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
         columns = ROOM_BUILDER_COLS;
-        localId = gid - 1;
+      } else {
+        sourceImage = "/tilesets/Serene_Village_32x32.png";
+        columns = SERENE_VILLAGE_COLS;
       }
     }
+    
+    localId = gid - tileset.firstgid;
   }
 
   if (!sourceImage) {
@@ -100,6 +93,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     return null;
   }
 
+  // Ensure BaseTexture is loaded
   if (!baseTextures[sourceImage]) {
     try {
       baseTextures[sourceImage] = PIXI.BaseTexture.from(sourceImage);
@@ -109,11 +103,14 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     }
   }
 
-  const tx = (localId % columns) * WORLD_CONFIG.TILE_SIZE_RAW;
-  const ty = Math.floor(localId / columns) * WORLD_CONFIG.TILE_SIZE_RAW;
+  // Unique cache key to avoid collisions between different tilesets/maps
+  const cacheKey = `${sourceImage}-${localId}`;
+  let texture = textureCache[cacheKey];
 
-  let texture = textureCache[gid];
   if (!texture) {
+    const tx = (localId % columns) * WORLD_CONFIG.TILE_SIZE_RAW;
+    const ty = Math.floor(localId / columns) * WORLD_CONFIG.TILE_SIZE_RAW;
+
     texture = new PIXI.Texture(
       baseTextures[sourceImage],
       new PIXI.Rectangle(
@@ -123,7 +120,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
         WORLD_CONFIG.TILE_SIZE_RAW,
       ),
     );
-    textureCache[gid] = texture;
+    textureCache[cacheKey] = texture;
   }
 
   return { texture, flipX, flipY };

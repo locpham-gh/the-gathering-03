@@ -32,6 +32,7 @@ This document describes the non-functional requirements for the The Gathering sy
 | NFR-18 | Email Reliability | If sending OTP/event emails fails, the system must return a clear error to the client without crashing the process. |
 | NFR-19 | Privacy | The system only stores user information necessary for business logic (email, displayName, avatar, auth metadata), without collecting data outside the feature scope. |
 | NFR-20 | Documentation | Technical documentation (`SRS`, `implement`, `api_schema`) must be updated synchronously when critical routes or schemas change. |
+| NFR-21 | Visual Excellence | The system must provide a "Premium" aesthetic with modern typography (Inter/Outfit), high-quality icons, and smooth UI transitions to enhance the professional co-working feel. |
 
 ## 3. Constraints and Known Trade-offs
 

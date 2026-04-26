@@ -35,6 +35,8 @@ This document specifies use cases using the standard SRS table format to facilit
 | UC-11 | Manage Own Events | Event Host | Must |
 | UC-12 | Post/Reply Forum Topic | Authenticated User | Must |
 | UC-13 | Access Digital Library | Authenticated User | Must |
+| UC-14 | Toggle Light/Dark Theme | Authenticated User | Must |
+| UC-15 | Open Fullscreen Chat/Calendar | Authenticated User | Should |
 
 ## 4. Use Case Diagram
 
@@ -196,7 +198,7 @@ flowchart LR
 | Basic Flow | 1. Client opens connection `WS /ws?room=<code>`.<br>2. Server sends `initial_state`.<br>3. Client sends `move` payload at 20Hz throttle.<br>4. Server updates `activePlayers` in-memory.<br>5. Server broadcasts `player_moved` to the room.<br>6. Clients render new player positions.<br>7. When a user disconnects, server broadcasts `player_left`. |
 | Alternative Flow | A1. User remains idle; no new move messages are sent. |
 | Exception Flow | E1. WS connection lost -> sync interrupted until reconnection.<br>E2. Server restart -> in-memory state reset. |
-| Postconditions | All users in the same room see each other's positions and states. |
+| Post-conditions | All users see each other's avatars at the correct coordinates; the system saves the last known position to MongoDB upon disconnect. |
 
 ### UC-09 - Start Proximity Call
 

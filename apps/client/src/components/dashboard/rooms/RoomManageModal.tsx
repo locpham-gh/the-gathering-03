@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
-import { X, LogOut } from "lucide-react";
+import { X, LogOut, Loader2 } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
+import { useAuth } from "../../../contexts/AuthContext";
 import type { RoomData, Member } from "./types";
 
 export function RoomManageModal({
@@ -10,10 +11,42 @@ export function RoomManageModal({
   room: RoomData;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
   const [name, setName] = useState(room.name);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [isSending, setIsSending] = useState(false);
+
+  const handleInviteEmail = async () => {
+    if (!inviteEmail || isSending) return;
+    
+    setIsSending(true);
+    try {
+      const res = await apiFetch("/api/rooms/invite", {
+        method: "POST",
+        body: JSON.stringify({
+          email: inviteEmail,
+          roomName: room.name || "The Gathering",
+          roomCode: room.code || "",
+          inviteLink: `${window.location.origin}/room/${room.code}`,
+          inviterName: user?.displayName || "A user",
+        }),
+      });
+
+      if (res.success) {
+        alert("Invitation sent successfully to " + inviteEmail);
+        setInviteEmail("");
+      } else {
+        alert("Failed to send invitation: " + res.error);
+      }
+    } catch (error) {
+      alert("An error occurred while sending the invitation.");
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const fetchMembers = useCallback(async () => {
     // loading is already true from state init
@@ -98,6 +131,46 @@ export function RoomManageModal({
                 Update
               </button>
             </form>
+          </section>
+
+          {/* Invite Section */}
+          <section className="space-y-4">
+            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+              Invite People
+            </h4>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                readOnly
+                value={room.code}
+                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono text-center tracking-widest font-bold outline-none"
+              />
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(room.code);
+                  alert("Room code copied to clipboard!");
+                }}
+                className="px-6 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all shadow-sm"
+              >
+                Copy Code
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <input
+                type="email"
+                placeholder="Invite by email address"
+                className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-primary transition-all text-sm"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+              <button
+                onClick={handleInviteEmail}
+                disabled={!inviteEmail || isSending}
+                className="px-6 bg-primary/10 text-primary rounded-xl font-bold hover:bg-primary/20 transition-all disabled:opacity-50 flex items-center justify-center min-w-[120px]"
+              >
+                {isSending ? <Loader2 size={16} className="animate-spin" /> : "Send Email"}
+              </button>
+            </div>
           </section>
 
           {/* Members Section */}

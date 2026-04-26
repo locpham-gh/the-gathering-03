@@ -180,6 +180,8 @@ Success criteria provide measurable outcomes to evaluate whether The Gathering m
 | UC_13  | Reply to Topic             | Users can comment on existing forum topics.                                                            | 2            | 3                        |
 | UC_14  | Search Digital Library     | Users can search for resources (documents/links) by title, type, or tags.                              | 2            | 3                        |
 | UC_15  | Zone Interaction           | Interaction with specific map areas (e.g., Library Zone) triggers UI modals.                           | 2            | 3                        |
+| UC_16  | Toggle Theme (Persistence) | Users can switch between Light and Dark mode with choice saved to local storage.                       | 1            | 4                        |
+| UC_17  | Fullscreen Overlays        | Immersive fullscreen views for Chat and Calendar modules.                                              | 2            | 3                        |
 
 Table 2: Functional Requirement List
 
@@ -293,7 +295,7 @@ Table 27: Non-Functional System Requirements
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
 | SR-C1: Network dependency   | The system requires a stable internet connection for WebSocket and WebRTC (LiveKit).                                                   | Real-time features cannot function offline.             | Users with unstable Wi-Fi may experience avatar "teleporting".                 | Test by throttling network and observing behavior.                        |
 | SR-C2: Browser Compatibility| The system is designed for modern evergreen browsers (Chrome, Edge, Firefox).                                                          | Relies on advanced WebGL (PixiJS) and WebRTC features.  | May not work on legacy browsers or some restricted corporate networks.          | Test on latest versions of target browsers.                               |
-| SR-C3: Ephemeral State      | Player positions are not persisted in the database; they reset if the server restarts or the room is empty.                            | Reduces DB write load for high-frequency data.          | Users reappear at the spawn point upon reconnection.                          | Restart server and observe player spawn position.                         |
+| SR-C3: Selective Persistence | Only critical real-time data (player positions) are persisted in MongoDB; other ephemeral states (emotes) reset on restart.        | Balances DB write load with user convenience.           | Users reappear at their last known coordinates upon reconnection.             | Restart server and observe player spawn position.                         |
 | SR-C4: Storage Limits       | Document uploads in the library are restricted by the free-tier database limits (~512MB total).                                         | Cost-effectiveness constraint.                           | Limits the size and number of resources shared.                                | Monitor MongoDB Atlas storage dashboard.                                  |
 
 Table 28: System Constraints

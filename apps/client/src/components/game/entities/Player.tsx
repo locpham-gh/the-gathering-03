@@ -23,7 +23,7 @@ interface PlayerProps {
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string, customName?: string) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
@@ -31,6 +31,9 @@ interface PlayerProps {
   screenH: number;
   selectedCharacter: string;
   customDisplayName?: string;
+  localEmote?: { id: string; timestamp: number } | null;
+  roomId?: string;
+  initialServerPosition?: { x: number; y: number } | null;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -46,15 +49,40 @@ export const Player: React.FC<PlayerProps> = ({
   screenH,
   selectedCharacter,
   customDisplayName,
+  localEmote,
+  roomId,
+  initialServerPosition,
 }) => {
-  // Default to middle of the map
-  const defaultSpawnX = (mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2;
-  const defaultSpawnY = (mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2;
+  // --- Spawn point detection ---
+  // Priority: 1) server-saved pos, 2) localStorage, 3) map's "start" layer, 4) center
+  const getMapSpawnPoint = (): { x: number; y: number } => {
+    const startLayer = mapData.layers?.find((l: any) => l.name === "start" && l.data);
+    if (startLayer?.data) {
+      for (let i = 0; i < startLayer.data.length; i++) {
+        if (startLayer.data[i] !== 0) {
+          const col = i % mapData.width;
+          const row = Math.floor(i / mapData.width);
+          return {
+            x: col * WORLD_CONFIG.TILE_SIZE_VIRTUAL + WORLD_CONFIG.TILE_SIZE_VIRTUAL / 2,
+            y: row * WORLD_CONFIG.TILE_SIZE_VIRTUAL + WORLD_CONFIG.TILE_SIZE_VIRTUAL / 2,
+          };
+        }
+      }
+    }
+    // Fallback: center
+    return {
+      x: (mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2,
+      y: (mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2,
+    };
+  };
 
-  // Restore saved position from localStorage
-  const posKey = `savedPos_${customDisplayName || "guest"}_${mapData.width}`;
+  // Restore saved position from server or localStorage
+  const posKey = `savedPos_${customDisplayName || "guest"}_${roomId || mapData.width}`;
   
   const getInitialPosition = () => {
+    if (initialServerPosition) {
+      return initialServerPosition;
+    }
     try {
       const saved = localStorage.getItem(posKey);
       if (saved) {
@@ -66,7 +94,7 @@ export const Player: React.FC<PlayerProps> = ({
     } catch (e) {
       console.error("Failed to parse saved position", e);
     }
-    return { x: defaultSpawnX, y: defaultSpawnY };
+    return getMapSpawnPoint();
   };
 
   const initialPos = getInitialPosition();
@@ -169,6 +197,12 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Auto-stand logic
     if (isSitting) {
+      // Sync sitting state if it hasn't been synced yet
+      if (isSitting !== lastSyncSit.current) {
+        updatePosition(x, y, direction, isSitting, selectedCharacter, customDisplayName || undefined);
+        lastSyncSit.current = isSitting;
+      }
+
       const isPressingMove =
         keys.has("w") ||
         keys.has("a") ||
@@ -241,7 +275,7 @@ export const Player: React.FC<PlayerProps> = ({
     updateCamera(finalX, finalY, delta);
 
     if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(finalX, finalY, isSitting, selectedCharacter, customDisplayName || undefined);
+      updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined);
       lastSyncSit.current = isSitting;
     }
 
@@ -312,6 +346,7 @@ export const Player: React.FC<PlayerProps> = ({
       isMoving={isMoving}
       isSitting={isSitting}
       character={selectedCharacter}
+      emote={localEmote}
     />
   );
 };
