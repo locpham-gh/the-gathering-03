@@ -1,5 +1,6 @@
-import React, { useState, useRef } from "react";
-import { Sprite, useTick } from "@pixi/react";
+import React, { useState, useRef, useEffect } from "react";
+import { Sprite, useTick, Container, Text as PixiText } from "@pixi/react";
+import * as PIXI from "pixi.js";
 import { DIR_COL_OFFSET, getCharacterTexture } from "../lib/tileUtils";
 import type { DirString } from "../lib/gameTypes";
 
@@ -11,6 +12,7 @@ interface AnimatedPlayerSpriteProps {
   isSitting?: boolean;
   character?: string;
   tint?: number;
+  emote?: { id: string; timestamp: number } | null;
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -21,9 +23,17 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   isSitting = false,
   character = "Adam",
   tint = 0xffffff,
+  emote = null,
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
+  const [emoteState, setEmoteState] = useState<{ id: string; yOffset: number; alpha: number } | null>(null);
+
+  useEffect(() => {
+    if (emote) {
+      setEmoteState({ id: emote.id, yOffset: -80, alpha: 1 });
+    }
+  }, [emote]);
 
   // Animation logic loop
   useTick((delta) => {
@@ -33,6 +43,16 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
     if (timeAcc.current > tickSpeed) {
       timeAcc.current = 0;
       setFrame((prev) => (prev >= 5 ? 0 : prev + 1));
+    }
+
+    if (emoteState) {
+      setEmoteState((prev) => {
+        if (!prev) return null;
+        const newY = prev.yOffset - 1 * delta;
+        const newAlpha = prev.alpha - 0.02 * delta;
+        if (newAlpha <= 0) return null;
+        return { ...prev, yOffset: newY, alpha: newAlpha };
+      });
     }
   });
 
@@ -53,15 +73,29 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   const texture = getCharacterTexture(row, col, character);
 
   return (
-    <Sprite
-      texture={texture}
-      x={Math.round(x)}
-      y={Math.round(y - 64)}
-      width={64}
-      height={128}
-      anchor={0}
-      zIndex={Math.round(y)}
-      tint={tint}
-    />
+    <Container x={Math.round(x)} y={Math.round(y - 64)} zIndex={Math.round(y)}>
+      <Sprite
+        texture={texture}
+        width={64}
+        height={128}
+        anchor={0}
+        tint={tint}
+      />
+      {emoteState && (
+        <PixiText
+          text={emoteState.id}
+          x={32}
+          y={emoteState.yOffset}
+          anchor={0.5}
+          alpha={emoteState.alpha}
+          style={
+            new PIXI.TextStyle({
+              fontSize: 32,
+              fontFamily: "Arial",
+            })
+          }
+        />
+      )}
+    </Container>
   );
 };

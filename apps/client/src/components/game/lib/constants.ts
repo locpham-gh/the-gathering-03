@@ -4,7 +4,7 @@
 export const WORLD_CONFIG = {
   TILE_SIZE_RAW: 32,
   TILE_SIZE_VIRTUAL: 64,
-  TILE_SCALE: 2.01, // 0.01 extra to hide sub-pixel gaps
+  TILE_SCALE: 2,
 
   MOVEMENT_SPEED: 5,
   INTERACTION_RANGE: 64,

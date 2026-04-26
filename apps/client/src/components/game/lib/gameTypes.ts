@@ -4,7 +4,21 @@ export type DirString = "right" | "up" | "left" | "down";
 
 export interface MapLayer {
   name: string;
-  data: number[];
+  data?: number[];
+  layers?: MapLayer[];
+  opacity: number;
+  visible: boolean;
+}
+
+export interface MapTileset {
+  firstgid: number;
+  image?: string;
+  source?: string;
+  imagewidth?: number;
+  imageheight?: number;
+  tilewidth?: number;
+  tileheight?: number;
+  columns?: number;
 }
 
 export interface MapData {
@@ -13,6 +27,7 @@ export interface MapData {
   tilewidth: number;
   tileheight: number;
   layers: MapLayer[];
+  tilesets: MapTileset[];
 }
 
 export interface TileData {
