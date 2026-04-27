@@ -4,8 +4,7 @@ import {
   ControlBar,
   useTracks,
   ParticipantTile,
-  useRemoteParticipants,
-  useConnectionState
+  useRemoteParticipants
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
@@ -71,19 +70,34 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
       )}
       {/* Horizontal Camera Array (Floating independently) */}
       <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-        {tracks.map((track) => (
-          <div 
-            key={`${track.participant.identity}-${track.source}`} 
-            className="w-[160px] h-[120px] md:w-[200px] md:h-[150px] rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 border-white bg-slate-100 shrink-0 relative"
-          >
-             <ParticipantTile trackRef={track} />
-          </div>
-        ))}
+        {tracks.map((track) => {
+          const isScreenShare = track.source === Track.Source.ScreenShare;
+          return (
+            <div 
+              key={`${track.participant.identity}-${track.source}`} 
+              className={`${
+                isScreenShare 
+                  ? "w-[480px] h-[360px] md:w-[640px] md:h-[480px] border-indigo-500 shadow-indigo-500/20" 
+                  : "w-[160px] h-[120px] md:w-[200px] md:h-[150px] border-white"
+              } rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 bg-slate-100 shrink-0 relative transition-all duration-500`}
+            >
+               <ParticipantTile trackRef={track} />
+            </div>
+          );
+        })}
       </div>
       
       {/* Control Bar - Floating Pill */}
       <div className="flex justify-center bg-white/95 backdrop-blur-xl px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
-         <ControlBar variation="minimal" controls={{ chat: false, leave: false }} style={{ background: 'transparent', boxShadow: 'none', padding: 0, minHeight: 'auto' }} />
+         <ControlBar 
+           variation="minimal" 
+           controls={{ 
+             chat: false, 
+             leave: false, 
+             screenShare: currentZone?.id === "presentation" || currentZone?.id === "conference"
+           }} 
+           style={{ background: 'transparent', boxShadow: 'none', padding: 0, minHeight: 'auto' }} 
+         />
       </div>
     </div>
   );

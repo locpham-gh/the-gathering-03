@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import { X, Save, Share2 } from "lucide-react";
@@ -6,10 +6,47 @@ import { X, Save, Share2 } from "lucide-react";
 interface WhiteboardModalProps {
   onClose: () => void;
   roomId?: string;
+  sendMessage: (type: string, payload: any) => void;
 }
 
-export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ onClose, roomId }) => {
+export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ onClose, roomId, sendMessage }) => {
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
+  const isRemoteUpdate = useRef(false);
+  const lastSentTime = useRef(0);
+
+  // Listen for remote updates
+  useEffect(() => {
+    const handleRemoteUpdate = (e: CustomEvent) => {
+      if (!excalidrawAPI) return;
+      
+      const { elements, appState, files } = e.detail;
+      isRemoteUpdate.current = true;
+      excalidrawAPI.updateScene({ elements, appState, files });
+      // Reset after a short delay to allow the change to propagate without triggering an echo
+      setTimeout(() => {
+        isRemoteUpdate.current = false;
+      }, 100);
+    };
+
+    window.addEventListener("whiteboard-update", handleRemoteUpdate as EventListener);
+    return () => window.removeEventListener("whiteboard-update", handleRemoteUpdate as EventListener);
+  }, [excalidrawAPI]);
+
+  const onChange = useCallback((elements: any, appState: any, files: any) => {
+    if (isRemoteUpdate.current) return;
+    
+    const now = Date.now();
+    // Throttle updates to 200ms to avoid overwhelming the server
+    if (now - lastSentTime.current < 200) return;
+
+    lastSentTime.current = now;
+    sendMessage("whiteboard_update", {
+      roomId,
+      elements,
+      appState: { ...appState, collaborate: true },
+      files
+    });
+  }, [roomId, sendMessage]);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -18,7 +55,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ onClose, roomI
         {/* Header */}
         <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-xl font-bold tracking-tight">Interactive Whiteboard</h2>
+            <h2 className="text-xl font-bold tracking-tight">Collaborative Whiteboard</h2>
             <div className="text-teal-400 text-xs font-medium uppercase tracking-widest mt-1">
               {roomId ? `Room: ${roomId}` : "Public Space"}
             </div>
@@ -45,6 +82,7 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({ onClose, roomI
           <Excalidraw 
             excalidrawAPI={(api) => setExcalidrawAPI(api)}
             theme="light"
+            onChange={onChange}
           />
         </div>
 

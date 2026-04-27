@@ -28,6 +28,7 @@ export interface MapData {
   tileheight: number;
   layers: MapLayer[];
   tilesets: MapTileset[];
+  backgroundImage?: string;
 }
 
 export interface TileData {

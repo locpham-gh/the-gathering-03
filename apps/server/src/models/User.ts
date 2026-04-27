@@ -7,6 +7,8 @@ export interface IUser extends Document {
   googleId?: string;
   otpCode?: string;
   otpExpiresAt?: Date;
+  role: "user" | "admin";
+  status: "active" | "banned";
 }
 
 const UserSchema = new Schema<IUser>(
@@ -17,6 +19,8 @@ const UserSchema = new Schema<IUser>(
     googleId: { type: String, sparse: true, unique: true },
     otpCode: { type: String },
     otpExpiresAt: { type: Date },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    status: { type: String, enum: ["active", "banned"], default: "active" },
   },
   { timestamps: true }
 );

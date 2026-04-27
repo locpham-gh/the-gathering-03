@@ -25,6 +25,7 @@ graph TD
         API[REST API Handlers]
         WS_Server[WebSocket Server]
         Auth[JWT Authentication]
+        Admin[Admin Dashboard API]
     end
 
     %% External Services
@@ -40,7 +41,8 @@ graph TD
     RTC_Client -- "WebRTC (Audio/Video)" <--> LiveKit
     
     API -- "Read/Write" --> MongoDB
-    WS_Server -- "Save Position on Close" --> MongoDB
+    WS_Server -- "Periodic Snapshots (30s)" --> MongoDB
+    WS_Server -- "Save Whiteboard State" --> MongoDB
     API -- "Generate Token" --> LiveKit
     UI -- "Save Theme" --> LocalStorage
 
@@ -88,6 +90,10 @@ sequenceDiagram
     WS->>WS: Remove from Memory
     WS->>DB: Save Last Position { x: 100, y: 150 }
     WS-->>P2: Broadcast { type: "player_left", payload: { id: P1 } }
+
+    %% Periodic Reliability
+    Note over WS: Mỗi 30s
+    WS->>DB: Snapshot all active players to MongoDB (Alternative to Redis)
 ```
 
 ---
@@ -128,4 +134,7 @@ graph LR
 2. **Zone Isolation:** Khi người chơi bước vào `Conference Room`, thuật toán bỏ qua khoảng cách và ép `Volume = 1.0` cho tất cả những người cùng trong Zone, đồng thời ngắt âm thanh từ bên ngoài.
 3. **Theme Persistence:** Hệ thống hỗ trợ Light/Dark mode với khả năng ghi nhớ lựa chọn của người dùng thông qua LocalStorage và đồng bộ màu sắc cho toàn bộ UI (Sidebar, Chat, Modals).
 4. **Fullscreen Immersive Views:** Các module như Chat và Calendar được thiết kế dưới dạng lớp phủ toàn màn hình (Overlay) với kiến trúc Sidebar riêng, giúp tối ưu diện tích tương tác mà không cần rời khỏi không gian 2D.
-5. **Robust Tile Mapping:** Sử dụng logic map dựa trên tên file nguồn (source-based mapping) thay vì GID cứng nhắc, cho phép hỗ trợ nhiều loại Tileset phức tạp mà không bị lỗi hiển thị.
+5. **Image-Based Backgrounds:** Hỗ trợ render ảnh tĩnh (PNG/JPG) chất lượng cao làm nền bản đồ thay vì tileset truyền thống, giúp tối ưu hiệu năng và đạt tính thẩm mỹ tối đa (ví dụ: Café Lounge).
+6. **Collaborative Whiteboard:** Tích hợp Excalidraw với cơ chế đồng bộ real-time qua WebSocket và lưu trữ trạng thái vào MongoDB, cho phép làm việc nhóm hiệu quả.
+7. **Admin Dashboard:** Hệ thống quản trị tập trung cho phép kiểm soát người dùng, quản lý phòng họp và diễn đàn một cách trực quan.
+8. **マルチプレイヤー Reliability:** Cơ chế Snapshot định kỳ mỗi 30 giây giúp bảo toàn dữ liệu vị trí người chơi ngay cả khi server gặp sự cố, thay thế hoàn toàn nhu cầu sử dụng Redis.

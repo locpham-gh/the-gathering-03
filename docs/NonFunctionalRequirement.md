@@ -27,16 +27,18 @@ This document describes the non-functional requirements for the The Gathering sy
 | NFR-13 | Maintainability | Source code must be modularized by domain (auth, room, event, forum, resource, game) for easier testing and extension. |
 | NFR-14 | Code Quality | Frontend must be linted with ESLint; TypeScript must be used for both client and server. |
 | NFR-15 | Observability | The backend must log critical events (DB connection, WS connect/disconnect, runtime errors) for operational debugging. |
-| NFR-16 | Scalability (Current Limit) | Real-time state is currently an in-memory map; the system accepts state loss upon restart and is marked for upgrade when scaling to multiple instances. |
-| NFR-17 | Scalability (Future) | The architecture should be prepared to replace in-memory real-time state with a shared store (e.g., Redis) to enable horizontal scaling in future versions. |
-| NFR-18 | Email Reliability | If sending OTP/event emails fails, the system must return a clear error to the client without crashing the process. |
-| NFR-19 | Privacy | The system only stores user information necessary for business logic (email, displayName, avatar, auth metadata), without collecting data outside the feature scope. |
-| NFR-20 | Documentation | Technical documentation (`SRS`, `implement`, `api_schema`) must be updated synchronously when critical routes or schemas change. |
-| NFR-21 | Visual Excellence | The system must provide a "Premium" aesthetic with modern typography (Inter/Outfit), high-quality icons, and smooth UI transitions to enhance the professional co-working feel. |
+| NFR-16 | Scalability (Reliability) | Real-time state is backed by periodic MongoDB snapshots (30s), ensuring minimal data loss upon restart even without a Redis server. |
+| NFR-17 | Scalability (Future) | The architecture remains prepared to integrate Redis for full horizontal scaling and instantaneous state recovery. |
+| NFR-18 | Performance - Rendering | The PixiJS engine must maintain >= 60 FPS for average maps. React memoization and image-based backgrounds are used to optimize rendering cycles. |
+| NFR-19 | Security - Rate Limiting | Critical API paths and WebSocket connections must be protected by rate-limiting (e.g., 100 requests per minute) to prevent DoS/Spam. |
+| NFR-20 | Email Reliability | If sending OTP/event emails fails, the system must return a clear error to the client without crashing the process. |
+| NFR-22 | Privacy | The system only stores user information necessary for business logic (email, displayName, avatar, auth metadata), without collecting data outside the feature scope. |
+| NFR-23 | Documentation | Technical documentation (`SRS`, `implement`, `api_schema`) must be updated synchronously when critical routes or schemas change. |
+| NFR-24 | Visual Excellence | The system must provide a "Premium" aesthetic with modern typography (Inter/Outfit), high-quality icons, dynamic day/night lighting, and smooth UI transitions. |
 
 ## 3. Constraints and Known Trade-offs
 
-- Real-time multiplayer state is not persisted after a backend restart.
+- Real-time multiplayer state is snapshots every 30s; minor position loss (<30s) may occur on backend crash.
 - JWT does not currently enforce a strict expiration date in the existing logic.
 - Email delivery depends on the SMTP provider and external network.
 

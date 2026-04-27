@@ -106,6 +106,24 @@ sequenceDiagram
 		U2->>WS: disconnect
 		WS->>WS: Save last position to DB
 		WS-->>U1: player_left
+
+	%% Periodic snapshots
+	Note over WS: Every 30s
+	WS->>DB: Snapshot active positions
+```
+
+## 6. Whiteboard Sync Sequence
+
+```mermaid
+sequenceDiagram
+	participant U1 as User A
+	participant WS as Server
+	participant DB as MongoDB
+	participant U2 as User B
+
+	U1->>WS: whiteboard_update (elements, appState)
+	WS-->>U2: whiteboard_update (broadcast)
+	WS->>DB: Upsert Whiteboard State (roomId)
 ```
 
 ## 6. Event Scheduling Sequence
@@ -147,6 +165,17 @@ flowchart TD
 		C --> D[GET /api/resources?search&type&tag]
 		D --> E[Render cards]
 		E --> F[Open resource detail]
+
+## 10. Admin Panel Flow
+
+```mermaid
+flowchart LR
+	A[Admin User] --> B[/admin Dashboard]
+	B --> C[Manage Users]
+	B --> D[Manage Rooms]
+	B --> E[Manage Forum]
+	C --> F[Ban / Delete / Set Admin]
+	D --> G[View / Delete Rooms]
 ```
 
 ## 9. Data Model (Logical ERD)
@@ -166,14 +195,22 @@ erDiagram
 			string displayName
 			string avatarUrl
 			string googleId
+			boolean isAdmin
 			string otpCode
 			date otpExpiresAt
 		}
 		ROOMS {
 			string name
 			string code
+			string mapType
+			string backgroundImage
 			objectId ownerId
 			objectId[] members
+		}
+		WHITEBOARDS {
+			string roomId
+			json elements
+			json appState
 		}
 		EVENTS {
 			string title
@@ -198,4 +235,6 @@ erDiagram
 			string fileUrl
 			string[] tags
 		}
+		ROOMS ||--o| WHITEBOARDS : has
+```
 ```

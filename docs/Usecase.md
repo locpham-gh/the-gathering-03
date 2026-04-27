@@ -37,6 +37,9 @@ This document specifies use cases using the standard SRS table format to facilit
 | UC-13 | Access Digital Library | Authenticated User | Must |
 | UC-14 | Toggle Light/Dark Theme | Authenticated User | Must |
 | UC-15 | Open Fullscreen Chat/Calendar | Authenticated User | Should |
+| UC-16 | Use Collaborative Whiteboard | Authenticated User | Must |
+| UC-17 | Manage Platform (Admin) | Admin | Must |
+| UC-18 | View Mini-map & Environment | Authenticated User | Should |
 
 ## 4. Use Case Diagram
 
@@ -138,7 +141,7 @@ flowchart LR
 | Primary Actor | Authenticated User |
 | Preconditions | User is successfully logged in. |
 | Trigger | User clicks Create/Start Instant on the dashboard. |
-| Basic Flow | 1. User enters a room name (optional).<br>2. Client generates a room code and calls `POST /api/rooms`.<br>3. Server creates the room, sets owner = user, and initial members = [owner].<br>4. Client refreshes the room list.<br>5. Client redirects user to `/room/:code`. |
+| Basic Flow | 1. User enters a room name (optional).<br>2. User selects a map type (Office, Café, Garden, etc.).<br>3. Client generates a room code and calls `POST /api/rooms`.<br>4. Server creates the room with selected mapType, sets owner = user, and initial members = [owner].<br>5. Client refreshes the room list.<br>6. Client redirects user to `/room/:code`. |
 | Alternative Flow | A1. User does not enter a room name -> system uses a default name. |
 | Exception Flow | E1. Duplicate room code or invalid data -> API returns error, user retries.<br>E2. Database connection error -> room creation fails. |
 | Postconditions | A new room exists and the user becomes the Room Owner. |
@@ -180,7 +183,7 @@ flowchart LR
 | Primary Actor | Authenticated User |
 | Preconditions | User logged in; room code valid; map assets exist. |
 | Trigger | User navigates to route `/room/:roomCode`. |
-| Basic Flow | 1. Client loads map JSON (office/classroom).<br>2. Client renders PixiJS stage, layers, and entities.<br>3. User chooses a character if not previously selected.<br>4. RoomSidebar displays participants/forum/events.<br>5. User begins moving in the 2D world. |
+| Basic Flow | 1. Client loads map JSON/Image based on room mapType.<br>2. Client renders PixiJS stage, layers, and entities.<br>3. User chooses a character if not previously selected.<br>4. Mini-map and Day/Night overlay are initialized.<br>5. RoomSidebar displays participants/forum/events.<br>6. User begins moving in the 2D world. |
 | Alternative Flow | A1. User leaves the room using the leave button -> redirects to `/home`. |
 | Exception Flow | E1. Error loading map/assets -> displays fallback loading/error state.<br>E2. Token expired -> redirects to login page. |
 | Postconditions | User is active and interacting within the game room. |
@@ -270,7 +273,30 @@ flowchart LR
 | Basic Flow | 1. System opens the Library Modal.<br>2. Client calls `GET /api/resources` with filters `search/type/tag`.<br>3. Server returns filtered resources.<br>4. Client displays cards and resource details.<br>5. User searches for desired documents. |
 | Alternative Flow | A1. User clears filters to return to the full list. |
 | Exception Flow | E1. No matching resources found -> displays empty state.<br>E2. API error -> displays data fetch fail notification. |
-| Postconditions | User accesses the library and can view resource content. |
+### UC-16 - Use Collaborative Whiteboard
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-16 |
+| Use Case Name | Use Collaborative Whiteboard |
+| Primary Actor | Authenticated User |
+| Preconditions | User is in a game room; enters the `whiteboard` zone. |
+| Trigger | User interacts with the whiteboard zone (E key). |
+| Basic Flow | 1. System opens the Whiteboard Modal (Excalidraw).<br>2. Client fetches existing state from server/DB.<br>3. User draws/edits elements on the board.<br>4. Changes are broadcast to all other users in the room via WebSocket.<br>5. Server persists the latest state to MongoDB. |
+| Postconditions | All users in the room see synchronized whiteboard content. |
+
+### UC-17 - Manage Platform (Admin)
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-17 |
+| Use Case Name | Manage Platform (Admin) |
+| Primary Actor | Admin |
+| Preconditions | User has `isAdmin: true` flag. |
+| Trigger | Admin navigates to `/admin`. |
+| Basic Flow | 1. Admin views platform statistics (users, rooms).<br>2. Admin manages user accounts (Ban/Delete/Promote).<br>3. Admin manages active rooms.<br>4. Admin moderates forum topics and replies. |
+| Postconditions | Platform state is updated based on admin actions. |
+
 
 ## 6. Traceability
 

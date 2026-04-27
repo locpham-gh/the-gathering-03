@@ -1,11 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import { useTick } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Libs & Types
 import { WORLD_CONFIG } from "../lib/constants";
 import { getNewDirection } from "../lib/tileUtils";
-import { ZONES, checkZoneCollision } from "../core/zones";
+import { getZonesForMap, checkZoneCollision } from "../core/zones";
 import type { Zone } from "../core/zones";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { DirString, MapData } from "../lib/gameTypes";
@@ -20,6 +20,7 @@ import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
 
 interface PlayerProps {
   mapData: MapData;
+  mapType: string;
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
@@ -32,12 +33,14 @@ interface PlayerProps {
   selectedCharacter: string;
   customDisplayName?: string;
   localEmote?: { id: string; timestamp: number } | null;
+  localChatBubble?: string | null;
   roomId?: string;
   initialServerPosition?: { x: number; y: number } | null;
 }
 
 export const Player: React.FC<PlayerProps> = ({
   mapData,
+  mapType,
   onZoneChange,
   isPaused,
   onInteract,
@@ -50,9 +53,12 @@ export const Player: React.FC<PlayerProps> = ({
   selectedCharacter,
   customDisplayName,
   localEmote,
+  localChatBubble,
   roomId,
   initialServerPosition,
 }) => {
+  const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
+
   // --- Spawn point detection ---
   // Priority: 1) server-saved pos, 2) localStorage, 3) map's "start" layer, 4) center
   const getMapSpawnPoint = (): { x: number; y: number } => {
@@ -280,7 +286,7 @@ export const Player: React.FC<PlayerProps> = ({
     }
 
     // Zone & Proximity Check
-    const zone = checkZoneCollision(finalX, finalY, ZONES);
+    const zone = checkZoneCollision(finalX, finalY, zones);
     if (zone !== currentZone) {
       setCurrentZone(zone);
       onZoneChange?.(zone);
@@ -347,6 +353,8 @@ export const Player: React.FC<PlayerProps> = ({
       isSitting={isSitting}
       character={selectedCharacter}
       emote={localEmote}
+      displayName={customDisplayName}
+      chatBubble={localChatBubble || null}
     />
   );
 };
