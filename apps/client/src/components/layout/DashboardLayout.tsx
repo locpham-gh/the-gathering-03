@@ -9,7 +9,8 @@ import {
   PlusCircle,
   ChevronRight,
   Calendar,
-  MessageCircle
+  MessageCircle,
+  Shield
 } from "lucide-react";
 import { NotificationCenter } from "../dashboard/NotificationCenter";
 import { QuickCreateRoomModal } from "../dashboard/rooms/QuickCreateRoomModal";
@@ -29,6 +30,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { name: "Community", path: "/home/forum", icon: <MessageCircle size={20} /> },
     { name: "Profile", path: "/home/profile", icon: <Settings size={20} /> },
   ];
+
+  if (user?.role === "admin") {
+    menuItems.push({ name: "Admin", path: "/admin", icon: <Shield size={20} /> });
+  }
 
   const [isQuickCreateOpen, setIsQuickCreateOpen] = React.useState(false);
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
@@ -6,7 +6,10 @@ import * as PIXI from "pixi.js";
 import { MapRender } from "./MapRender";
 import { Player } from "../entities/Player";
 import { OtherPlayer } from "../entities/OtherPlayer";
-import { ZONES } from "./zones";
+import { getZonesForMap } from "./zones";
+import { DayNightOverlay } from "./DayNightOverlay";
+import { MiniMap } from "../ui/MiniMap";
+import { WORLD_CONFIG } from "../lib/constants";
 
 // Types
 import type { Zone } from "./zones";
@@ -48,7 +51,9 @@ interface GameCanvasProps {
   customDisplayName?: string;
   mapType?: string;
   localEmote?: { id: string; timestamp: number } | null;
+  localChatBubble?: string | null;
   roomId?: string;
+  localPosition: { x: number; y: number };
   initialServerPosition?: { x: number; y: number } | null;
 }
 
@@ -63,10 +68,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   customDisplayName,
   mapType = "office",
   localEmote,
+  localChatBubble,
   roomId,
+  localPosition,
   initialServerPosition,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
+  const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
   const [dimensions, setDimensions] = useState({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -80,19 +88,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    // Normalize mapType to actual file names
     const normalizeMap = (mt: string) => {
+      if (!mt) return "office";
       const lower = mt.toLowerCase().replace(/[\s_]/g, "");
-      if (lower === "office2" || lower === "merged" || lower === "officecombined") return "office_combined";
-      if (lower === "school" || lower === "classroom") return "classroom";
+      if (lower.includes("office2") || lower.includes("merged") || lower.includes("officecombined")) return "office_combined";
+      if (lower.includes("school") || lower.includes("classroom")) return "classroom";
+      if (lower.includes("cafe") || lower.includes("lounge")) return "cafe";
+      if (lower.includes("garden") || lower.includes("outdoor") || lower.includes("park")) return "garden";
+      if (lower.includes("conference") || lower.includes("hall") || lower.includes("auditorium")) return "conference";
       return "office";
     };
-    const mapFile = `/maps/${normalizeMap(mapType)}_map.json`;
+    const mapName = normalizeMap(mapType);
+    const mapFile = `/maps/${mapName}_map.json`;
+
+    setMapData(null); // Clear map while loading to trigger loading state
 
     fetch(mapFile)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Map not found");
+        return res.json();
+      })
       .then((data) => setMapData(data))
-      .catch((err) => console.error("Failed to load map:", err));
+      .catch((err) => {
+        console.error("Failed to load map:", err);
+        // Fallback to office if café fails (e.g. file not found)
+        if (mapName !== "office") {
+           fetch("/maps/office_map.json").then(r => r.json()).then(d => setMapData(d));
+        }
+      });
   }, [mapType]);
 
   if (!mapData) {
@@ -104,46 +127,65 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }
 
   return (
-    <Stage
-      width={dimensions.w}
-      height={dimensions.h}
-      options={{
-        backgroundColor: 0xf8fafc,
-        antialias: false,
-        hello: false,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-      }}
-      style={{ imageRendering: "pixelated" }}
-    >
-      <Container ref={worldRef}>
-        <MapRender mapData={mapData} />
-        
-        <Player
-          roomId={roomId}
-          mapData={mapData}
-          onZoneChange={onZoneChange}
-          isPaused={activeZone !== null}
-          onInteract={onInteract}
-          updatePosition={updatePosition}
-          players={players}
-          onNearbyPlayer={onNearbyPlayer}
-          worldRef={worldRef}
-          screenW={dimensions.w}
-          screenH={dimensions.h}
-          selectedCharacter={selectedCharacter}
-          customDisplayName={customDisplayName}
-          localEmote={localEmote}
-          initialServerPosition={initialServerPosition}
-        />
+    <div className="w-full h-full relative">
+      <Stage
+        key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
+        width={dimensions.w}
+        height={dimensions.h}
+        options={{
+          backgroundColor: 0xf8fafc,
+          antialias: false,
+          hello: false,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        }}
+        style={{ imageRendering: "pixelated" }}
+      >
+        <Container ref={worldRef}>
+          <MapRender mapData={mapData} />
+          
+          <Player
+            roomId={roomId}
+            mapData={mapData}
+            mapType={mapType}
+            onZoneChange={onZoneChange}
+            isPaused={activeZone !== null}
+            onInteract={onInteract}
+            updatePosition={updatePosition}
+            players={players}
+            onNearbyPlayer={onNearbyPlayer}
+            worldRef={worldRef}
+            screenW={dimensions.w}
+            screenH={dimensions.h}
+            selectedCharacter={selectedCharacter}
+            customDisplayName={customDisplayName}
+            localEmote={localEmote}
+            localChatBubble={localChatBubble}
+            initialServerPosition={initialServerPosition}
+          />
 
-        {Object.values(players).map((player) => (
-          <OtherPlayer key={player.id} player={player} />
-        ))}
+          {Object.values(players).map((player) => (
+            <OtherPlayer key={player.id} player={player} />
+          ))}
 
-        <ZoneDebugRenderer zones={ZONES} />
-      </Container>
-    </Stage>
+          <DayNightOverlay 
+            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+          />
+
+          <ZoneDebugRenderer zones={zones} />
+        </Container>
+      </Stage>
+
+      {/* Mini-map overlay (DOM) */}
+      <MiniMap
+        mapWidthPx={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+        mapHeightPx={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+        localX={localPosition.x}
+        localY={localPosition.y}
+        players={players}
+      />
+    </div>
   );
 };
 

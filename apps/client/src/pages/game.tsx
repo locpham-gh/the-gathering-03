@@ -23,7 +23,6 @@ export default function GamePage() {
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
-  const [isCalling, setIsCalling] = useState(false);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
   const [room, setRoom] = useState<any>(null);
   const [initialServerPosition, setInitialServerPosition] = useState<{ x: number; y: number } | null>(null);
@@ -33,8 +32,9 @@ export default function GamePage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
+  const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
 
-  const { players, localPosition, updatePosition, sendEmote } = useMultiplayer(roomId);
+  const { players, localPosition, updatePosition, sendEmote, sendMessage } = useMultiplayer(roomId);
 
   useEffect(() => {
     if (!user) {
@@ -96,7 +96,6 @@ export default function GamePage() {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         const roomName = `space-${roomId || "global"}`;
-        const displayName = customDisplayName || user.displayName;
         // Use user.id as identity for reliable mapping, but displayName as name
         // Wait, the backend currently accepts 'username' for both. We'll pass user.id to be safe and use it to map.
         const res = await fetch(
@@ -141,6 +140,19 @@ export default function GamePage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [activeZone, currentZone, handleZoneClose, handleInteract]);
+
+  // Listen for local user's chat messages to show bubble above own character
+  useEffect(() => {
+    const handleLocalChat = (e: CustomEvent) => {
+      const content = e.detail?.content;
+      if (typeof content === "string" && content.trim()) {
+        setLocalChatBubble(content);
+        setTimeout(() => setLocalChatBubble(null), 4000);
+      }
+    };
+    window.addEventListener("send-chat-message", handleLocalChat as EventListener);
+    return () => window.removeEventListener("send-chat-message", handleLocalChat as EventListener);
+  }, []);
 
   if (!user) return null;
 
@@ -201,6 +213,8 @@ export default function GamePage() {
             customDisplayName={customDisplayName || undefined}
             mapType={room?.map}
             localEmote={localEmote}
+            localChatBubble={localChatBubble}
+            localPosition={localPosition}
             initialServerPosition={initialServerPosition}
           />
         </div>
@@ -216,7 +230,11 @@ export default function GamePage() {
         )}
 
         {activeZone && activeZone.id === "whiteboard" && (
-          <WhiteboardModal onClose={handleZoneClose} roomId={roomId} />
+          <WhiteboardModal 
+            onClose={handleZoneClose} 
+            roomId={roomId}
+            sendMessage={sendMessage}
+          />
         )}
 
         {liveKitToken && (

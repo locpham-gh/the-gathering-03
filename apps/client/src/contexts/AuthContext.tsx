@@ -5,6 +5,8 @@ interface User {
   email: string;
   displayName: string;
   avatarUrl?: string;
+  role: "user" | "admin";
+  status: "active" | "banned";
 }
 
 interface AuthContextType {

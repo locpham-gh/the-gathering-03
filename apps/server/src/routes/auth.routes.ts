@@ -15,6 +15,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
           userId: user._id.toString(),
           email: user.email,
           displayName: user.displayName,
+          role: user.role,
+          status: user.status,
         });
 
         return {
@@ -24,6 +26,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
             email: user.email,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
+            role: user.role,
+            status: user.status,
           },
           token,
         };
@@ -104,6 +108,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
           userId: user._id.toString(),
           email: user.email,
           displayName: user.displayName,
+          role: user.role,
+          status: user.status,
         });
 
         return {
@@ -113,6 +119,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
             email: user.email,
             displayName: user.displayName,
             avatarUrl: user.avatarUrl,
+            role: user.role,
+            status: user.status,
           },
           token,
         };
@@ -152,6 +160,8 @@ export const authRoutes = new Elysia({ prefix: "/api/auth" })
           email: user.email,
           displayName: user.displayName,
           avatarUrl: user.avatarUrl,
+          role: user.role,
+          status: user.status,
         },
       };
     },

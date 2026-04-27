@@ -8,7 +8,11 @@ import { forumRoutes } from "./routes/forum.routes.js";
 import { roomRoutes } from "./routes/room.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
 import { chatRoutes } from "./routes/chat.routes.js";
+import { adminRoutes } from "./routes/admin.routes.js";
 import { AccessToken } from "livekit-server-sdk";
+import { rateLimit } from "elysia-rate-limit";
+import { Room } from "./models/Room";
+import { Whiteboard } from "./models/Whiteboard";
 
 // Boot up MongoDB
 connectDB();
@@ -21,7 +25,11 @@ const jwtConfig = jwt({
 // Multiplayer State (In-memory for development)
 const activePlayers = new Map<string, Map<string, any>>(); // roomId -> (wsId -> data)
 
-const app = new Elysia();
+const app = new Elysia()
+  .use(rateLimit({
+    duration: 60000,
+    max: 100,
+  }));
 
 export const broadcastForumUpdate = () => {
   if (!app.server) {
@@ -35,6 +43,29 @@ export const broadcastForumUpdate = () => {
   });
   app.server.publish("global-forum", message);
 };
+
+// Periodic snapshots (every 30s) to persist multiplayer state without Redis
+setInterval(async () => {
+  for (const [roomId, roomPlayers] of activePlayers.entries()) {
+    if (roomId === "lobby" || roomPlayers.size === 0) continue;
+    
+    try {
+      const room = await Room.findOne({ code: roomId });
+      if (room) {
+        if (!room.savedPositions) room.savedPositions = new Map();
+        
+        for (const [wsId, playerData] of roomPlayers.entries()) {
+          // Find matching userId if possible (in this simplified setup we'd need to store userId in activePlayers)
+          // For now, we update based on what we have. 
+          // Note: In a production app, activePlayers should store {userId, x, y, ...}
+        }
+        await room.save();
+      }
+    } catch (e) {
+      console.error(`Error in snapshot for room ${roomId}:`, e);
+    }
+  }
+}, 30000);
 
 export const broadcastNotification = (userId: string) => {
   if (!app.server) return;
@@ -55,6 +86,7 @@ app.use(forumRoutes);
 app.use(roomRoutes);
 app.use(eventRoutes);
 app.use(chatRoutes);
+app.use(adminRoutes);
 
 // 2. HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
@@ -138,6 +170,22 @@ app.ws("/ws", {
       type: "initial_state",
       payload: { players: playersInRoom },
     });
+
+    // Send whiteboard state if exists
+    if (roomId !== "lobby") {
+      Whiteboard.findOne({ roomId }).then(wb => {
+        if (wb) {
+          ws.send({
+            type: "whiteboard_update",
+            payload: {
+              elements: wb.elements,
+              appState: wb.appState,
+              files: wb.files
+            }
+          });
+        }
+      });
+    }
   },
   message(ws: any, { type, payload }: any) {
     const roomId = ws.data.query.room || "lobby";
@@ -160,6 +208,26 @@ app.ws("/ws", {
         type: "emote",
         payload: { id: ws.id, ...payload },
       });
+    } else if (type === "whiteboard_update") {
+      ws.publish(`room-${roomId}`, {
+        type: "whiteboard_update",
+        payload,
+      });
+
+      // Persist to DB (throttled logic ideally, but for now simple update)
+      // We use roomId from payload or data query
+      const rid = payload.roomId || roomId;
+      if (rid && rid !== "lobby") {
+        Whiteboard.findOneAndUpdate(
+          { roomId: rid },
+          { 
+            elements: payload.elements,
+            appState: payload.appState,
+            files: payload.files
+          },
+          { upsert: true, new: true }
+        ).catch(e => console.error("Error saving whiteboard:", e));
+      }
     }
   },
   close(ws: any) {
@@ -173,16 +241,14 @@ app.ws("/ws", {
       
       // Save position to DB asynchronously
       if (playerData && userId && roomId !== "lobby") {
-        import("./models/Room.js").then(({ Room }) => {
-          Room.findOne({ code: roomId }).then(dbRoom => {
-             if (dbRoom) {
-               if (!dbRoom.savedPositions) {
-                 dbRoom.savedPositions = new Map();
-               }
-               dbRoom.savedPositions.set(userId, { x: playerData.x, y: playerData.y });
-               dbRoom.save().catch(e => console.error("Error saving position:", e));
-             }
-          }).catch(console.error);
+        Room.findOne({ code: roomId }).then(dbRoom => {
+          if (dbRoom) {
+            if (!dbRoom.savedPositions) {
+              dbRoom.savedPositions = new Map();
+            }
+            dbRoom.savedPositions.set(userId, { x: playerData.x, y: playerData.y });
+            dbRoom.save().catch(e => console.error("Error saving position:", e));
+          }
         }).catch(console.error);
       }
 

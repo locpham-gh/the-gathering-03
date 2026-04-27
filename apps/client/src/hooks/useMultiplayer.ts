@@ -13,6 +13,7 @@ export interface RemotePlayer {
   displayName?: string;
   avatarUrl?: string;
   emote?: { id: string; timestamp: number };
+  chatBubble?: { text: string; timestamp: number };
 }
 
 export function useMultiplayer(roomId?: string) {
@@ -120,6 +121,31 @@ export function useMultiplayer(roomId?: string) {
           window.dispatchEvent(new CustomEvent("forum-refresh"));
         } else if (type === "chat_message") {
           window.dispatchEvent(new CustomEvent("chat-message", { detail: payload }));
+          // Show chat bubble on matching remote player
+          const authorUserId = payload.authorId?._id || payload.authorId;
+          if (authorUserId && typeof payload.content === "string") {
+            setPlayers((prev) => {
+              const updated = { ...prev };
+              for (const [wsId, p] of Object.entries(updated)) {
+                if (p.userId === authorUserId) {
+                  updated[wsId] = { ...p, chatBubble: { text: payload.content, timestamp: Date.now() } };
+                  break;
+                }
+              }
+              return updated;
+            });
+            setTimeout(() => {
+              setPlayers((prev) => {
+                const updated = { ...prev };
+                for (const [wsId, p] of Object.entries(updated)) {
+                  if (p.userId === authorUserId && p.chatBubble) {
+                    updated[wsId] = { ...p, chatBubble: undefined };
+                  }
+                }
+                return updated;
+              });
+            }, 4000);
+          }
         } else if (type === "emote") {
           setPlayers((prev) => {
             if (!prev[payload.id]) return prev;
@@ -131,6 +157,8 @@ export function useMultiplayer(roomId?: string) {
               },
             };
           });
+        } else if (type === "whiteboard_update") {
+          window.dispatchEvent(new CustomEvent("whiteboard-update", { detail: payload }));
         }
       };
     };
@@ -212,10 +240,16 @@ export function useMultiplayer(roomId?: string) {
     if (wsRef.current?.readyState === WebSocket.OPEN && user) {
       wsRef.current.send(JSON.stringify({
         type: "emote",
-        payload: { emoteId, userId: user.id }
+        payload: { id: user.id, emoteId, roomId }
       }));
     }
-  }, [user]);
+  }, [user, roomId]);
+
+  const sendMessage = useCallback((type: string, payload: any) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type, payload }));
+    }
+  }, []);
 
   useEffect(() => {
     const handleSendChat = (e: CustomEvent) => {
@@ -225,5 +259,5 @@ export function useMultiplayer(roomId?: string) {
     return () => window.removeEventListener("send-chat-message", handleSendChat as EventListener);
   }, [sendChatMessage]);
 
-  return { players, localPosition, updatePosition, sendChatMessage, sendEmote };
+  return { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage };
 }

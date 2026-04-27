@@ -13,6 +13,7 @@ This document lists all functional requirements currently in the The Gathering c
 - Guest: Unauthenticated user.
 - Authenticated User: User who has logged in via Google or OTP.
 - Room Owner: User who owns a room.
+- Admin: User with administrative privileges (User/Room/Forum management).
 - Event Host: User who creates an event (can be the same as the Room Owner).
 - System Services: Google Identity, Email SMTP, LiveKit.
 
@@ -55,12 +56,21 @@ This document lists all functional requirements currently in the The Gathering c
 | FR-33 | The system must allow users to toggle between Light and Dark themes in the 2D space. | Must | Implemented |
 | FR-34 | The system must save and persist the user's theme preference. | Must | Implemented |
 | FR-35 | The system must provide fullscreen immersive views for Chat and Calendar modules. | Must | Implemented |
+| FR-36 | The system must allow users to choose from multiple map types (Office, Café, Garden, Conference) during room creation. | Must | Implemented |
+| FR-37 | The system must support high-quality image backgrounds for specific map types. | Should | Implemented |
+| FR-38 | The system must provide a real-time collaborative whiteboard (Excalidraw) with state persistence. | Must | Implemented |
+| FR-39 | The system must display player names and floating chat bubbles above characters. | Should | Implemented |
+| FR-40 | The system must include a Mini-map for spatial awareness within the room. | Should | Implemented |
+| FR-41 | The system must implement a dynamic Day/Night lighting cycle based on real-world time. | Should | Implemented |
+| FR-42 | The system must provide an Admin Panel for managing users, rooms, and forum content. | Must | Implemented |
+| FR-43 | The system must perform periodic snapshots (30s) of player states to ensure data persistence without Redis. | Must | Implemented |
+| FR-44 | The system must implement API rate limiting to prevent abuse. | Must | Implemented |
 
 ## 4. Out of Scope (Current Version)
 
-- Overall admin dashboard and role-based moderation.
-- Service directory UI/API (only the `Service` model is implemented).
-- persistence of real-time positions is implemented; full state (emotes, current zone) persistence is future work.
+- Advanced AI-powered non-player characters (NPCs).
+- Service directory full UI implementation (only API/Models exist).
+- Real-time Screen Sharing recording persistence.
 
 ## 5. Traceability to Main Modules
 

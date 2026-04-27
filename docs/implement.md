@@ -7,6 +7,7 @@
 | 1.0     | 2025-01-20 | First version                                    |
 | 1.1     | 2025-01-25 | Defined initial system requirements              |
 | 2.0     | 2026-04-23 | Rewritten to match current The Gathering project |
+| 2.1     | 2026-04-28 | Added Whiteboard, Admin Panel, and Enhanced Maps |
 
 ## Table of Contents
 
@@ -27,6 +28,8 @@
 - Realtime: Elysia WebSocket endpoint (`/ws`)
 - Video token service: LiveKit server SDK
 - Email service: Nodemailer (Gmail SMTP)
+- Security: `elysia-rate-limit` (100 req/min)
+- Reliability: Periodic Snapshots (30s) instead of Redis
 
 Main entry point: `apps/server/src/index.ts`
 
@@ -48,6 +51,7 @@ apps/server/
       forum.routes.ts
       resource.routes.ts
       room.routes.ts
+      admin.routes.ts
     models/
       Event.ts
       ForumTopic.ts
@@ -55,6 +59,7 @@ apps/server/
       Room.ts
       Service.ts
       User.ts
+      Whiteboard.ts
     services/
       email.service.ts
 ```
@@ -76,6 +81,7 @@ Routes are separated by domain and mounted in `index.ts`:
 - `eventRoutes` -> `/api/events`
 - `forumRoutes` -> `/api/forum`
 - `resourceRoutes` -> `/api/resources`
+- `adminRoutes` -> `/api/admin`
 
 Additional endpoints in `index.ts`:
 
@@ -146,6 +152,10 @@ apps/client/src/
       ui/
     layout/
     ui/
+    admin/
+      Dashboard.tsx
+      UserManage.tsx
+      RoomManage.tsx
 ```
 
 ### 2.3 Router and View Composition
@@ -163,6 +173,7 @@ Defined in `apps/client/src/App.tsx`:
   - `/home/forum`
   - `/home/profile`
   - `/room/:roomId`
+  - `/admin` (Admin only)
 
 ### 2.4 State Management
 
@@ -240,6 +251,17 @@ Core game module is under `components/game`:
 
 - `GET /api/livekit/token?room=<room>&username=<name>`
 
+#### Admin
+- `GET /api/admin/stats`
+- `GET /api/admin/users`
+- `POST /api/admin/users/:id/admin`
+- `POST /api/admin/users/:id/ban`
+- `DELETE /api/admin/users/:id`
+- `GET /api/admin/rooms`
+- `DELETE /api/admin/rooms/:id`
+- `GET /api/admin/forum/topics`
+- `DELETE /api/admin/forum/topics/:id`
+
 ### 3.2 WebSocket Contract
 
 Endpoint: `WS /ws?room=<roomCode>`
@@ -252,8 +274,11 @@ Message types:
   - `initial_state`
   - `player_moved`
   - `player_left`
+  - `whiteboard_update` (elements, appState, files)
+  - `emote`
+  - `chat_message` (with auto-fade bubbles)
 
-Realtime player positions are persisted to MongoDB upon WebSocket disconnection; other states (emotes) are in-memory.
+Realtime player positions are snapshots every 30s to MongoDB; Whiteboard state is persisted on each broadcast. Other states (emotes) are in-memory.
 
 ### 3.3 API Versioning
 
@@ -271,6 +296,7 @@ Realtime player positions are persisted to MongoDB upon WebSocket disconnection;
 - `displayName`
 - `avatarUrl`
 - `googleId` (unique, sparse)
+- `isAdmin` (boolean, default false)
 - `otpCode`
 - `otpExpiresAt`
 - `createdAt`, `updatedAt`
@@ -279,9 +305,19 @@ Realtime player positions are persisted to MongoDB upon WebSocket disconnection;
 
 - `name` (required)
 - `code` (required, unique)
+- `mapType` (string)
+- `backgroundImage` (string, optional)
 - `ownerId` (ObjectId ref `User`)
 - `members` (ObjectId[] ref `User`)
+- `savedPositions` (Map of userId -> {x, y})
 - `createdAt`, `updatedAt`
+
+#### `whiteboards`
+- `roomId` (string, unique)
+- `elements` (Array)
+- `appState` (Object)
+- `files` (Object)
+- `updatedAt`
 
 #### `events`
 

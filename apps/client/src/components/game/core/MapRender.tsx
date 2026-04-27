@@ -55,6 +55,15 @@ const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
 
   return (
     <Container>
+      {mapData.backgroundImage && (
+        <Sprite
+          image={mapData.backgroundImage}
+          x={0}
+          y={0}
+          width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+          height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+        />
+      )}
       {mapData.layers.map((layer, layerIdx) => renderLayer(layer, layerIdx))}
     </Container>
   );

@@ -30,6 +30,10 @@ export function WorkspaceList({
       case "office2":
       case "merged":
         return "/office_2_img.png";
+      case "cafe":
+      case "café":
+      case "lounge":
+        return "/office_img.png"; // Reuse office img for now
       case "office":
       default:
         return "/office_img.png";
