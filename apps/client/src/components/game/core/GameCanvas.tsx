@@ -3,7 +3,6 @@ import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Internal modules
-import { MAP_CONFIG } from "./config";
 import { MapRender } from "./MapRender";
 import { Player } from "../entities/Player";
 import { OtherPlayer } from "../entities/OtherPlayer";
@@ -12,6 +11,7 @@ import { ZONES } from "./zones";
 // Types
 import type { Zone } from "./zones";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
+import type { MapData } from "../lib/gameTypes";
 
 // Pixi Settings
 const pixiSettings = PIXI.settings as unknown as { 
@@ -24,7 +24,7 @@ if (pixiSettings.RENDER_OPTIONS) {
 }
 
 // ✅ Anti-glitch: Disable rounding and mipmaps to prevent edge bleeding on zoomed maps
-pixiSettings.ROUND_PIXELS = false;
+pixiSettings.ROUND_PIXELS = true;
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
 
@@ -35,13 +35,7 @@ console.warn = (...args: unknown[]) => {
   originalWarn(...args);
 };
 
-interface MapData {
-  width: number;
-  height: number;
-  tilewidth: number;
-  tileheight: number;
-  layers: { name: string; data: number[] }[];
-}
+// MapData is now imported from gameTypes.ts
 
 interface GameCanvasProps {
   onZoneChange?: (zone: Zone | null) => void;
@@ -49,8 +43,13 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
   selectedCharacter: string;
+  customDisplayName?: string;
+  mapType?: string;
+  localEmote?: { id: string; timestamp: number } | null;
+  roomId?: string;
+  initialServerPosition?: { x: number; y: number } | null;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -61,6 +60,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   players,
   updatePosition,
   selectedCharacter,
+  customDisplayName,
+  mapType = "office",
+  localEmote,
+  roomId,
+  initialServerPosition,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const [dimensions, setDimensions] = useState({
@@ -76,13 +80,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    let mapFile = "/maps/office_map.json";
-    if (MAP_CONFIG.type === "classroom") mapFile = "/maps/classroom_map.json";
+    // Normalize mapType to actual file names
+    const normalizeMap = (mt: string) => {
+      const lower = mt.toLowerCase().replace(/[\s_]/g, "");
+      if (lower === "office2" || lower === "merged" || lower === "officecombined") return "office_combined";
+      if (lower === "school" || lower === "classroom") return "classroom";
+      return "office";
+    };
+    const mapFile = `/maps/${normalizeMap(mapType)}_map.json`;
 
     fetch(mapFile)
       .then((res) => res.json())
-      .then((data) => setMapData(data));
-  }, []);
+      .then((data) => setMapData(data))
+      .catch((err) => console.error("Failed to load map:", err));
+  }, [mapType]);
 
   if (!mapData) {
     return (
@@ -109,6 +120,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         <MapRender mapData={mapData} />
         
         <Player
+          roomId={roomId}
           mapData={mapData}
           onZoneChange={onZoneChange}
           isPaused={activeZone !== null}
@@ -120,6 +132,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           screenW={dimensions.w}
           screenH={dimensions.h}
           selectedCharacter={selectedCharacter}
+          customDisplayName={customDisplayName}
+          localEmote={localEmote}
+          initialServerPosition={initialServerPosition}
         />
 
         {Object.values(players).map((player) => (

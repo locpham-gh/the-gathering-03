@@ -14,6 +14,7 @@ flowchart LR
 		S --> SMTP[SMTP Provider]
 		S --> LKS[LiveKit Server]
 		C --> LKR[LiveKit Room]
+		C --> LS[(LocalStorage)]
 		LKS --> LKR
 ```
 
@@ -103,6 +104,7 @@ sequenceDiagram
 		WS-->>U2: player_moved (broadcast)
 
 		U2->>WS: disconnect
+		WS->>WS: Save last position to DB
 		WS-->>U1: player_left
 ```
 

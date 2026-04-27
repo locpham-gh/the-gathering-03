@@ -126,7 +126,8 @@ Summary of functional groups:
 - Event Management: Create event, view event, delete event, send invitation emails.
 - Forum: Create topic, reply to topic, delete topic (author).
 - Digital Library: Search/filter resources by text/type/tag.
-- In-game Utilities: Room sidebar tabs (participants/forum/events), library zone interaction.
+- In-game Utilities: Room sidebar icons (People/Chat/Calendar/Forum/Settings), immersive fullscreen views, Light/Dark theme toggle.
+- Persistence: Player positions saved to MongoDB upon disconnection.
 
 ### 1. Use Flow (Mermaid)
 
@@ -265,7 +266,7 @@ Summary:
 
 - Runtime and package manager: Bun.
 - Client runs on a web browser (no native mobile app in the current codebase).
-- Current realtime player state does not persist after server restart.
+- Realtime player positions are persisted; other ephemeral states (emotes) are reset.
 
 ### 2. Assumptions
 

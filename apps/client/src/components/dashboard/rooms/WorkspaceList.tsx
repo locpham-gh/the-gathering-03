@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, ExternalLink, Calendar, Settings, Trash2, Shield } from "lucide-react";
+import { Users, ExternalLink, Calendar, Settings, Trash2, Shield, Map } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 import { ScheduleEventModal } from "../ScheduleEventModal";
 import { RoomManageModal } from "./RoomManageModal";
@@ -20,6 +20,21 @@ export function WorkspaceList({
   const navigate = useNavigate();
   const [managingRoom, setManagingRoom] = useState<RoomData | null>(null);
   const [scheduleRoomId, setScheduleRoomId] = useState<string | null>(null);
+
+  const getMapImage = (mapType: string = "office") => {
+    switch (mapType.toLowerCase().replace(/[\s_]/g, "")) {
+      case "classroom":
+      case "school":
+        return "/school_img.png";
+      case "officecombined":
+      case "office2":
+      case "merged":
+        return "/office_2_img.png";
+      case "office":
+      default:
+        return "/office_img.png";
+    }
+  };
 
   const handleDeleteRoom = async (id: string) => {
     if (!confirm("Are you sure you want to delete this room?")) return;
@@ -55,27 +70,40 @@ export function WorkspaceList({
             return (
               <div
                 key={room._id}
-                className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all group relative overflow-hidden"
+                className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col"
               >
-                {isOwner && (
-                  <div className="absolute top-4 right-4 text-[10px] font-bold text-primary bg-primary/10 px-2 py-1 rounded flex items-center gap-1 uppercase tracking-tighter">
-                    <Shield size={10} /> Owner
-                  </div>
-                )}
-
-                <div className="mb-4">
-                  <h4 className="text-lg font-bold text-slate-800 mb-1">
-                    {room.name}
-                  </h4>
-                  <p className="text-xs text-slate-400 font-mono">
-                    {room.code}
-                  </p>
+                {/* Map Thumbnail */}
+                <div className="h-40 w-full bg-slate-100 relative overflow-hidden border-b border-slate-100 shrink-0">
+                  <img 
+                    src={getMapImage(room.map)} 
+                    alt={`${room.map || 'default'} map`} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  />
+                  {isOwner && (
+                    <div className="absolute top-3 right-3 text-[10px] font-bold text-white bg-slate-900/60 backdrop-blur-md px-2 py-1 rounded flex items-center gap-1 uppercase tracking-tighter">
+                      <Shield size={10} /> Owner
+                    </div>
+                  )}
                 </div>
+
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="mb-4">
+                    <h4 className="text-lg font-bold text-slate-800 mb-1 line-clamp-1">
+                      {room.name}
+                    </h4>
+                    <p className="text-xs text-slate-400 font-mono">
+                      {room.code}
+                    </p>
+                  </div>
 
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                     <Users size={14} className="text-slate-400" />
                     <span>{room.members.length} members</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium capitalize">
+                    <Map size={14} className="text-slate-400" />
+                    <span>{room.map} map</span>
                   </div>
                 </div>
 
@@ -112,6 +140,7 @@ export function WorkspaceList({
                       </button>
                     </>
                   )}
+                </div>
                 </div>
               </div>
             );

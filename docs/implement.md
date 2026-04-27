@@ -167,7 +167,7 @@ Defined in `apps/client/src/App.tsx`:
 ### 2.4 State Management
 
 - Global auth state is handled by `AuthContext`.
-- JWT token and user profile are persisted to `localStorage`.
+- JWT token, user profile, and `isDark` theme preference are persisted to `localStorage`.
 - Multiplayer remote player state is managed in `useMultiplayer` with WebSocket events.
 - Feature-level UI state is local to each page/component.
 
@@ -253,7 +253,7 @@ Message types:
   - `player_moved`
   - `player_left`
 
-Realtime state is in-memory (`Map`) on the server and resets on server restart.
+Realtime player positions are persisted to MongoDB upon WebSocket disconnection; other states (emotes) are in-memory.
 
 ### 3.3 API Versioning
 
