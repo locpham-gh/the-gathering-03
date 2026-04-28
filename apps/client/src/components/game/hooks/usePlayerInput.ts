@@ -3,7 +3,7 @@ import { useEffect, useMemo } from "react";
 /**
  * Custom hook to handle keyboard input and interaction triggers.
  */
-export function usePlayerInput(onInteract?: () => void) {
+export function usePlayerInput(onInteract?: () => void, onPhoneToggle?: () => void) {
   const keys = useMemo(() => new Set<string>(), []);
   
   useEffect(() => {
@@ -11,6 +11,9 @@ export function usePlayerInput(onInteract?: () => void) {
       keys.add(e.key.toLowerCase());
       if (e.key.toLowerCase() === "e") {
         onInteract?.();
+      }
+      if (e.key.toLowerCase() === "q") {
+        onPhoneToggle?.();
       }
     };
     const onKeyUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
@@ -24,7 +27,7 @@ export function usePlayerInput(onInteract?: () => void) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [keys, onInteract]);
+  }, [keys, onInteract, onPhoneToggle]);
 
   return keys;
 }

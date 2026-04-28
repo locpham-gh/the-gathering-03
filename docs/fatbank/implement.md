@@ -8,6 +8,7 @@
 | 1.1     | 2025-01-25 | Defined initial system requirements              |
 | 2.0     | 2026-04-23 | Rewritten to match current The Gathering project |
 | 2.1     | 2026-04-28 | Added Whiteboard, Admin Panel, and Enhanced Maps |
+| 2.2     | 2026-04-28 | Added Spatial Chat, Phone Sync, and Role-based Dashboard |
 
 ## Table of Contents
 
@@ -276,7 +277,8 @@ Message types:
   - `player_left`
   - `whiteboard_update` (elements, appState, files)
   - `emote`
-  - `chat_message` (with auto-fade bubbles)
+  - `chat_message` (Spatial Chat: filtered by 250px radius on client)
+  - `phone_state` (Synced instantly via `move` type payload)
 
 Realtime player positions are snapshots every 30s to MongoDB; Whiteboard state is persisted on each broadcast. Other states (emotes) are in-memory.
 

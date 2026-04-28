@@ -14,6 +14,7 @@ export interface RemotePlayer {
   avatarUrl?: string;
   emote?: { id: string; timestamp: number };
   chatBubble?: { text: string; timestamp: number };
+  isPhoneOut?: boolean;
 }
 
 export function useMultiplayer(roomId?: string) {
@@ -39,7 +40,7 @@ export function useMultiplayer(roomId?: string) {
 
     const connect = () => {
       if (isClosing) return;
-      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}`);
+      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -181,17 +182,15 @@ export function useMultiplayer(roomId?: string) {
 
   const lastSent = useRef<number>(0);
   const lastSittingState = useRef<boolean | undefined>(undefined);
+  const lastPhoneState = useRef<boolean | undefined>(undefined);
   
   // Monitor Outgoing Message Rate
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => {
+  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => {
     const now = Date.now();
-    const stateChanged = isSitting !== lastSittingState.current;
-
-    // Bắt buộc gửi lên Server nếu hành động Ngồi/Đứng (isSitting) bị thay đổi (Bypass throttle).
-    // Nếu chỉ là di chuyển thông thường thì Throttle về 20Hz (mỗi 50ms) để tiết kiệm băng thông.
+    const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
     if (!stateChanged && now - lastSent.current < 50) return;
     
     setLocalPosition({ x, y });
@@ -202,6 +201,7 @@ export function useMultiplayer(roomId?: string) {
         y,
         direction,
         isSitting,
+        isPhoneOut,
         character,
         userId: user.id,
         displayName: customName || user.displayName,
@@ -214,6 +214,7 @@ export function useMultiplayer(roomId?: string) {
       }));
       lastSent.current = now;
       lastSittingState.current = isSitting;
+      lastPhoneState.current = isPhoneOut;
 
       // Log monitor stats
       msgCounter.current++;

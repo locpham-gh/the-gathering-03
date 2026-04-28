@@ -239,8 +239,8 @@ app.ws("/ws", {
     if (room) {
       const playerData = room.get(ws.id);
       
-      // Save position to DB asynchronously
-      if (playerData && userId && roomId !== "lobby") {
+      // Save position to DB asynchronously (only if moved from origin)
+      if (playerData && userId && roomId !== "lobby" && (playerData.x !== 0 || playerData.y !== 0)) {
         Room.findOne({ code: roomId }).then(dbRoom => {
           if (dbRoom) {
             if (!dbRoom.savedPositions) {

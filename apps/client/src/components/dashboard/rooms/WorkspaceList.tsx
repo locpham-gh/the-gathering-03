@@ -33,7 +33,7 @@ export function WorkspaceList({
       case "cafe":
       case "café":
       case "lounge":
-        return "/office_img.png"; // Reuse office img for now
+        return "/cafe_img.png";
       case "office":
       default:
         return "/office_img.png";
@@ -48,33 +48,56 @@ export function WorkspaceList({
     }
   };
 
+  const [activeTab, setActiveTab] = useState<"all" | "owned" | "joined">("all");
+
+  const filteredRooms = rooms.filter((room) => {
+    const isOwner = (typeof room.ownerId === 'string' ? room.ownerId : room.ownerId?._id) === user.id;
+    if (activeTab === "owned") return isOwner;
+    if (activeTab === "joined") return !isOwner;
+    return true;
+  });
+
   return (
     <>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
-            Your Workspaces
-          </h3>
-          <span className="text-sm text-slate-400 font-medium bg-slate-100 px-3 py-1 rounded-full">
-            {rooms.length} Rooms
-          </span>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <h3 className="text-2xl font-bold text-slate-800 tracking-tight">
+              Your Workspaces
+            </h3>
+            <span className="text-xs text-slate-400 font-medium bg-slate-100 px-2.5 py-1 rounded-full">
+              {rooms.length} Total
+            </span>
+          </div>
+          
+          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+            {(["all", "owned", "joined"] as const).map((tab) => (
+              <button 
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all capitalize ${activeTab === tab ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          {rooms.length === 0 && !loading && (
+          {filteredRooms.length === 0 && !loading && (
             <div className="col-span-2 py-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
               <p className="text-slate-400">
-                You haven't created or joined any rooms yet.
+                No rooms found in this category.
               </p>
             </div>
           )}
 
-          {rooms.map((room) => {
-            const isOwner = room.ownerId?._id === user.id;
+          {filteredRooms.map((room) => {
+            const isOwner = (typeof room.ownerId === 'string' ? room.ownerId : room.ownerId?._id) === user.id;
             return (
               <div
                 key={room._id}
-                className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-slate-300 transition-all group relative overflow-hidden flex flex-col"
+                className="bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-teal-500/50 transition-all group relative overflow-hidden flex flex-col"
               >
                 {/* Map Thumbnail */}
                 <div className="h-40 w-full bg-slate-100 relative overflow-hidden border-b border-slate-100 shrink-0">
@@ -83,11 +106,17 @@ export function WorkspaceList({
                     alt={`${room.map || 'default'} map`} 
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
-                  {isOwner && (
-                    <div className="absolute top-3 right-3 text-[10px] font-bold text-white bg-slate-900/60 backdrop-blur-md px-2 py-1 rounded flex items-center gap-1 uppercase tracking-tighter">
-                      <Shield size={10} /> Owner
-                    </div>
-                  )}
+                  <div className="absolute top-3 right-3 flex gap-2">
+                    {isOwner ? (
+                      <div className="text-[10px] font-bold text-white bg-slate-900/80 backdrop-blur-md px-2 py-1 rounded flex items-center gap-1 uppercase tracking-tighter">
+                        <Shield size={10} className="text-teal-400" /> Owner
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-bold text-white bg-blue-600/80 backdrop-blur-md px-2 py-1 rounded flex items-center gap-1 uppercase tracking-tighter">
+                        <Users size={10} /> Member
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="p-5 flex flex-col flex-1">
@@ -103,18 +132,18 @@ export function WorkspaceList({
                 <div className="flex items-center gap-4 mb-6">
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
                     <Users size={14} className="text-slate-400" />
-                    <span>{room.members.length} members</span>
+                    <span>{room.members?.length || 0} members</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium capitalize">
                     <Map size={14} className="text-slate-400" />
-                    <span>{room.map} map</span>
+                    <span>{room.map || "office"} map</span>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
                   <button
                     onClick={() => navigate(`/room/${room.code}`)}
-                    className="flex-1 bg-slate-50 text-slate-700 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-100 hover:text-slate-900 transition-all border border-slate-200 shadow-sm"
+                    className="flex-1 bg-slate-900 text-white py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-teal-600 transition-all shadow-sm"
                   >
                     <ExternalLink size={16} /> Enter
                   </button>

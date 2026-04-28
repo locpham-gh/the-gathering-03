@@ -35,6 +35,7 @@ export interface TileData {
   texture: PIXI.Texture;
   flipX: boolean;
   flipY: boolean;
+  tilesetName?: string;
 }
 
 export interface PlayerState {

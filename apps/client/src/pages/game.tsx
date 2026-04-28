@@ -13,6 +13,7 @@ import { PreJoinScreen } from "../components/game/ui/PreJoinScreen";
 import { ConferenceModal } from "../components/game/ui/ConferenceModal";
 import { WhiteboardModal } from "../components/game/ui/WhiteboardModal";
 import { InviteModal } from "../components/game/ui/InviteModal";
+import { NearbyChat } from "../components/game/ui/NearbyChat";
 
 import { Loader2, AlertCircle } from "lucide-react";
 
@@ -33,8 +34,9 @@ export default function GamePage() {
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
+  const [isPhoneOpen, setIsPhoneOpen] = useState(false);
 
-  const { players, localPosition, updatePosition, sendEmote, sendMessage } = useMultiplayer(roomId);
+  const { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage } = useMultiplayer(roomId);
 
   useEffect(() => {
     if (!user) {
@@ -216,8 +218,19 @@ export default function GamePage() {
             localChatBubble={localChatBubble}
             localPosition={localPosition}
             initialServerPosition={initialServerPosition}
+            onPhoneToggle={setIsPhoneOpen}
           />
         </div>
+
+        <NearbyChat 
+          isOpen={isPhoneOpen}
+          onClose={() => setIsPhoneOpen(false)}
+          user={user}
+          roomId={roomId}
+          players={players}
+          localPosition={localPosition}
+          onSendMessage={(text) => sendChatMessage({ content: text, senderId: user.id, senderName: user.displayName, roomId })}
+        />
 
         <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 

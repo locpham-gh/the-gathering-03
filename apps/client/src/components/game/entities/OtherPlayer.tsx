@@ -43,6 +43,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       direction={direction}
       isMoving={isMoving}
       isSitting={player.isSitting}
+      isPhoneOut={player.isPhoneOut}
       character={player.character || "Adam"}
       emote={player.emote}
       displayName={player.displayName}

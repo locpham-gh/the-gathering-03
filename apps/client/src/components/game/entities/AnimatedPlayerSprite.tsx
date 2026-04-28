@@ -10,6 +10,7 @@ interface AnimatedPlayerSpriteProps {
   direction: DirString;
   isMoving: boolean;
   isSitting?: boolean;
+  isPhoneOut?: boolean;
   character?: string;
   tint?: number;
   emote?: { id: string; timestamp: number } | null;
@@ -23,6 +24,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   direction,
   isMoving,
   isSitting = false,
+  isPhoneOut = false,
   character = "Adam",
   tint = 0xffffff,
   emote = null,
@@ -46,6 +48,12 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
     }
   }, [chatBubble]);
 
+  useEffect(() => {
+    // Reset frame when phone state changes to start from "pull out" animation
+    setFrame(0);
+    timeAcc.current = 0;
+  }, [isPhoneOut]);
+
   // Animation logic loop
   useTick((delta) => {
     timeAcc.current += delta;
@@ -53,7 +61,16 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
 
     if (timeAcc.current > tickSpeed) {
       timeAcc.current = 0;
-      setFrame((prev) => (prev >= 5 ? 0 : prev + 1));
+      setFrame((prev) => {
+        if (isPhoneOut) {
+          // Phone animation has 8 frames (0-7)
+          // 0-3: Pulling out (once)
+          // 4-7: Using/Looping
+          if (prev < 4) return prev + 1; // Pull out sequence
+          return prev >= 7 ? 4 : prev + 1; // Loop usage sequence (4-7)
+        }
+        return prev >= 5 ? 0 : prev + 1; // Default 6-frame loop
+      });
     }
 
     if (emoteState) {
@@ -79,14 +96,25 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   let baseCol = DIR_COL_OFFSET[direction];
   // Row 1 (index 1) = Idle, Row 2 (index 2) = Walking
   let row = isMoving ? 2 : 1;
+  let yOffset = 0;
 
   if (isSitting) {
-    row = 5;
-    if (direction === "left") {
-      baseCol = 6;
+    if (direction === "left" || direction === "right") {
+      row = 5;
+      baseCol = direction === "left" ? 6 : 0;
     } else {
-      baseCol = 0;
+      // "Fake" sitting for up/down by using Idle row and shifting down
+      row = 1;
+      baseCol = DIR_COL_OFFSET[direction];
+      yOffset = 20; // Shift down to look like sitting
     }
+  } else if (isPhoneOut) {
+    row = 6;
+    // The phone animation in the screenshot seems to be mostly front-facing
+    // We'll force it to face DOWN (col 18 range) or use current if it has more directions
+    // Actually, row 7 columns 0-11 in the screenshot are front-facing phone usage.
+    // Let's use column 0-11 for row 7.
+    baseCol = 0; 
   }
 
   const col = baseCol + frame;
@@ -118,6 +146,8 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
         texture={texture}
         width={64}
         height={128}
+        x={0}
+        y={yOffset}
         anchor={0}
         tint={tint}
       />
