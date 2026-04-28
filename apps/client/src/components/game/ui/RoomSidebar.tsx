@@ -5,7 +5,6 @@ import {
   CalendarDays,
   LogOut,
   Link2,
-  ArrowLeft,
   X,
   Wifi,
   Sun,
@@ -58,7 +57,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
   const playersKey = Object.keys(players).join(",");
-  useEffect(() => { fetchMembers(); }, [playersKey]);
+  useEffect(() => { fetchMembers(); }, [playersKey, fetchMembers]);
 
   const onlineCount = Object.keys(players).length + 1;
   const isFullScreen = activeTab === "chat" || activeTab === "events";
@@ -128,14 +127,9 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                   />
                 )}
                 <tab.icon
-                  size={19}
+                  size={20}
                   strokeWidth={isActive ? 2.2 : 1.7}
                 />
-                {!isFullScreen && (
-                  <span className="text-[9px] font-semibold tracking-wide uppercase leading-none">
-                    {tab.label}
-                  </span>
-                )}
               </button>
             );
           })}
