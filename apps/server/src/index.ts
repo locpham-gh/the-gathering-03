@@ -156,8 +156,26 @@ app.ws("/ws", {
       if (!activePlayers.has(roomId)) {
         activePlayers.set(roomId, new Map());
       }
-      activePlayers.get(roomId)?.set(ws.id, {
+      
+      const room = activePlayers.get(roomId)!;
+      
+      // Kick existing connections for same userId to prevent ghosts
+      if (userId) {
+        for (const [oldWsId, data] of room.entries()) {
+          if (data.userId === userId && oldWsId !== ws.id) {
+            console.log(`👢 Kicking stale session for user ${userId} (Old: ${oldWsId}, New: ${ws.id})`);
+            room.delete(oldWsId);
+            ws.publish(`room-${roomId}`, {
+              type: "player_left",
+              payload: { id: oldWsId },
+            });
+          }
+        }
+      }
+
+      room.set(ws.id, {
         id: ws.id,
+        userId: userId,
         x: 0,
         y: 0,
         isSitting: false,
@@ -170,6 +188,27 @@ app.ws("/ws", {
       type: "initial_state",
       payload: { players: playersInRoom },
     });
+
+    // Asynchronously update position from DB if exists
+    if (roomId !== "lobby" && userId) {
+      Room.findOne({ code: roomId }).then(dbRoom => {
+        if (dbRoom && dbRoom.savedPositions && dbRoom.savedPositions.has(userId)) {
+          const pos = dbRoom.savedPositions.get(userId);
+          const room = activePlayers.get(roomId);
+          if (room && room.has(ws.id)) {
+            const currentData = room.get(ws.id);
+            const updatedData = { ...currentData, x: pos.x, y: pos.y };
+            room.set(ws.id, updatedData);
+            
+            // Broadcast the loaded position to others
+            ws.publish(`room-${roomId}`, {
+              type: "player_moved",
+              payload: updatedData,
+            });
+          }
+        }
+      }).catch(err => console.error("Error loading initial position from DB:", err));
+    }
 
     // Send whiteboard state if exists
     if (roomId !== "lobby") {
@@ -239,8 +278,8 @@ app.ws("/ws", {
     if (room) {
       const playerData = room.get(ws.id);
       
-      // Save position to DB asynchronously
-      if (playerData && userId && roomId !== "lobby") {
+      // Save position to DB asynchronously (only if moved from origin)
+      if (playerData && userId && roomId !== "lobby" && (playerData.x !== 0 || playerData.y !== 0)) {
         Room.findOne({ code: roomId }).then(dbRoom => {
           if (dbRoom) {
             if (!dbRoom.savedPositions) {

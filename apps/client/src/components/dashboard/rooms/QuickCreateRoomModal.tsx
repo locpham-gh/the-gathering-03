@@ -25,8 +25,6 @@ export const QuickCreateRoomModal: React.FC<QuickCreateRoomModalProps> = ({
     { id: "classroom", name: "Classroom" },
     { id: "office_combined", name: "Map Office 2" },
     { id: "cafe", name: "Café Lounge" },
-    { id: "garden", name: "Outdoor Garden" },
-    { id: "conference", name: "Conference Hall" },
   ];
 
   if (!isOpen) return null;

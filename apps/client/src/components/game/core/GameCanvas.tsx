@@ -31,11 +31,24 @@ pixiSettings.ROUND_PIXELS = true;
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
 
-// Silence `@pixi/react` known deprecation warning about interaction plugin
+// Silence common but harmless/unfixable console warnings
 const originalWarn = console.warn;
+const originalError = console.error;
+
 console.warn = (...args: unknown[]) => {
-  if (typeof args[0] === "string" && args[0].includes("renderer.plugins.interaction has been deprecated")) return;
+  const msg = typeof args[0] === "string" ? args[0] : "";
+  if (msg.includes("renderer.plugins.interaction has been deprecated")) return;
+  if (msg.includes("Item with key lk-user-choices does not exist")) return;
+  if (msg.includes("Cross-Origin-Opener-Policy")) return;
   originalWarn(...args);
+};
+
+console.error = (...args: unknown[]) => {
+  const msg = typeof args[0] === "string" ? args[0] : "";
+  // Silence media device errors if they are expected (e.g. no hardware)
+  if (msg.includes("NotFoundError") || msg.includes("Requested device not found")) return;
+  if (msg.includes("error waiting for media permissons")) return;
+  originalError(...args);
 };
 
 // MapData is now imported from gameTypes.ts
@@ -55,6 +68,7 @@ interface GameCanvasProps {
   roomId?: string;
   localPosition: { x: number; y: number };
   initialServerPosition?: { x: number; y: number } | null;
+  onPhoneToggle?: (isOpen: boolean) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -72,6 +86,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   roomId,
   localPosition,
   initialServerPosition,
+  onPhoneToggle,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
@@ -94,8 +109,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (lower.includes("office2") || lower.includes("merged") || lower.includes("officecombined")) return "office_combined";
       if (lower.includes("school") || lower.includes("classroom")) return "classroom";
       if (lower.includes("cafe") || lower.includes("lounge")) return "cafe";
-      if (lower.includes("garden") || lower.includes("outdoor") || lower.includes("park")) return "garden";
-      if (lower.includes("conference") || lower.includes("hall") || lower.includes("auditorium")) return "conference";
       return "office";
     };
     const mapName = normalizeMap(mapType);
@@ -149,7 +162,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             mapData={mapData}
             mapType={mapType}
             onZoneChange={onZoneChange}
-            isPaused={activeZone !== null}
+            isPaused={activeZone !== null && activeZone.id !== "seat"}
             onInteract={onInteract}
             updatePosition={updatePosition}
             players={players}
@@ -162,6 +175,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             localEmote={localEmote}
             localChatBubble={localChatBubble}
             initialServerPosition={initialServerPosition}
+            onPhoneToggle={onPhoneToggle}
           />
 
           {Object.values(players).map((player) => (

@@ -171,23 +171,24 @@ Success criteria provide measurable outcomes to evaluate whether The Gathering m
 | UC_03  | Update User Profile        | The system allows users to change their display name and avatar.                                       | 2            | 3                        |
 | UC_04  | Create Room                | The system allows users to create a new virtual workspace with a unique code.                          | 1            | 3                        |
 | UC_05  | Join Room                  | The system allows users to enter a room by providing a room code.                                      | 1            | 3                        |
-| UC_06  | Manage Room (Owner)        | Owners can rename rooms, delete rooms, or kick members.                                                | 2            | 4                        |
+| UC_06  | Manage Room (Dashboard)    | Users can manage rooms they own or joined via a dedicated "My Rooms" dashboard with role-based filtering. | 1            | 3                        |
 | UC_07  | Real-time Movement         | Users can move their character in a 2D map using WASD/Arrow keys.                                      | 1            | 2                        |
-| UC_08  | Sync Positions             | The system synchronizes the positions of all users in a room via WebSockets.                           | 1            | 1                        |
-| UC_09  | Proximity Video Call       | The system automatically initiates a video call when two users are close to each other.                | 1            | 1                        |
+| UC_08  | Sync Positions             | The system synchronizes positions, sitting states, and phone visibility via WebSockets.                | 1            | 1                        |
+| UC_09  | Proximity Audio/Video      | Automatic media connection triggered when players are within 100 units distance.                        | 1            | 1                        |
 | UC_10  | Schedule Event             | The system allows users to create events with start/end times linked to a room.                        | 2            | 3                        |
 | UC_11  | Send Event Invitations     | The system sends invitation emails to a list of guests when an event is created.                       | 2            | 3                        |
 | UC_12  | Create Forum Topic         | Users can post new topics in the community forum.                                                      | 2            | 3                        |
 | UC_13  | Reply to Topic             | Users can comment on existing forum topics.                                                            | 2            | 3                        |
 | UC_14  | Search Digital Library     | Users can search for resources (documents/links) by title, type, or tags.                              | 2            | 3                        |
-| UC_15  | Zone Interaction           | Interaction with specific map areas (e.g., Library Zone) triggers UI modals.                           | 2            | 3                        |
+| UC_15  | Phone Interaction (Q key)  | Users can toggle a mobile phone animation (Pull out/Keep/Put away) to signal chat status.              | 1            | 4                        |
 | UC_16  | Toggle Theme (Persistence) | Users can switch between Light and Dark mode with choice saved to local storage.                       | 1            | 4                        |
 | UC_17  | Fullscreen Overlays        | Immersive fullscreen views for Chat and Calendar modules.                                              | 2            | 3                        |
 | UC_18  | Collaborative Whiteboard   | Real-time drawing and brainstorming with state persistence in MongoDB.                                 | 1            | 2                        |
 | UC_19  | Admin Management Dashboard | Specialized UI for managing users, rooms, and forum content.                                           | 1            | 2                        |
-| UC_20  | Mini-map & Environment     | Spatial awareness via mini-map and dynamic day/night lighting cycle.                                    | 2            | 3                        |
+| UC_20  | Mini-map & Environment     | Spatial awareness via mini-map and dynamic map backgrounds.                                             | 2            | 3                        |
 | UC_21  | Periodic State Snapshots   | Automated persistence of player data every 30s to ensure reliability.                                  | 1            | 3                        |
 | UC_22  | API Rate Limiting          | Security layer to prevent abuse of API endpoints and WebSocket connections.                            | 1            | 4                        |
+| UC_23  | Spatial Chat Filtering     | Chat messages are only visible to players within a 250px radius of the sender.                         | 1            | 2                        |
 
 Table 2: Functional Requirement List
 

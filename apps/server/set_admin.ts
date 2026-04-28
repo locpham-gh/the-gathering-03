@@ -1,5 +1,5 @@
-import { connectDB } from "./src/db/connection.js";
-import { User } from "./src/models/User.js";
+import { connectDB } from "./src/db/connection";
+import { User } from "./src/models/User";
 
 async function makeAdmin(email: string) {
   await connectDB();

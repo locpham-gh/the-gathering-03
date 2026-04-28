@@ -4,7 +4,7 @@ import * as PIXI from "pixi.js";
 
 // Libs & Types
 import { WORLD_CONFIG } from "../lib/constants";
-import { getNewDirection } from "../lib/tileUtils";
+import { getNewDirection, getTileDataForGid } from "../lib/tileUtils";
 import { getZonesForMap, checkZoneCollision } from "../core/zones";
 import type { Zone } from "../core/zones";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
@@ -24,7 +24,8 @@ interface PlayerProps {
   onZoneChange?: (zone: Zone | null) => void;
   isPaused: boolean;
   onInteract?: () => void;
-  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
+  onPhoneToggle?: (isOpen: boolean) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
@@ -56,6 +57,7 @@ export const Player: React.FC<PlayerProps> = ({
   localChatBubble,
   roomId,
   initialServerPosition,
+  onPhoneToggle,
 }) => {
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
 
@@ -86,7 +88,8 @@ export const Player: React.FC<PlayerProps> = ({
   const posKey = `savedPos_${customDisplayName || "guest"}_${roomId || mapData.width}`;
   
   const getInitialPosition = () => {
-    if (initialServerPosition) {
+    // Only use server position if it's NOT at the origin (0,0)
+    if (initialServerPosition && (initialServerPosition.x !== 0 || initialServerPosition.y !== 0)) {
       return initialServerPosition;
     }
     try {
@@ -115,13 +118,16 @@ export const Player: React.FC<PlayerProps> = ({
   const [direction, setDirection] = useState<DirString>("down");
   const [isMoving, setIsMoving] = useState(false);
   const [isSitting, setIsSitting] = useState(false);
+  const [isPhoneOut, setIsPhoneOut] = useState(false);
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
+  const [nearbyChair, setNearbyChair] = useState<boolean>(false);
   const [nearbyPlayerId, setNearbyPlayerId] = useState<string | null>(null);
 
   // 2. Refs for physics/sync
   const sitOrigin = useRef<{ x: number; y: number } | null>(null);
   const lastNearbyTrigger = useRef<number>(0);
   const lastSyncSit = useRef(isSitting);
+  const lastSyncPhone = useRef(isPhoneOut);
 
   // 3. Custom Logic Hooks
   const { checkCollision } = useCollision(mapData);
@@ -132,6 +138,34 @@ export const Player: React.FC<PlayerProps> = ({
     mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL, 
     mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL
   );
+
+  // --- Map Utilities ---
+  // Helper to find tile GID at (col, row) considering groups
+  const getTileAt = (layers: any[], col: number, row: number): { gid: number; layerName: string } | null => {
+    for (let i = layers.length - 1; i >= 0; i--) {
+      const layer = layers[i];
+      if (!layer.visible || layer.opacity === 0) continue;
+      
+      // Recursive check for groups
+      if (layer.layers) {
+        const found = getTileAt(layer.layers, col, row);
+        if (found) return found;
+        continue;
+      }
+
+      if (layer.data && col >= 0 && row >= 0 && col < mapData.width && row < mapData.height) {
+        const tileIndex = row * mapData.width + col;
+        const gid = layer.data[tileIndex] & 0x1fffffff;
+        if (gid !== 0) {
+          // Skip floor/ground layers for seat detection
+          const lowerName = layer.name?.toLowerCase() || "";
+          if (lowerName.includes("floor") || lowerName.includes("ground") || lowerName.includes("tile layer 1")) continue;
+          return { gid, layerName: layer.name };
+        }
+      }
+    }
+    return null;
+  };
 
   const handleInteraction = () => {
     if (isPaused) return;
@@ -159,31 +193,59 @@ export const Player: React.FC<PlayerProps> = ({
 
     const focusCol = Math.floor((focusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const focusRow = Math.floor((focusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-
     let foundChair = false;
-    for (let i = mapData.layers.length - 1; i >= 0; i--) {
-      const layer = mapData.layers[i];
-      if (layer.name === "floor" || layer.name === "ground" || layer.name === "Tile Layer 1") continue;
+
+
+    const tileInfo = getTileAt(mapData.layers, focusCol, focusRow);
+
+    if (tileInfo) {
+      const { gid } = tileInfo;
+      const tileData = getTileDataForGid(gid, mapData);
       
-      if (layer.data && focusCol >= 0 && focusRow >= 0 && focusCol < mapData.width && focusRow < mapData.height) {
-        const tileIndex = focusRow * mapData.width + focusCol;
-        const rawGid = layer.data[tileIndex] & 0x1fffffff;
+      // Seat detection: Check GID ranges OR tileset name
+      const tilesetName = tileData?.tilesetName?.toLowerCase() || "";
+      const isSeat = 
+        tilesetName.includes("seat") || 
+        tilesetName.includes("chair") ||
+        (gid >= 1375 && gid <= 1557) || // WA_Seats range in combined map
+        (gid >= 1400 && gid <= 1550) || // Legacy range
+        (gid >= 1810 && gid <= 1850) || 
+        (gid >= 1860 && gid <= 1890) || 
+        gid === 2306 || gid === 2322;
 
-        // Seat whitelist: Desks, Couches, Classroom desks, Library chairs
-        const isSeat = 
-          (rawGid >= 1400 && rawGid <= 1550) || 
-          (rawGid >= 1810 && rawGid <= 1850) || 
-          (rawGid >= 1860 && rawGid <= 1890) || 
-          rawGid === 2306 || rawGid === 2322;
+      if (isSeat) {
+        setIsSitting(true);
+        sitOrigin.current = { x, y };
 
-        if (isSeat) {
-          setIsSitting(true);
-          sitOrigin.current = { x, y };
-          setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-          setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-          foundChair = true;
-          break;
+        // Better direction detection based on tileset layout
+        let sitDir: DirString = direction;
+        
+        // WA_Seats (1375-1557) usually follows a 4-row pattern:
+        // Front (Down), Back (Up), Left (Side-Left), Right (Side-Right)
+        if (gid >= 1375 && gid <= 1557) {
+          const localId = gid - 1375;
+          const rowInTileset = Math.floor(localId / 13);
+          const patternIdx = rowInTileset % 4;
+          
+          if (patternIdx === 0) sitDir = "down";
+          else if (patternIdx === 1) sitDir = "up";
+          else if (patternIdx === 2) sitDir = "left";
+          else if (patternIdx === 3) sitDir = "right";
+        } else if (tilesetName.includes("couch") || tilesetName.includes("sofa")) {
+          // Couches often face front (down) or back (up)
+          sitDir = gid % 2 === 0 ? "down" : "up"; 
         }
+
+        setDirection(sitDir);
+
+        // Center the player on the tile and adjust Y for sitting depth
+        setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+        setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL + 8); 
+        foundChair = true;
+        
+        // Hide popup immediately
+        setNearbyChair(false);
+        setCurrentZone(null);
       }
     }
 
@@ -192,7 +254,16 @@ export const Player: React.FC<PlayerProps> = ({
     }
   };
 
-  const keys = usePlayerInput(handleInteraction);
+  const handlePhoneToggle = () => {
+    if (isPaused) return;
+    setIsPhoneOut(prev => {
+      const newState = !prev;
+      if (onPhoneToggle) onPhoneToggle(newState);
+      return newState;
+    });
+  };
+
+  const keys = usePlayerInput(handleInteraction, handlePhoneToggle);
 
   // 4. Game Loop
   useTick((delta) => {
@@ -203,10 +274,11 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Auto-stand logic
     if (isSitting) {
-      // Sync sitting state if it hasn't been synced yet
-      if (isSitting !== lastSyncSit.current) {
-        updatePosition(x, y, direction, isSitting, selectedCharacter, customDisplayName || undefined);
+      // Sync sitting/phone state if it hasn't been synced yet
+      if (isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
+        updatePosition(x, y, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
         lastSyncSit.current = isSitting;
+        lastSyncPhone.current = isPhoneOut;
       }
 
       const isPressingMove =
@@ -280,16 +352,60 @@ export const Player: React.FC<PlayerProps> = ({
     // Camera & Sync
     updateCamera(finalX, finalY, delta);
 
-    if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current) {
-      updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined);
+    if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
+      updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
       lastSyncSit.current = isSitting;
+      lastSyncPhone.current = isPhoneOut;
     }
 
     // Zone & Proximity Check
     const zone = checkZoneCollision(finalX, finalY, zones);
-    if (zone !== currentZone) {
-      setCurrentZone(zone);
-      onZoneChange?.(zone);
+    
+    // Seat Proximity Check (Raycast forward to show popup)
+    let checkX = finalX;
+    let checkY = finalY;
+    const checkRange = 40; // Detection range for popup
+
+    if (direction === "up") checkY -= checkRange;
+    else if (direction === "down") checkY += checkRange;
+    else if (direction === "left") checkX -= checkRange;
+    else if (direction === "right") checkX += checkRange;
+
+    const cCol = Math.floor((checkX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const cRow = Math.floor((checkY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    
+    const tileNearby = getTileAt(mapData.layers, cCol, cRow);
+    let isNearbyChair = false;
+    if (tileNearby && !isSitting) {
+      const tData = getTileDataForGid(tileNearby.gid, mapData);
+      const tName = tData?.tilesetName?.toLowerCase() || "";
+      isNearbyChair = tName.includes("seat") || tName.includes("chair") || (tileNearby.gid >= 1375 && tileNearby.gid <= 1557);
+    }
+
+    if (isNearbyChair !== nearbyChair && !isSitting) {
+      setNearbyChair(isNearbyChair);
+    } else if (isSitting && nearbyChair) {
+      setNearbyChair(false);
+    }
+
+    // Combine real zones with synthetic seat zone
+    let effectiveZone = zone;
+    if (isNearbyChair && !isSitting) {
+      // Prioritize chair popup even if inside another zone
+      effectiveZone = { 
+        id: "seat", 
+        label: "Chair", 
+        x: 0, 
+        y: 0, 
+        width: 0, 
+        height: 0,
+        description: "Interactive furniture"
+      };
+    }
+
+    if (effectiveZone?.id !== currentZone?.id) {
+      setCurrentZone(effectiveZone);
+      onZoneChange?.(effectiveZone);
     }
 
     // Teleportation logic for merged map
@@ -351,6 +467,7 @@ export const Player: React.FC<PlayerProps> = ({
       direction={direction}
       isMoving={isMoving}
       isSitting={isSitting}
+      isPhoneOut={isPhoneOut}
       character={selectedCharacter}
       emote={localEmote}
       displayName={customDisplayName}

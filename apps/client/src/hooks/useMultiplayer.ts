@@ -14,6 +14,7 @@ export interface RemotePlayer {
   avatarUrl?: string;
   emote?: { id: string; timestamp: number };
   chatBubble?: { text: string; timestamp: number };
+  isPhoneOut?: boolean;
 }
 
 export function useMultiplayer(roomId?: string) {
@@ -39,7 +40,7 @@ export function useMultiplayer(roomId?: string) {
 
     const connect = () => {
       if (isClosing) return;
-      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}`);
+      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -83,9 +84,6 @@ export function useMultiplayer(roomId?: string) {
           // Skip if this is the local player
           if (payload.userId === user.id) return;
 
-          // Skip if coordinates are 0 (prevents ghost NPC at top left)
-          if (payload.x === 0 && payload.y === 0) return;
-
           setPlayers((prev) => ({
             ...prev,
             [payload.id]: {
@@ -96,6 +94,7 @@ export function useMultiplayer(roomId?: string) {
               y: payload.y,
               direction: payload.direction,
               isSitting: payload.isSitting,
+              isPhoneOut: payload.isPhoneOut, // Sync phone state
               character: payload.character,
               lastUpdate: Date.now(),
               displayName: payload.displayName,
@@ -104,13 +103,18 @@ export function useMultiplayer(roomId?: string) {
           }));
         } else if (type === "initial_state") {
           // Filter out local player from initial state
-          const filteredPlayers: Record<string, RemotePlayer> = {};
-          Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
-            if (p.userId !== user.id && (p.x !== 0 || p.y !== 0)) {
-              filteredPlayers[id] = p;
-            }
+          setPlayers((prev) => {
+            const next = { ...prev };
+            Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
+              if (p.userId !== user.id) {
+                next[id] = {
+                  ...p,
+                  isPhoneOut: p.isPhoneOut // Ensure initial state has phone info
+                };
+              }
+            });
+            return next;
           });
-          setPlayers(filteredPlayers);
         } else if (type === "player_left") {
           setPlayers((prev) => {
             const next = { ...prev };
@@ -122,7 +126,7 @@ export function useMultiplayer(roomId?: string) {
         } else if (type === "chat_message") {
           window.dispatchEvent(new CustomEvent("chat-message", { detail: payload }));
           // Show chat bubble on matching remote player
-          const authorUserId = payload.authorId?._id || payload.authorId;
+          const authorUserId = payload.authorId?._id || payload.authorId || payload.senderId;
           if (authorUserId && typeof payload.content === "string") {
             setPlayers((prev) => {
               const updated = { ...prev };
@@ -181,17 +185,15 @@ export function useMultiplayer(roomId?: string) {
 
   const lastSent = useRef<number>(0);
   const lastSittingState = useRef<boolean | undefined>(undefined);
+  const lastPhoneState = useRef<boolean | undefined>(undefined);
   
   // Monitor Outgoing Message Rate
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => {
+  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => {
     const now = Date.now();
-    const stateChanged = isSitting !== lastSittingState.current;
-
-    // Bắt buộc gửi lên Server nếu hành động Ngồi/Đứng (isSitting) bị thay đổi (Bypass throttle).
-    // Nếu chỉ là di chuyển thông thường thì Throttle về 20Hz (mỗi 50ms) để tiết kiệm băng thông.
+    const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
     if (!stateChanged && now - lastSent.current < 50) return;
     
     setLocalPosition({ x, y });
@@ -202,6 +204,7 @@ export function useMultiplayer(roomId?: string) {
         y,
         direction,
         isSitting,
+        isPhoneOut,
         character,
         userId: user.id,
         displayName: customName || user.displayName,
@@ -214,6 +217,7 @@ export function useMultiplayer(roomId?: string) {
       }));
       lastSent.current = now;
       lastSittingState.current = isSitting;
+      lastPhoneState.current = isPhoneOut;
 
       // Log monitor stats
       msgCounter.current++;

@@ -147,23 +147,15 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
     }
 
     try {
-      const room = await Room.findOne({ code: params.code });
+      const room = await Room.findOneAndUpdate(
+        { code: params.code },
+        { $addToSet: { members: userId } },
+        { new: true }
+      );
+
       if (!room) {
         set.status = 404;
         return { success: false, error: "Room not found" };
-      }
-
-      // Sanitize existing members to ensure no corrupt data remains before check
-      const currentMembers = (room.members || [])
-        .map((m) => m?.toString())
-        .filter((m) => m && m.length === 24);
-
-      if (!currentMembers.includes(userId)) {
-        currentMembers.push(userId);
-        // Ensure uniqueness and save
-        const uniqueMembers = [...new Set(currentMembers)];
-        room.members = uniqueMembers as any;
-        await room.save();
       }
 
       // Extract user's saved position (safe for old rooms without savedPositions)

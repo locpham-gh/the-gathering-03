@@ -39,5 +39,5 @@ export const DayNightOverlay: React.FC<DayNightOverlayProps> = ({ width, height 
     g.endFill();
   };
 
-  return <Graphics draw={draw} interactive={false} />;
+  return <Graphics draw={draw} eventMode="none" />;
 };

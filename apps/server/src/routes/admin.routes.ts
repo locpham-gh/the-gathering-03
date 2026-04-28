@@ -26,15 +26,50 @@ const adminGuard = (app: Elysia) =>
 export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   .use(adminGuard)
   
+  // --- STATS OVERVIEW ---
+  .get("/stats", async () => {
+    const [userCount, roomCount, topicCount, bannedCount] = await Promise.all([
+      User.countDocuments(),
+      Room.countDocuments(),
+      ForumTopic.countDocuments(),
+      User.countDocuments({ status: "banned" })
+    ]);
+
+    return { 
+      success: true, 
+      stats: {
+        totalUsers: userCount,
+        totalRooms: roomCount,
+        totalTopics: topicCount,
+        bannedUsers: bannedCount
+      }
+    };
+  })
+
   // --- USER MANAGEMENT ---
   .get("/users", async ({ query }: any) => {
-    const { search } = query;
+    const { search, page = 1, limit = 10 } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
     const filter = search 
       ? { $or: [{ email: { $regex: search, $options: "i" } }, { displayName: { $regex: search, $options: "i" } }] }
       : {};
     
-    const users = await User.find(filter).sort({ createdAt: -1 });
-    return { success: true, users };
+    const [users, total] = await Promise.all([
+      User.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      User.countDocuments(filter)
+    ]);
+
+    return { 
+      success: true, 
+      users, 
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    };
   })
   .patch("/users/:id/role", async ({ params, body, set }: any) => {
     const { role } = body;
@@ -64,9 +99,25 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   })
 
   // --- ROOM MANAGEMENT ---
-  .get("/rooms", async () => {
-    const rooms = await Room.find().populate('ownerId', 'email displayName').sort({ createdAt: -1 });
-    return { success: true, rooms };
+  .get("/rooms", async ({ query }: any) => {
+    const { page = 1, limit = 10 } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [rooms, total] = await Promise.all([
+      Room.find().populate('ownerId', 'email displayName').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      Room.countDocuments()
+    ]);
+
+    return { 
+      success: true, 
+      rooms,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    };
   })
   .delete("/rooms/:id", async ({ params }: any) => {
     await Room.findByIdAndDelete(params.id);
@@ -74,9 +125,25 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
   })
 
   // --- FORUM MANAGEMENT ---
-  .get("/forum/topics", async () => {
-    const topics = await ForumTopic.find().populate('authorId', 'displayName').sort({ createdAt: -1 });
-    return { success: true, topics };
+  .get("/forum/topics", async ({ query }: any) => {
+    const { page = 1, limit = 10 } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const [topics, total] = await Promise.all([
+      ForumTopic.find().populate('authorId', 'displayName').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+      ForumTopic.countDocuments()
+    ]);
+
+    return { 
+      success: true, 
+      topics,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit))
+      }
+    };
   })
   .delete("/forum/topics/:id", async ({ params }: any) => {
     await ForumTopic.findByIdAndDelete(params.id);

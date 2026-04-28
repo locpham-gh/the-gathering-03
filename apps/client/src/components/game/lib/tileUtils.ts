@@ -123,7 +123,12 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     textureCache[cacheKey] = texture;
   }
 
-  return { texture, flipX, flipY };
+  return { 
+    texture, 
+    flipX, 
+    flipY, 
+    tilesetName: (tileset as any)?.name || (tileset as any)?.source 
+  };
 }
 
 /**

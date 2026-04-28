@@ -11,6 +11,10 @@ interface MapRenderProps {
 const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
   const renderLayer = (layer: any, layerIdx: number) => {
     if (!layer.visible || layer.opacity === 0) return null;
+    
+    // Skip logic layers that shouldn't be visible
+    const logicLayers = ["collisions", "zones", "start", "triggers"];
+    if (logicLayers.includes(layer.name?.toLowerCase())) return null;
 
     if (layer.layers) {
       return (

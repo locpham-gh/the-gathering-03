@@ -15,8 +15,8 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     });
 
     if (!response.ok) {
-        const error = await response.json().catch(() => ({ message: "Unknown error" }));
-        throw new Error(error.message || "Request failed");
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || error.message || "Request failed");
     }
 
     return response.json();
