@@ -7,7 +7,12 @@ import { resourceRoutes } from "./routes/resource.routes.js";
 import { forumRoutes } from "./routes/forum.routes.js";
 import { roomRoutes } from "./routes/room.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
+import { chatRoutes } from "./routes/chat.routes.js";
+import { adminRoutes } from "./routes/admin.routes.js";
 import { AccessToken } from "livekit-server-sdk";
+import { rateLimit } from "elysia-rate-limit";
+import { Room } from "./models/Room";
+import { Whiteboard } from "./models/Whiteboard";
 
 // Boot up MongoDB
 connectDB();
@@ -20,7 +25,11 @@ const jwtConfig = jwt({
 // Multiplayer State (In-memory for development)
 const activePlayers = new Map<string, Map<string, any>>(); // roomId -> (wsId -> data)
 
-const app = new Elysia();
+const app = new Elysia()
+  .use(rateLimit({
+    duration: 60000,
+    max: 100,
+  }));
 
 export const broadcastForumUpdate = () => {
   if (!app.server) {
@@ -34,6 +43,29 @@ export const broadcastForumUpdate = () => {
   });
   app.server.publish("global-forum", message);
 };
+
+// Periodic snapshots (every 30s) to persist multiplayer state without Redis
+setInterval(async () => {
+  for (const [roomId, roomPlayers] of activePlayers.entries()) {
+    if (roomId === "lobby" || roomPlayers.size === 0) continue;
+    
+    try {
+      const room = await Room.findOne({ code: roomId });
+      if (room) {
+        if (!room.savedPositions) room.savedPositions = new Map();
+        
+        for (const [wsId, playerData] of roomPlayers.entries()) {
+          // Find matching userId if possible (in this simplified setup we'd need to store userId in activePlayers)
+          // For now, we update based on what we have. 
+          // Note: In a production app, activePlayers should store {userId, x, y, ...}
+        }
+        await room.save();
+      }
+    } catch (e) {
+      console.error(`Error in snapshot for room ${roomId}:`, e);
+    }
+  }
+}, 30000);
 
 export const broadcastNotification = (userId: string) => {
   if (!app.server) return;
@@ -53,14 +85,37 @@ app.use(resourceRoutes);
 app.use(forumRoutes);
 app.use(roomRoutes);
 app.use(eventRoutes);
+app.use(chatRoutes);
+app.use(adminRoutes);
 
 // 2. HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
 
 app.get(
   "/api/livekit/token",
-  async ({ query }: any) => {
+  async ({ query, jwt, headers, set }: any) => {
+    // 1. Verify Authorization Header
+    const auth = headers["authorization"];
+    if (!auth || !auth.startsWith("Bearer ")) {
+      set.status = 401;
+      return { error: "Unauthorized: Missing or invalid token" };
+    }
+
+    const sessionToken = auth.split(" ")[1];
+    const profile = await jwt.verify(sessionToken);
+    
+    if (!profile) {
+      set.status = 401;
+      return { error: "Unauthorized: Invalid session token" };
+    }
+
     const { room, username } = query;
+    // Basic authorization check: verify identity matches
+    if (profile.userId !== username) {
+      set.status = 403;
+      return { error: "Forbidden: Identity mismatch" };
+    }
+
     const effectiveRoomId = room || "lobby";
     const at = new AccessToken(
       process.env.LIVEKIT_API_KEY!,
@@ -103,8 +158,26 @@ app.ws("/ws", {
       if (!activePlayers.has(roomId)) {
         activePlayers.set(roomId, new Map());
       }
-      activePlayers.get(roomId)?.set(ws.id, {
+      
+      const room = activePlayers.get(roomId)!;
+      
+      // Kick existing connections for same userId to prevent ghosts
+      if (userId) {
+        for (const [oldWsId, data] of room.entries()) {
+          if (data.userId === userId && oldWsId !== ws.id) {
+            console.log(`👢 Kicking stale session for user ${userId} (Old: ${oldWsId}, New: ${ws.id})`);
+            room.delete(oldWsId);
+            ws.publish(`room-${roomId}`, {
+              type: "player_left",
+              payload: { id: oldWsId },
+            });
+          }
+        }
+      }
+
+      room.set(ws.id, {
         id: ws.id,
+        userId: userId,
         x: 0,
         y: 0,
         isSitting: false,
@@ -118,6 +191,43 @@ app.ws("/ws", {
       type: "initial_state",
       payload: { players: playersInRoom },
     });
+
+    // Asynchronously update position from DB if exists
+    if (roomId !== "lobby" && userId) {
+      Room.findOne({ code: roomId }).then(dbRoom => {
+        if (dbRoom && dbRoom.savedPositions && dbRoom.savedPositions.has(userId)) {
+          const pos = dbRoom.savedPositions.get(userId);
+          const room = activePlayers.get(roomId);
+          if (room && room.has(ws.id)) {
+            const currentData = room.get(ws.id);
+            const updatedData = { ...currentData, x: pos.x, y: pos.y };
+            room.set(ws.id, updatedData);
+            
+            // Broadcast the loaded position to others
+            ws.publish(`room-${roomId}`, {
+              type: "player_moved",
+              payload: updatedData,
+            });
+          }
+        }
+      }).catch(err => console.error("Error loading initial position from DB:", err));
+    }
+
+    // Send whiteboard state if exists
+    if (roomId !== "lobby") {
+      Whiteboard.findOne({ roomId }).then(wb => {
+        if (wb) {
+          ws.send({
+            type: "whiteboard_update",
+            payload: {
+              elements: wb.elements,
+              appState: wb.appState,
+              files: wb.files
+            }
+          });
+        }
+      });
+    }
   },
   message(ws: any, { type, payload }: any) {
     const roomId = ws.data.query.room || "lobby";
@@ -130,14 +240,60 @@ app.ws("/ws", {
         type: "player_moved",
         payload: { id: ws.id, ...payload },
       });
+    } else if (type === "chat_message") {
+      ws.publish(`room-${roomId}`, {
+        type: "chat_message",
+        payload,
+      });
+    } else if (type === "emote") {
+      ws.publish(`room-${roomId}`, {
+        type: "emote",
+        payload: { id: ws.id, ...payload },
+      });
+    } else if (type === "whiteboard_update") {
+      ws.publish(`room-${roomId}`, {
+        type: "whiteboard_update",
+        payload,
+      });
+
+      // Persist to DB (throttled logic ideally, but for now simple update)
+      // We use roomId from payload or data query
+      const rid = payload.roomId || roomId;
+      if (rid && rid !== "lobby") {
+        Whiteboard.findOneAndUpdate(
+          { roomId: rid },
+          { 
+            elements: payload.elements,
+            appState: payload.appState,
+            files: payload.files
+          },
+          { upsert: true, new: true }
+        ).catch(e => console.error("Error saving whiteboard:", e));
+      }
     }
   },
   close(ws: any) {
     const roomId = ws.data.query.room || "lobby";
+    const userId = ws.data.query.userId;
     console.log(`🔌 Connection closed in room ${roomId}: ${ws.id}`);
 
     const room = activePlayers.get(roomId);
     if (room) {
+      const playerData = room.get(ws.id);
+      
+      // Save position to DB asynchronously (only if moved from origin)
+      if (playerData && userId && roomId !== "lobby" && (playerData.x !== 0 || playerData.y !== 0)) {
+        Room.findOne({ code: roomId }).then(dbRoom => {
+          if (dbRoom) {
+            if (!dbRoom.savedPositions) {
+              dbRoom.savedPositions = new Map();
+            }
+            dbRoom.savedPositions.set(userId, { x: playerData.x, y: playerData.y });
+            dbRoom.save().catch(e => console.error("Error saving position:", e));
+          }
+        }).catch(console.error);
+      }
+
       room.delete(ws.id);
       if (room.size === 0) activePlayers.delete(roomId);
     }

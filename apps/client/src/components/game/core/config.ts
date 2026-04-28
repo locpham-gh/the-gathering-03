@@ -2,15 +2,15 @@
 // MAP CONFIGURATION
 // ------------------------------------
 export const MAP_CONFIG = {
-  type: "office" as "office" | "classroom",
+  type: "classroom" as "office" | "classroom" | "cafe",
 };
 
 export const CHARACTER_CONFIG = {
   default: "Adam",
   available: [
-    { id: "Adam", name: "Adam" },
-    { id: "Bob", name: "Bob" },
-    { id: "Amelia", name: "Amelia" },
-    { id: "Alex", name: "Alex" },
+    { id: "Adam", name: "Phát" },
+    { id: "Bob", name: "Lộc" },
+    { id: "Amelia", name: "Duy" },
+    { id: "Alex", name: "Đạt" },
   ],
 };

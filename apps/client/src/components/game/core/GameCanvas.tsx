@@ -1,17 +1,20 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
 // Internal modules
-import { MAP_CONFIG } from "./config";
 import { MapRender } from "./MapRender";
 import { Player } from "../entities/Player";
 import { OtherPlayer } from "../entities/OtherPlayer";
-import { ZONES } from "./zones";
+import { getZonesForMap } from "./zones";
+import { DayNightOverlay } from "./DayNightOverlay";
+import { MiniMap } from "../ui/MiniMap";
+import { WORLD_CONFIG } from "../lib/constants";
 
 // Types
 import type { Zone } from "./zones";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
+import type { MapData } from "../lib/gameTypes";
 
 // Pixi Settings
 const pixiSettings = PIXI.settings as unknown as { 
@@ -24,24 +27,31 @@ if (pixiSettings.RENDER_OPTIONS) {
 }
 
 // ✅ Anti-glitch: Disable rounding and mipmaps to prevent edge bleeding on zoomed maps
-pixiSettings.ROUND_PIXELS = false;
+pixiSettings.ROUND_PIXELS = true;
 PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
 PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
 
-// Silence `@pixi/react` known deprecation warning about interaction plugin
+// Silence common but harmless/unfixable console warnings
 const originalWarn = console.warn;
+const originalError = console.error;
+
 console.warn = (...args: unknown[]) => {
-  if (typeof args[0] === "string" && args[0].includes("renderer.plugins.interaction has been deprecated")) return;
+  const msg = typeof args[0] === "string" ? args[0] : "";
+  if (msg.includes("renderer.plugins.interaction has been deprecated")) return;
+  if (msg.includes("Item with key lk-user-choices does not exist")) return;
+  if (msg.includes("Cross-Origin-Opener-Policy")) return;
   originalWarn(...args);
 };
 
-interface MapData {
-  width: number;
-  height: number;
-  tilewidth: number;
-  tileheight: number;
-  layers: { name: string; data: number[] }[];
-}
+console.error = (...args: unknown[]) => {
+  const msg = typeof args[0] === "string" ? args[0] : "";
+  // Silence media device errors if they are expected (e.g. no hardware)
+  if (msg.includes("NotFoundError") || msg.includes("Requested device not found")) return;
+  if (msg.includes("error waiting for media permissons")) return;
+  originalError(...args);
+};
+
+// MapData is now imported from gameTypes.ts
 
 interface GameCanvasProps {
   onZoneChange?: (zone: Zone | null) => void;
@@ -49,8 +59,16 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, isSitting?: boolean, character?: string) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
   selectedCharacter: string;
+  customDisplayName?: string;
+  mapType?: string;
+  localEmote?: { id: string; timestamp: number } | null;
+  localChatBubble?: string | null;
+  roomId?: string;
+  localPosition: { x: number; y: number };
+  initialServerPosition?: { x: number; y: number } | null;
+  onPhoneToggle?: (isOpen: boolean) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -61,8 +79,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   players,
   updatePosition,
   selectedCharacter,
+  customDisplayName,
+  mapType = "office",
+  localEmote,
+  localChatBubble,
+  roomId,
+  localPosition,
+  initialServerPosition,
+  onPhoneToggle,
 }) => {
   const [mapData, setMapData] = useState<MapData | null>(null);
+  const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
   const [dimensions, setDimensions] = useState({
     w: window.innerWidth,
     h: window.innerHeight,
@@ -76,13 +103,33 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, []);
 
   useEffect(() => {
-    let mapFile = "/maps/office_map.json";
-    if (MAP_CONFIG.type === "classroom") mapFile = "/maps/classroom_map.json";
+    const normalizeMap = (mt: string) => {
+      if (!mt) return "office";
+      const lower = mt.toLowerCase().replace(/[\s_]/g, "");
+      if (lower.includes("office2") || lower.includes("merged") || lower.includes("officecombined")) return "office_combined";
+      if (lower.includes("school") || lower.includes("classroom")) return "classroom";
+      if (lower.includes("cafe") || lower.includes("lounge")) return "cafe";
+      return "office";
+    };
+    const mapName = normalizeMap(mapType);
+    const mapFile = `/maps/${mapName}_map.json`;
+
+    setMapData(null); // Clear map while loading to trigger loading state
 
     fetch(mapFile)
-      .then((res) => res.json())
-      .then((data) => setMapData(data));
-  }, []);
+      .then((res) => {
+        if (!res.ok) throw new Error("Map not found");
+        return res.json();
+      })
+      .then((data) => setMapData(data))
+      .catch((err) => {
+        console.error("Failed to load map:", err);
+        // Fallback to office if café fails (e.g. file not found)
+        if (mapName !== "office") {
+           fetch("/maps/office_map.json").then(r => r.json()).then(d => setMapData(d));
+        }
+      });
+  }, [mapType]);
 
   if (!mapData) {
     return (
@@ -93,42 +140,66 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }
 
   return (
-    <Stage
-      width={dimensions.w}
-      height={dimensions.h}
-      options={{
-        backgroundColor: 0xf8fafc,
-        antialias: false,
-        hello: false,
-        resolution: window.devicePixelRatio || 1,
-        autoDensity: true,
-      }}
-      style={{ imageRendering: "pixelated" }}
-    >
-      <Container ref={worldRef}>
-        <MapRender mapData={mapData} />
-        
-        <Player
-          mapData={mapData}
-          onZoneChange={onZoneChange}
-          isPaused={activeZone !== null}
-          onInteract={onInteract}
-          updatePosition={updatePosition}
-          players={players}
-          onNearbyPlayer={onNearbyPlayer}
-          worldRef={worldRef}
-          screenW={dimensions.w}
-          screenH={dimensions.h}
-          selectedCharacter={selectedCharacter}
-        />
+    <div className="w-full h-full relative">
+      <Stage
+        key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
+        width={dimensions.w}
+        height={dimensions.h}
+        options={{
+          backgroundColor: 0xf8fafc,
+          antialias: false,
+          hello: false,
+          resolution: window.devicePixelRatio || 1,
+          autoDensity: true,
+        }}
+        style={{ imageRendering: "pixelated" }}
+      >
+        <Container ref={worldRef}>
+          <MapRender mapData={mapData} />
+          
+          <Player
+            roomId={roomId}
+            mapData={mapData}
+            mapType={mapType}
+            onZoneChange={onZoneChange}
+            isPaused={activeZone !== null && activeZone.id !== "seat"}
+            onInteract={onInteract}
+            updatePosition={updatePosition}
+            players={players}
+            onNearbyPlayer={onNearbyPlayer}
+            worldRef={worldRef}
+            screenW={dimensions.w}
+            screenH={dimensions.h}
+            selectedCharacter={selectedCharacter}
+            customDisplayName={customDisplayName}
+            localEmote={localEmote}
+            localChatBubble={localChatBubble}
+            initialServerPosition={initialServerPosition}
+            onPhoneToggle={onPhoneToggle}
+          />
 
-        {Object.values(players).map((player) => (
-          <OtherPlayer key={player.id} player={player} />
-        ))}
+          {Object.values(players).map((player) => (
+            <OtherPlayer key={player.id} player={player} />
+          ))}
 
-        <ZoneDebugRenderer zones={ZONES} />
-      </Container>
-    </Stage>
+          <DayNightOverlay 
+            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+          />
+
+          <ZoneDebugRenderer zones={zones} />
+        </Container>
+      </Stage>
+
+      {/* Mini-map overlay (DOM) */}
+      <MiniMap
+        mapWidthPx={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+        mapHeightPx={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+        localX={localPosition.x}
+        localY={localPosition.y}
+        players={players}
+      />
+    </div>
   );
 };
 

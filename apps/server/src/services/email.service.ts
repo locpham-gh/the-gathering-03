@@ -105,3 +105,54 @@ export const sendEventEmail = async (
     return false;
   }
 };
+
+export const sendInviteEmail = async (
+  toEmail: string,
+  inviteDetails: {
+    roomName: string;
+    roomCode: string;
+    inviteLink: string;
+    inviterName: string;
+  },
+) => {
+  try {
+    const { transporter, emailUser } = await getGmailTransporter();
+
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-w: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 10px; overflow: hidden;">
+        <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-bottom: 1px solid #e0e0e0;">
+          <h2 style="color: #0f172a; margin: 0;">Lời mời tham gia phòng! 🚀</h2>
+        </div>
+        <div style="padding: 30px; background-color: #ffffff;">
+          <h3 style="color: #334155;">Chào bạn,</h3>
+          <p style="color: #475569; font-size: 16px; line-height: 1.5;">Bạn vừa nhận được lời mời tham gia phòng <b>${inviteDetails.roomName}</b> trên The Gathering từ <b>${inviteDetails.inviterName}</b>.</p>
+          
+          <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 10px 0; color: #64748b; font-size: 12px; text-transform: uppercase; font-weight: bold; letter-spacing: 1px;">Mã phòng của bạn</p>
+            <p style="margin: 0; color: #0f172a; font-size: 24px; font-weight: 800; letter-spacing: 4px; font-family: monospace;">${inviteDetails.roomCode}</p>
+          </div>
+
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${inviteDetails.inviteLink}" style="background-color: #4f46e5; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block;">Tham gia ngay</a>
+          </div>
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 30px; text-align: center;">Vui lòng truy cập qua trình duyệt Web (Chrome/Edge) trên máy tính để có trải nghiệm tốt nhất.</p>
+        </div>
+      </div>
+    `;
+
+    const mailOptions = {
+      from: `"The Gathering" <${emailUser}>`,
+      to: toEmail,
+      subject: `[The Gathering] Lời mời tham gia: ${inviteDetails.roomName}`,
+      html: emailHtml,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log("✅ Invite email sent successfully! Message ID:", info.messageId);
+
+    return true;
+  } catch (error) {
+    console.error("❌ Failed to send invite email:", error);
+    return false;
+  }
+};

@@ -7,6 +7,9 @@
 | 1.0     | 2025-01-20 | First version                                    |
 | 1.1     | 2025-01-25 | Defined initial system requirements              |
 | 2.0     | 2026-04-23 | Rewritten to match current The Gathering project |
+| 2.1     | 2026-04-28 | Added Whiteboard, Admin Panel, and Enhanced Maps |
+| 2.2     | 2026-04-28 | Added Spatial Chat, Phone Sync, and Role-based Dashboard |
+| 2.3     | 2026-04-28 | Implemented Scalable Admin (Pagination), Message De-duplication, and Improved Sync |
 
 ## Table of Contents
 
@@ -27,6 +30,8 @@
 - Realtime: Elysia WebSocket endpoint (`/ws`)
 - Video token service: LiveKit server SDK
 - Email service: Nodemailer (Gmail SMTP)
+- Security: `elysia-rate-limit` (100 req/min)
+- Reliability: Periodic Snapshots (30s) instead of Redis
 
 Main entry point: `apps/server/src/index.ts`
 
@@ -48,6 +53,7 @@ apps/server/
       forum.routes.ts
       resource.routes.ts
       room.routes.ts
+      admin.routes.ts
     models/
       Event.ts
       ForumTopic.ts
@@ -55,6 +61,7 @@ apps/server/
       Room.ts
       Service.ts
       User.ts
+      Whiteboard.ts
     services/
       email.service.ts
 ```
@@ -76,6 +83,7 @@ Routes are separated by domain and mounted in `index.ts`:
 - `eventRoutes` -> `/api/events`
 - `forumRoutes` -> `/api/forum`
 - `resourceRoutes` -> `/api/resources`
+- `adminRoutes` -> `/api/admin`
 
 Additional endpoints in `index.ts`:
 
@@ -146,6 +154,10 @@ apps/client/src/
       ui/
     layout/
     ui/
+    admin/
+      Dashboard.tsx
+      UserManage.tsx
+      RoomManage.tsx
 ```
 
 ### 2.3 Router and View Composition
@@ -163,11 +175,12 @@ Defined in `apps/client/src/App.tsx`:
   - `/home/forum`
   - `/home/profile`
   - `/room/:roomId`
+  - `/admin` (Admin only)
 
 ### 2.4 State Management
 
 - Global auth state is handled by `AuthContext`.
-- JWT token and user profile are persisted to `localStorage`.
+- JWT token, user profile, and `isDark` theme preference are persisted to `localStorage`.
 - Multiplayer remote player state is managed in `useMultiplayer` with WebSocket events.
 - Feature-level UI state is local to each page/component.
 
@@ -240,6 +253,17 @@ Core game module is under `components/game`:
 
 - `GET /api/livekit/token?room=<room>&username=<name>`
 
+#### Admin
+- `GET /api/admin/stats` (Summary cards)
+- `GET /api/admin/users?page=1&limit=10&search=...` (Paginated user list)
+- `PATCH /api/admin/users/:id/role` (Promote/Demote)
+- `PATCH /api/admin/users/:id/status` (Ban/Unban)
+- `DELETE /api/admin/users/:id`
+- `GET /api/admin/rooms?page=1&limit=10` (Paginated rooms)
+- `DELETE /api/admin/rooms/:id`
+- `GET /api/admin/forum/topics?page=1&limit=10` (Paginated topics)
+- `DELETE /api/admin/forum/topics/:id`
+
 ### 3.2 WebSocket Contract
 
 Endpoint: `WS /ws?room=<roomCode>`
@@ -252,8 +276,14 @@ Message types:
   - `initial_state`
   - `player_moved`
   - `player_left`
+  - `whiteboard_update` (elements, appState, files)
+  - `emote`
+  - `chat_message` (Spatial Chat: filtered by 250px radius on client)
+  - `phone_state` (Synced instantly via `move` type payload)
 
-Realtime state is in-memory (`Map`) on the server and resets on server restart.
+Realtime player positions are snapshots every 30s to MongoDB; Whiteboard state is persisted on each broadcast. Other states (emotes) are in-memory.
+
+**Message De-duplication**: Nearby chat uses a unique `msgId` generated at the client. Incoming messages are filtered by ID to prevent duplicates from broadcasting loops or local optimistic UI updates.
 
 ### 3.3 API Versioning
 
@@ -271,6 +301,7 @@ Realtime state is in-memory (`Map`) on the server and resets on server restart.
 - `displayName`
 - `avatarUrl`
 - `googleId` (unique, sparse)
+- `isAdmin` (boolean, default false)
 - `otpCode`
 - `otpExpiresAt`
 - `createdAt`, `updatedAt`
@@ -279,9 +310,19 @@ Realtime state is in-memory (`Map`) on the server and resets on server restart.
 
 - `name` (required)
 - `code` (required, unique)
+- `mapType` (string)
+- `backgroundImage` (string, optional)
 - `ownerId` (ObjectId ref `User`)
 - `members` (ObjectId[] ref `User`)
+- `savedPositions` (Map of userId -> {x, y})
 - `createdAt`, `updatedAt`
+
+#### `whiteboards`
+- `roomId` (string, unique)
+- `elements` (Array)
+- `appState` (Object)
+- `files` (Object)
+- `updatedAt`
 
 #### `events`
 

@@ -26,7 +26,9 @@ The Gathering provides:
 - Event management and invitation email delivery,
 - Community forum,
 - Digital library,
-- Multiplayer 2D office/classroom with realtime communication.
+- Multiplayer 2D office/classroom with realtime communication,
+- Real-time collaborative whiteboard,
+- Admin management dashboard.
 
 ### 3. Definitions
 
@@ -50,6 +52,7 @@ The system is a monorepo consisting of 2 applications:
 - Guest: Views the landing page, performs login.
 - Authenticated User: Uses the dashboard and game.
 - Room Owner: Has additional room management permissions (rename/delete/kick).
+- Admin: Has full platform oversight (User management, content moderation).
 - Event Host: Creates/deletes their own events.
 
 ### 3. Operating Environment
@@ -94,7 +97,8 @@ flowchart TB
       B4[Event Routes]
       B5[Forum Routes]
       B6[Resource Routes]
-      B7[Models\nUser Room Event ForumTopic Resource Service]
+      B10[Admin Routes]
+      B7[Models\nUser Room Event ForumTopic Resource Service Whiteboard]
       B8[Email Service]
       B9[WebSocket State\nactivePlayers Map]
     end
@@ -126,7 +130,10 @@ Summary of functional groups:
 - Event Management: Create event, view event, delete event, send invitation emails.
 - Forum: Create topic, reply to topic, delete topic (author).
 - Digital Library: Search/filter resources by text/type/tag.
-- In-game Utilities: Room sidebar tabs (participants/forum/events), library zone interaction.
+- In-game Utilities: Room sidebar icons (People/Chat/Calendar/Forum/Settings), immersive fullscreen views, Light/Dark theme toggle, Mini-map, Day/Night lighting cycle.
+- Collaborative Whiteboard: Synchronized drawing via Excalidraw, state persistence.
+- Admin Panel: Centralized management of users, rooms, and forum content.
+- Persistence: Player positions and whiteboard state saved to MongoDB; periodic snapshots every 30s.
 
 ### 1. Use Flow (Mermaid)
 
@@ -179,8 +186,8 @@ Endpoint: `/ws?room=<roomCode>`
 
 Message types:
 
-- Client -> Server: `move`
-- Server -> Client: `initial_state`, `player_moved`, `player_left`
+- Client -> Server: `move`, `whiteboard_update`, `chat_message`, `emote`
+- Server -> Client: `initial_state`, `player_moved`, `player_left`, `whiteboard_update`, `chat_message`, `emote`
 
 ### 3. Data Interface (MongoDB)
 
@@ -203,6 +210,7 @@ erDiagram
       string displayName
       string avatarUrl
       string googleId
+      boolean isAdmin
       string otpCode
       date otpExpiresAt
     }
@@ -210,6 +218,8 @@ erDiagram
     ROOMS {
       string name
       string code
+      string mapType
+      string backgroundImage
       objectId ownerId
       objectId[] members
     }
@@ -244,6 +254,13 @@ erDiagram
       string content
       date createdAt
     }
+
+    WHITEBOARDS {
+      string roomId
+      object elements
+      object appState
+    }
+    ROOMS ||--o| WHITEBOARDS : has
 ```
 
 ## V. Non-Functional Requirements
@@ -265,7 +282,7 @@ Summary:
 
 - Runtime and package manager: Bun.
 - Client runs on a web browser (no native mobile app in the current codebase).
-- Current realtime player state does not persist after server restart.
+- Realtime player positions are persisted; other ephemeral states (emotes) are reset.
 
 ### 2. Assumptions
 
@@ -274,9 +291,9 @@ Summary:
 
 ## VII. Out of Scope (Current Release)
 
-- Overall admin dashboard and role management.
-- Full service directory business flow (only the model exists).
-- Multi-instance distributed realtime state.
+- Advanced AI NPC integration.
+- Distributed horizontal scaling with Redis (planned for future).
+- Screen sharing session recording.
 
 ## VIII. Acceptance Criteria (High-Level)
 

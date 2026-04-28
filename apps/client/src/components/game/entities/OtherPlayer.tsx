@@ -26,6 +26,10 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       setDirection((prevDir) => getNewDirection(dx, dy, prevDir));
     } else {
       if (isMoving) setIsMoving(false);
+      // If sitting, use the explicit direction provided by the server
+      if (player.isSitting && player.direction) {
+        setDirection(player.direction as DirString);
+      }
     }
 
     setX((prev) => prev + dx * 0.1 * delta);
@@ -39,7 +43,11 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       direction={direction}
       isMoving={isMoving}
       isSitting={player.isSitting}
+      isPhoneOut={player.isPhoneOut}
       character={player.character || "Adam"}
+      emote={player.emote}
+      displayName={player.displayName}
+      chatBubble={player.chatBubble?.text || null}
     />
   );
 };

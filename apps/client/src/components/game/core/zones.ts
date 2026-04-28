@@ -1,6 +1,4 @@
-import { MAP_CONFIG } from "./config";
-
-export type ZoneType = "library";
+export type ZoneType = "library" | "whiteboard" | "conference" | "presentation" | "seat";
 
 export interface Zone {
   id: ZoneType;
@@ -12,16 +10,112 @@ export interface Zone {
   description: string;
 }
 
-export const ZONES: Zone[] = [
+const CLASSROOM_ZONES: Zone[] = [
   {
     id: "library",
     label: "Library",
-    ...(MAP_CONFIG.type === "classroom"
-      ? { x: 1984, y: 1408, width: 512, height: 832 } // Classroom layout (Extended to 5 rows)
-      : { x: 2000, y: 350, width: 600, height: 600 }), // Office layout
+    x: 1984,
+    y: 1408,
+    width: 512,
+    height: 832,
     description: "Knowledge resources and documentation",
   },
+  {
+    id: "whiteboard",
+    label: "Whiteboard Area",
+    x: 500,
+    y: 500,
+    width: 300,
+    height: 300,
+    description: "Collaborative drawing and brainstorming",
+  },
 ];
+
+const OFFICE_ZONES: Zone[] = [
+  {
+    id: "library",
+    label: "Library",
+    x: 2000,
+    y: 350,
+    width: 600,
+    height: 600,
+    description: "Knowledge resources and documentation",
+  },
+  {
+    id: "conference",
+    label: "Conference Room",
+    x: 64,
+    y: 6592,
+    width: 440,
+    height: 640,
+    description: "Virtual meeting space",
+  },
+  {
+    id: "whiteboard",
+    label: "Whiteboard Area",
+    x: 2600,
+    y: 1400,
+    width: 500,
+    height: 500,
+    description: "Collaborative drawing and brainstorming",
+  },
+];
+
+const CAFE_ZONES: Zone[] = [
+  {
+    id: "library",
+    label: "Café Books",
+    x: 896,
+    y: 256,
+    width: 64,
+    height: 128,
+    description: "Relaxed reading corner",
+  },
+  {
+    id: "whiteboard",
+    label: "Whiteboard",
+    x: 640,
+    y: 64,
+    width: 256,
+    height: 128,
+    description: "Collaborative drawing",
+  },
+  {
+    id: "presentation",
+    label: "Main Stage",
+    x: 320,
+    y: 64,
+    width: 320,
+    height: 192,
+    description: "Area for screen sharing and presentations",
+  },
+];
+
+
+
+export const MAP_ZONES: Record<string, Zone[]> = {
+  classroom: CLASSROOM_ZONES,
+  office: OFFICE_ZONES,
+  office_combined: OFFICE_ZONES,
+  cafe: CAFE_ZONES,
+};
+
+export function getZonesForMap(mapType: string = "office"): Zone[] {
+  if (!mapType) return MAP_ZONES.office;
+  const normalized = mapType.toLowerCase().replace(/[\s_]/g, "");
+  
+  if (normalized.includes("office2") || normalized.includes("merged") || normalized.includes("officecombined")) {
+    return MAP_ZONES.office_combined;
+  }
+  if (normalized.includes("school") || normalized.includes("classroom")) {
+    return MAP_ZONES.classroom;
+  }
+  if (normalized.includes("cafe") || normalized.includes("lounge")) {
+    return MAP_ZONES.cafe;
+  }
+
+  return MAP_ZONES.office;
+}
 
 export function checkZoneCollision(
   playerX: number,

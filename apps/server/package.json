@@ -11,6 +11,7 @@
     "@elysiajs/jwt": "^1.2.0",
     "@elysiajs/static": "^1.4.7",
     "elysia": "^1.2.0",
+    "elysia-rate-limit": "^4.6.0",
     "google-auth-library": "^9.15.0",
     "livekit-server-sdk": "^2.15.0",
     "mongoose": "^8.9.0",
