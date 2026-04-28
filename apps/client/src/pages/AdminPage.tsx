@@ -5,20 +5,21 @@ import {
   Users, 
   Map, 
   MessageSquare, 
-  Shield, 
   Search, 
   ChevronLeft,
   ChevronRight,
   LayoutDashboard,
-  Activity,
-  AlertCircle,
   UserPlus,
-  UserX
+  UserX,
+  RefreshCw,
+  BookOpen
 } from "lucide-react";
 import { apiFetch } from "../lib/api";
 import { WhitelistManager } from "../components/admin/WhitelistManager";
 import { StatCard } from "../components/admin/StatCard";
 import { AdminDataTable } from "../components/admin/AdminDataTable";
+import { LibraryManager } from "../components/admin/LibraryManager";
+import { DashboardLayout } from "../components/layout/DashboardLayout";
 import type { TabType, AdminStats, PaginationInfo, AdminDataItem } from "../types/admin";
 
 export default function AdminPage() {
@@ -30,9 +31,10 @@ export default function AdminPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
-    if (activeTab === "whitelist") return; 
+    if (activeTab === "whitelist" || activeTab === "library") return; 
     
     setLoading(true);
     let endpoint = "";
@@ -45,6 +47,7 @@ export default function AdminPage() {
         console.error("Failed to fetch stats");
       }
       setLoading(false);
+      setLastRefreshed(new Date());
       return;
     }
 
@@ -62,20 +65,15 @@ export default function AdminPage() {
       console.error("Failed to fetch data");
     }
     setLoading(false);
+    setLastRefreshed(new Date());
   }, [activeTab, searchTerm, page]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchData();
-    }, 0);
-    return () => clearTimeout(timer);
+    Promise.resolve().then(() => fetchData());
   }, [fetchData]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-    }, 0);
-    return () => clearTimeout(timer);
+    Promise.resolve().then(() => setPage(1));
   }, [activeTab, searchTerm]);
 
   if (!user || user.role !== "admin") {
@@ -107,7 +105,7 @@ export default function AdminPage() {
   };
 
   const handleDeleteItem = async (id: string) => {
-    if (!confirm("Are you sure? This action cannot be undone.")) return;
+    if (!confirm("Confirm expunge operation? This action is irreversible.")) return;
     
     let endpoint = "";
     if (activeTab === "rooms") endpoint = `/api/admin/rooms/${id}`;
@@ -122,125 +120,124 @@ export default function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-8 py-6 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-100">
-              <Shield size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-800 tracking-tight">Admin Control Panel</h1>
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Enterprise Management System</p>
-              </div>
-            </div>
-          </div>
-          
-          <nav className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto">
-            {[
-              { id: "dashboard", label: "Overview", icon: LayoutDashboard },
-              { id: "whitelist", label: "Whitelist", icon: UserPlus },
-              { id: "users", label: "Users", icon: Users },
-              { id: "rooms", label: "Rooms", icon: Map },
-              { id: "forum", label: "Forum", icon: MessageSquare },
-            ].map((tab) => (
-              <button 
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 whitespace-nowrap ${activeTab === tab.id ? "bg-white text-indigo-600 shadow-lg shadow-slate-200" : "text-slate-500 hover:text-slate-700 hover:bg-white/50"}`}
-              >
-                <tab.icon size={18} /> {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </header>
-
-      <main className="flex-1 p-8 max-w-7xl mx-auto w-full">
-        {activeTab === "dashboard" && stats ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <StatCard label="Total Users" value={stats.totalUsers} icon={Users} color="bg-indigo-500" />
-            <StatCard label="Active Rooms" value={stats.totalRooms} icon={Map} color="bg-emerald-500" />
-            <StatCard label="Forum Topics" value={stats.totalTopics} icon={MessageSquare} color="bg-orange-500" />
-            <StatCard label="Banned Users" value={stats.bannedUsers} icon={UserX} color="bg-rose-500" />
-          </div>
-        ) : null}
-
-        {activeTab === "whitelist" && <WhitelistManager />}
-
-        {activeTab !== "dashboard" && activeTab !== "whitelist" && (
-          <>
-            <div className="flex justify-between items-center mb-8">
-              {activeTab === "users" ? (
-                <div className="relative max-w-md w-full">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                  <input 
-                    type="text" 
-                    placeholder="Search by name or email..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all shadow-sm"
-                  />
-                </div>
-              ) : <div />}
-
-              {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center gap-3">
+    <DashboardLayout>
+      <div className="space-y-10 py-4 pb-20">
+        {/* Navigation Bar - Local to Admin */}
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-6 bg-white p-3 rounded-[2rem] border border-slate-200/60 shadow-sm sticky top-0 z-40 backdrop-blur-sm bg-white/90">
+           <nav className="flex items-center gap-1">
+                {[
+                  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+                  { id: "whitelist", label: "Whitelist", icon: UserPlus },
+                  { id: "library", label: "Library", icon: BookOpen },
+                  { id: "users", label: "Users", icon: Users },
+                  { id: "rooms", label: "Rooms", icon: Map },
+                  { id: "forum", label: "Forum", icon: MessageSquare },
+                ].map((tab) => (
                   <button 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors shadow-sm"
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as TabType)}
+                    className={`flex items-center gap-2.5 px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === tab.id ? "bg-slate-900 text-white shadow-lg shadow-slate-200 translate-y-[-1px]" : "text-slate-400 hover:text-slate-800 hover:bg-slate-50"}`}
                   >
-                    <ChevronLeft size={20} />
+                    <tab.icon size={14} /> {tab.label}
                   </button>
-                  <span className="text-sm font-bold text-slate-500 px-4 py-2 bg-slate-100 rounded-xl border border-slate-200">
-                    Page {page} of {pagination.totalPages}
-                  </span>
-                  <button 
-                    onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                    disabled={page === pagination.totalPages}
-                    className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 disabled:opacity-50 hover:bg-slate-50 transition-colors shadow-sm"
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </div>
-              )}
+                ))}
+            </nav>
+            <div className="flex items-center gap-4 px-4">
+                <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">
+                    Last Update: {lastRefreshed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <button 
+                    onClick={fetchData}
+                    disabled={loading}
+                    className={`p-2.5 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all ${loading ? 'animate-spin text-indigo-600' : ''}`}
+                >
+                    <RefreshCw size={18} />
+                </button>
             </div>
-
-            <AdminDataTable 
-              activeTab={activeTab}
-              data={data}
-              loading={loading}
-              pagination={pagination}
-              onUpdateRole={handleUpdateUserRole}
-              onUpdateStatus={handleUpdateUserStatus}
-              onDelete={handleDeleteItem}
-            />
-          </>
-        )}
-      </main>
-
-      {/* Global Status Bar */}
-      <footer className="bg-white border-t border-slate-200 px-8 py-4">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Activity size={14} className="text-emerald-500" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Engine: Active</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <AlertCircle size={14} className="text-indigo-400" />
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Security Protocol: v2.4</span>
-            </div>
-          </div>
-          <div className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
-            The Gathering Admin Dashboard &copy; 2026
-          </div>
         </div>
-      </footer>
-    </div>
+
+        {/* Content Area */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {activeTab === "dashboard" && stats ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+                <StatCard label="Entities" value={stats.totalUsers} icon={Users} color="bg-indigo-600" />
+                <StatCard label="Matrices" value={stats.totalRooms} icon={Map} color="bg-emerald-600" />
+                <StatCard label="Clusters" value={stats.totalTopics} icon={MessageSquare} color="bg-orange-600" />
+                <StatCard label="Purged" value={stats.bannedUsers} icon={UserX} color="bg-rose-600" />
+            </div>
+            ) : null}
+
+            {activeTab === "whitelist" && <WhitelistManager />}
+            
+            {activeTab === "library" && <LibraryManager />}
+
+            {activeTab !== "dashboard" && activeTab !== "whitelist" && activeTab !== "library" && (
+            <div className="space-y-8">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="flex items-center gap-4">
+                        <div className="p-3 bg-slate-900 rounded-2xl text-white">
+                            {activeTab === "users" ? <Users size={24} /> : activeTab === "rooms" ? <Map size={24} /> : <MessageSquare size={24} />}
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
+                                {activeTab === "users" ? "Directory" : activeTab === "rooms" ? "Registry" : "Archives"}
+                            </h2>
+                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Managing Global Intelligence</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-4 w-full md:w-auto">
+                        {activeTab === "users" && (
+                            <div className="relative flex-1 md:w-64 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                            <input 
+                                type="text" 
+                                placeholder="Search identity..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all shadow-sm font-bold text-xs"
+                            />
+                            </div>
+                        )}
+
+                        {pagination && pagination.totalPages > 1 && (
+                            <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+                            <button 
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="p-2 rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-indigo-600 transition-all"
+                            >
+                                <ChevronLeft size={16} />
+                            </button>
+                            <div className="px-3 flex flex-col items-center">
+                                <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Page</span>
+                                <span className="text-[11px] font-black text-slate-600">{page} / {pagination.totalPages}</span>
+                            </div>
+                            <button 
+                                onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
+                                disabled={page === pagination.totalPages}
+                                className="p-2 rounded-xl text-slate-400 disabled:opacity-30 hover:bg-slate-50 hover:text-indigo-600 transition-all"
+                            >
+                                <ChevronRight size={16} />
+                            </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <AdminDataTable 
+                    activeTab={activeTab as TabType}
+                    data={data}
+                    loading={loading}
+                    pagination={pagination}
+                    onUpdateRole={handleUpdateUserRole}
+                    onUpdateStatus={handleUpdateUserStatus}
+                    onDelete={handleDeleteItem}
+                />
+            </div>
+            )}
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

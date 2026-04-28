@@ -32,5 +32,19 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
 
   // --- FORUM MANAGEMENT ---
   .get("/forum/topics", adminController.getForumTopics)
-  .delete("/forum/topics/:id", adminController.deleteForumTopic);
+  .delete("/forum/topics/:id", adminController.deleteForumTopic)
+
+  // --- LIBRARY MANAGEMENT ---
+  .get("/library", adminController.getLibrary)
+  .post("/library", adminController.addResource, {
+    body: t.Object({
+      title: t.String(),
+      description: t.String(),
+      contentType: t.String(),
+      fileUrl: t.String(),
+      thumbnailUrl: t.String(),
+      tags: t.Array(t.String()),
+    })
+  })
+  .delete("/library/:id", adminController.deleteResource);
 

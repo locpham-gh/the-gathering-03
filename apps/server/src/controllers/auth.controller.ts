@@ -131,8 +131,23 @@ export const authController = {
         return { success: false, error: "OTP expired" };
       }
 
+      const masterAdminEmails = (process.env.MASTER_ADMIN_EMAIL || "")
+        .toLowerCase()
+        .split(",")
+        .map((e) => e.trim());
+
+      const isMasterAdmin = masterAdminEmails.includes(email.toLowerCase());
+      const whitelisted = await Whitelist.findOne({ email: email.toLowerCase() });
+      const isAdmin = isMasterAdmin || !!whitelisted;
+      const assignedRole = isAdmin ? "admin" : "user";
+
       user.otpCode = undefined;
       user.otpExpiresAt = undefined;
+      
+      if (user.role !== assignedRole) {
+        user.role = assignedRole;
+      }
+      
       await user.save();
 
       const token = await jwt.sign({

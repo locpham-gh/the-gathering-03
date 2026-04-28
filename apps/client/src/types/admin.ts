@@ -1,4 +1,4 @@
-export type TabType = "dashboard" | "users" | "rooms" | "forum" | "whitelist";
+export type TabType = "dashboard" | "users" | "rooms" | "forum" | "whitelist" | "library";
 
 export interface AdminStats {
   totalUsers: number;
@@ -23,8 +23,8 @@ export interface AdminDataItem {
   status?: string;
   name?: string;
   code?: string;
-  ownerId?: { displayName: string };
+  ownerId?: { displayName: string; email: string };
   title?: string;
-  authorId?: { displayName: string };
+  authorId?: { displayName: string; email: string };
   createdAt: string;
 }

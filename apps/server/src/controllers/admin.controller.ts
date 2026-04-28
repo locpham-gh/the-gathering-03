@@ -2,6 +2,7 @@ import { User } from "../models/User.js";
 import { Room } from "../models/Room.js";
 import { ForumTopic } from "../models/ForumTopic.js";
 import { Whitelist } from "../models/Whitelist.js";
+import { Resource } from "../models/Resource.js";
 
 export const adminController = {
   getStats: async () => {
@@ -201,5 +202,56 @@ export const adminController = {
     await User.updateOne({ email }, { role: "user" });
 
     return { success: true, message: "Email removed from whitelist" };
+  },
+
+  // --- LIBRARY MANAGEMENT ---
+  getLibrary: async ({ query }: any) => {
+    const { search, contentType, tag, page = 1, limit = 10 } = query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const filter: any = {};
+    if (contentType) filter.contentType = contentType;
+    if (tag) filter.tags = tag;
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const [resources, total] = await Promise.all([
+      Resource.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit)),
+      Resource.countDocuments(filter),
+    ]);
+
+    return {
+      success: true,
+      resources,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+  },
+
+  addResource: async ({ body, set }: any) => {
+    try {
+      const resource = new Resource(body);
+      await resource.save();
+      return { success: true, resource };
+    } catch (error: any) {
+      set.status = 400;
+      return { success: false, error: error.message };
+    }
+  },
+
+  deleteResource: async ({ params }: any) => {
+    await Resource.findByIdAndDelete(params.id);
+    return { success: true };
   },
 };
