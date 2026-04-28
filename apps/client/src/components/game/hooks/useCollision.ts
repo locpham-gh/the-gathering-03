@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { MapData } from "../lib/gameTypes";
+import type { MapData, MapLayer } from "../../../types/game";
 import { WORLD_CONFIG } from "../lib/constants";
 
 /**
@@ -11,8 +11,8 @@ export function useCollision(mapData: MapData) {
     const { TILE_SIZE_VIRTUAL } = WORLD_CONFIG;
     
     // 1. Recursive helper to get all data-bearing layers
-    const getAllLayers = (layers: any[]): any[] => {
-      let result: any[] = [];
+    const getAllLayers = (layers: MapLayer[]): MapLayer[] => {
+      let result: MapLayer[] = [];
       for (const layer of layers) {
         if (layer.layers) {
           result = result.concat(getAllLayers(layer.layers));
@@ -25,13 +25,14 @@ export function useCollision(mapData: MapData) {
 
     const allLayers = getAllLayers(mapData.layers);
 
-    // 2. Identify solid layers (Prioritize layers named "collisions")
-    let solidLayers = allLayers.filter(l => l.name.toLowerCase().includes("collision"));
+    // 2. Identify solid layers (Prioritize layers named "collision")
+    let solidLayers = allLayers.filter(l => l.name && l.name.toLowerCase().includes("collision"));
     
     // Fallback if no specific collision layer is found
     if (solidLayers.length === 0) {
       solidLayers = allLayers.filter(
-        (l) => l.name !== "Tile Layer 1" && 
+        (l) => l.name && 
+               l.name !== "Tile Layer 1" && 
                !l.name.toLowerCase().includes("floor") && 
                !l.name.toLowerCase().includes("ground") &&
                !l.name.toLowerCase().includes("above")
@@ -55,6 +56,7 @@ export function useCollision(mapData: MapData) {
     const endRow = Math.floor(pRect.bottom / TILE_SIZE_VIRTUAL);
 
     for (const layer of solidLayers) {
+      if (!layer.data) continue;
       for (let row = startRow; row <= endRow; row++) {
         for (let col = startCol; col <= endCol; col++) {
           if (row < 0 || row >= mapData.height || col < 0 || col >= mapData.width) continue;

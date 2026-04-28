@@ -199,34 +199,38 @@ export function useMultiplayer(roomId?: string) {
     setLocalPosition({ x, y });
 
     if (wsRef.current?.readyState === WebSocket.OPEN && user) {
-      const payload = {
-        x,
-        y,
-        direction,
-        isSitting,
-        isPhoneOut,
-        character,
-        userId: user.id,
-        displayName: customName || user.displayName,
-        avatarUrl: user.avatarUrl
-      };
-      lastUpdatePayloadRef.current = payload;
-      wsRef.current.send(JSON.stringify({
-        type: "move",
-        payload
-      }));
-      lastSent.current = now;
-      lastSittingState.current = isSitting;
-      lastPhoneState.current = isPhoneOut;
+      try {
+        const payload = {
+          x,
+          y,
+          direction,
+          isSitting,
+          isPhoneOut,
+          character,
+          userId: user.id,
+          displayName: customName || user.displayName,
+          avatarUrl: user.avatarUrl
+        };
+        lastUpdatePayloadRef.current = payload;
+        wsRef.current.send(JSON.stringify({
+          type: "move",
+          payload
+        }));
+        lastSent.current = now;
+        lastSittingState.current = isSitting;
+        lastPhoneState.current = isPhoneOut;
 
-      // Log monitor stats
-      msgCounter.current++;
-      if (now - lastLogTime.current >= 1000) {
-        if (import.meta.env.DEV) {
-          console.log(`📡 WS Outgoing Rate: ${msgCounter.current} msg/s (Throttle: 20Hz target)`);
+        // Log monitor stats
+        msgCounter.current++;
+        if (now - lastLogTime.current >= 1000) {
+          if (import.meta.env.DEV) {
+            console.log(`📡 WS Outgoing Rate: ${msgCounter.current} msg/s (Throttle: 20Hz target)`);
+          }
+          msgCounter.current = 0;
+          lastLogTime.current = now;
         }
-        msgCounter.current = 0;
-        lastLogTime.current = now;
+      } catch (err) {
+        console.error("❌ Failed to send WS message:", err);
       }
     }
   }, [user]);

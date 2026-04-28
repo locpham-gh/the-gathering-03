@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { WORLD_CONFIG, TILESET_CONFIG } from "./constants";
-import type { DirString, TileData, MapData } from "./gameTypes";
+import type { DirString, TileData, MapData, MapLayer } from "../../../types/game";
 
 export const baseTextures: Record<string, PIXI.BaseTexture> = {};
 // Keyed by "sourceImage-localId" to avoid GID collisions between maps
@@ -17,7 +17,10 @@ export const DIR_COL_OFFSET: Record<DirString, number> = {
 /**
  * Maps a Tiled GID to a PIXI Texture and flip flags.
  */
-export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | null {
+export function getTileDataForGid(
+  rawGid: number,
+  mapData: MapData,
+): TileData | null {
   if (rawGid === 0) return null;
 
   const flipX = (rawGid & 0x80000000) !== 0;
@@ -26,9 +29,9 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
   const gid = rawGid & 0x1fffffff;
   if (gid === 0) return null;
 
-  let sourceImage: string = "";
-  let columns: number = 0;
-  let localId: number = 0;
+  let sourceImage: string;
+  let columns: number;
+  let localId: number;
 
   // 1. Find the tileset definition for this GID
   let tileset = null;
@@ -54,21 +57,21 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     localId = gid - tileset.firstgid;
   } else {
     // Legacy maps with external .tsx tilesets
-    const {
-      ROOM_BUILDER_COLS,
-      SERENE_VILLAGE_COLS,
-      INTERIORS_COLS,
-    } = TILESET_CONFIG;
+    const { ROOM_BUILDER_COLS, SERENE_VILLAGE_COLS, INTERIORS_COLS } =
+      TILESET_CONFIG;
 
     const sourceLower = tileset.source?.toLowerCase() || "";
-    
+
     if (sourceLower.includes("interiors")) {
       sourceImage = "/tilesets/Interiors_free_32x32.png";
       columns = INTERIORS_COLS;
     } else if (sourceLower.includes("room_builder")) {
       sourceImage = "/tilesets/Room_Builder_v2_32x32.png";
       columns = ROOM_BUILDER_COLS;
-    } else if (sourceLower.includes("outdor") || sourceLower.includes("serene")) {
+    } else if (
+      sourceLower.includes("outdor") ||
+      sourceLower.includes("serene")
+    ) {
       sourceImage = "/tilesets/Serene_Village_32x32.png";
       columns = SERENE_VILLAGE_COLS;
     } else {
@@ -84,7 +87,7 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
         columns = SERENE_VILLAGE_COLS;
       }
     }
-    
+
     localId = gid - tileset.firstgid;
   }
 
@@ -96,9 +99,15 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
   // Ensure BaseTexture is loaded
   if (!baseTextures[sourceImage]) {
     try {
-      baseTextures[sourceImage] = PIXI.BaseTexture.from(sourceImage);
+      const bt = PIXI.BaseTexture.from(sourceImage);
+      bt.scaleMode = PIXI.SCALE_MODES.NEAREST;
+      bt.mipmap = PIXI.MIPMAP_MODES.OFF;
+      baseTextures[sourceImage] = bt;
     } catch (err) {
-      console.error(`[getTileDataForGid] Failed to load texture: ${sourceImage}`, err);
+      console.error(
+        `[getTileDataForGid] Failed to load texture: ${sourceImage}`,
+        err,
+      );
       return null;
     }
   }
@@ -111,23 +120,24 @@ export function getTileDataForGid(rawGid: number, mapData: MapData): TileData | 
     const tx = (localId % columns) * WORLD_CONFIG.TILE_SIZE_RAW;
     const ty = Math.floor(localId / columns) * WORLD_CONFIG.TILE_SIZE_RAW;
 
+    // Small 0.1px inset prevents WebGL floating-point precision bleeding on tile edges
     texture = new PIXI.Texture(
       baseTextures[sourceImage],
       new PIXI.Rectangle(
-        tx,
-        ty,
-        WORLD_CONFIG.TILE_SIZE_RAW,
-        WORLD_CONFIG.TILE_SIZE_RAW,
+        tx + 0.1,
+        ty + 0.1,
+        WORLD_CONFIG.TILE_SIZE_RAW - 0.2,
+        WORLD_CONFIG.TILE_SIZE_RAW - 0.2,
       ),
     );
     textureCache[cacheKey] = texture;
   }
 
-  return { 
-    texture, 
-    flipX, 
-    flipY, 
-    tilesetName: (tileset as any)?.name || (tileset as any)?.source 
+  return {
+    texture,
+    flipX,
+    flipY,
+    tilesetName: tileset?.name || tileset?.source,
   };
 }
 
@@ -186,3 +196,55 @@ export function getNewDirection(
   }
   return dy > 0 ? "down" : "up";
 }
+
+/**
+ * Helper to find tile GID at (col, row) considering groups and nested layers
+ */
+export const getTileAt = (layers: MapLayer[], col: number, row: number, mapWidth: number): { gid: number; layerName: string } | null => {
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const layer = layers[i];
+    if (!layer.visible || layer.opacity === 0) continue;
+    
+    if (layer.layers) {
+      const found = getTileAt(layer.layers, col, row, mapWidth);
+      if (found) return found;
+      continue;
+    }
+
+    if (layer.data && col >= 0 && row >= 0 && col < mapWidth && row < mapWidth * 2) {
+      const tileIndex = row * mapWidth + col;
+      if (tileIndex >= 0 && tileIndex < layer.data.length) {
+        const gid = layer.data[tileIndex] & 0x1fffffff;
+        if (gid !== 0) {
+          const lowerName = layer.name?.toLowerCase() || "";
+          if (lowerName.includes("floor") || lowerName.includes("ground") || lowerName.includes("tile layer 1")) continue;
+          return { gid, layerName: layer.name };
+        }
+      }
+    }
+  }
+  return null;
+};
+
+/**
+ * Finds the spawn point on a map based on the 'start' layer
+ */
+export const getMapSpawnPoint = (mapData: MapData): { x: number; y: number } => {
+  const startLayer = mapData.layers?.find((l: MapLayer) => l.name === "start" && l.data);
+  if (startLayer?.data) {
+    for (let i = 0; i < startLayer.data.length; i++) {
+      if (startLayer.data[i] !== 0) {
+        const col = i % mapData.width;
+        const row = Math.floor(i / mapData.width);
+        return {
+          x: col * WORLD_CONFIG.TILE_SIZE_VIRTUAL + WORLD_CONFIG.TILE_SIZE_VIRTUAL / 2,
+          y: row * WORLD_CONFIG.TILE_SIZE_VIRTUAL + WORLD_CONFIG.TILE_SIZE_VIRTUAL / 2,
+        };
+      }
+    }
+  }
+  return {
+    x: (mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2,
+    y: (mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL) / 2,
+  };
+};

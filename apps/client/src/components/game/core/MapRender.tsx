@@ -2,24 +2,27 @@ import React from "react";
 import { Container, Sprite } from "@pixi/react";
 import { getTileDataForGid } from "../lib/tileUtils";
 import { WORLD_CONFIG } from "../lib/constants";
-import type { MapData } from "../lib/gameTypes";
+import type { MapData, MapLayer } from "../../../types/game";
 
 interface MapRenderProps {
   mapData: MapData;
 }
 
 const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
-  const renderLayer = (layer: any, layerIdx: number) => {
+  const renderLayer = (layer: MapLayer, layerIdx: number) => {
     if (!layer.visible || layer.opacity === 0) return null;
     
     // Skip logic layers that shouldn't be visible
-    const logicLayers = ["collisions", "zones", "start", "triggers"];
-    if (logicLayers.includes(layer.name?.toLowerCase())) return null;
+    const logicLayers = ["collision", "zone", "start", "trigger"];
+    if (layer.name) {
+      const lowerName = layer.name.toLowerCase();
+      if (logicLayers.some(logic => lowerName.includes(logic))) return null;
+    }
 
     if (layer.layers) {
       return (
         <Container key={layer.name}>
-          {layer.layers.map((subLayer: any, subIdx: number) => 
+          {layer.layers.map((subLayer: MapLayer, subIdx: number) => 
             renderLayer(subLayer, layerIdx * 100 + subIdx)
           )}
         </Container>

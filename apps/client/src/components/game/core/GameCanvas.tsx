@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useRef, useMemo } from "react";
 import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
@@ -10,48 +10,18 @@ import { getZonesForMap } from "./zones";
 import { DayNightOverlay } from "./DayNightOverlay";
 import { MiniMap } from "../ui/MiniMap";
 import { WORLD_CONFIG } from "../lib/constants";
+import { setupPixi } from "../../../lib/pixi-setup";
+
+// Hooks
+import { useMapLoader } from "../../../hooks/useMapLoader";
+import { useWindowDimensions } from "../../../hooks/useWindowDimensions";
 
 // Types
 import type { Zone } from "./zones";
-import type { RemotePlayer } from "../../../hooks/useMultiplayer";
-import type { MapData } from "../lib/gameTypes";
+import type { RemotePlayer, LocalPosition } from "../../../types/game";
 
-// Pixi Settings
-const pixiSettings = PIXI.settings as unknown as { 
-  RENDER_OPTIONS: { hello: boolean }; 
-  ROUND_PIXELS: boolean;
-};
-
-if (pixiSettings.RENDER_OPTIONS) {
-  pixiSettings.RENDER_OPTIONS.hello = false;
-}
-
-// ✅ Anti-glitch: Disable rounding and mipmaps to prevent edge bleeding on zoomed maps
-pixiSettings.ROUND_PIXELS = true;
-PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
-PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
-
-// Silence common but harmless/unfixable console warnings
-const originalWarn = console.warn;
-const originalError = console.error;
-
-console.warn = (...args: unknown[]) => {
-  const msg = typeof args[0] === "string" ? args[0] : "";
-  if (msg.includes("renderer.plugins.interaction has been deprecated")) return;
-  if (msg.includes("Item with key lk-user-choices does not exist")) return;
-  if (msg.includes("Cross-Origin-Opener-Policy")) return;
-  originalWarn(...args);
-};
-
-console.error = (...args: unknown[]) => {
-  const msg = typeof args[0] === "string" ? args[0] : "";
-  // Silence media device errors if they are expected (e.g. no hardware)
-  if (msg.includes("NotFoundError") || msg.includes("Requested device not found")) return;
-  if (msg.includes("error waiting for media permissons")) return;
-  originalError(...args);
-};
-
-// MapData is now imported from gameTypes.ts
+// Initialize Pixi settings
+setupPixi();
 
 interface GameCanvasProps {
   onZoneChange?: (zone: Zone | null) => void;
@@ -66,7 +36,7 @@ interface GameCanvasProps {
   localEmote?: { id: string; timestamp: number } | null;
   localChatBubble?: string | null;
   roomId?: string;
-  localPosition: { x: number; y: number };
+  localPosition: LocalPosition;
   initialServerPosition?: { x: number; y: number } | null;
   onPhoneToggle?: (isOpen: boolean) => void;
 }
@@ -88,50 +58,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   initialServerPosition,
   onPhoneToggle,
 }) => {
-  const [mapData, setMapData] = useState<MapData | null>(null);
+  const { mapData, loading: mapLoading } = useMapLoader(mapType);
+  const { w: screenW, h: screenH } = useWindowDimensions();
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
-  const [dimensions, setDimensions] = useState({
-    w: window.innerWidth,
-    h: window.innerHeight,
-  });
   const worldRef = useRef<PIXI.Container>(null);
 
-  useEffect(() => {
-    const onResize = () => setDimensions({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  useEffect(() => {
-    const normalizeMap = (mt: string) => {
-      if (!mt) return "office";
-      const lower = mt.toLowerCase().replace(/[\s_]/g, "");
-      if (lower.includes("office2") || lower.includes("merged") || lower.includes("officecombined")) return "office_combined";
-      if (lower.includes("school") || lower.includes("classroom")) return "classroom";
-      if (lower.includes("cafe") || lower.includes("lounge")) return "cafe";
-      return "office";
-    };
-    const mapName = normalizeMap(mapType);
-    const mapFile = `/maps/${mapName}_map.json`;
-
-    setMapData(null); // Clear map while loading to trigger loading state
-
-    fetch(mapFile)
-      .then((res) => {
-        if (!res.ok) throw new Error("Map not found");
-        return res.json();
-      })
-      .then((data) => setMapData(data))
-      .catch((err) => {
-        console.error("Failed to load map:", err);
-        // Fallback to office if café fails (e.g. file not found)
-        if (mapName !== "office") {
-           fetch("/maps/office_map.json").then(r => r.json()).then(d => setMapData(d));
-        }
-      });
-  }, [mapType]);
-
-  if (!mapData) {
+  if (mapLoading || !mapData) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-slate-900 border-none">
          <div className="text-white animate-pulse font-medium">Entering The Metaverse...</div>
@@ -143,8 +75,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     <div className="w-full h-full relative">
       <Stage
         key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
-        width={dimensions.w}
-        height={dimensions.h}
+        width={screenW}
+        height={screenH}
         options={{
           backgroundColor: 0xf8fafc,
           antialias: false,
@@ -168,8 +100,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             players={players}
             onNearbyPlayer={onNearbyPlayer}
             worldRef={worldRef}
-            screenW={dimensions.w}
-            screenH={dimensions.h}
+            screenW={screenW}
+            screenH={screenH}
             selectedCharacter={selectedCharacter}
             customDisplayName={customDisplayName}
             localEmote={localEmote}

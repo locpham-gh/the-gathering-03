@@ -2,16 +2,45 @@ import * as PIXI from "pixi.js";
 
 export type DirString = "right" | "up" | "left" | "down";
 
+export interface RemotePlayer {
+  id: string; // Socket ID
+  userId?: string; // Database User ID
+  x: number;
+  y: number;
+  direction?: string;
+  lastUpdate: number;
+  isSitting?: boolean;
+  character?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  emote?: { id: string; timestamp: number };
+  chatBubble?: { text: string; timestamp: number };
+  isPhoneOut?: boolean;
+}
+
+export interface Zone {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  type?: string;
+  label?: string;
+  description?: string;
+}
+
 export interface MapLayer {
   name: string;
   data?: number[];
   layers?: MapLayer[];
+  objects?: Array<{ x: number; y: number; width: number; height: number; name?: string; type?: string }>;
   opacity: number;
   visible: boolean;
 }
 
 export interface MapTileset {
   firstgid: number;
+  name?: string;
   image?: string;
   source?: string;
   imagewidth?: number;
@@ -38,10 +67,7 @@ export interface TileData {
   tilesetName?: string;
 }
 
-export interface PlayerState {
+export interface LocalPosition {
   x: number;
   y: number;
-  direction: DirString;
-  isMoving: boolean;
-  isSitting: boolean;
 }

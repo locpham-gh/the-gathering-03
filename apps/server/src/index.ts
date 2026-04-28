@@ -11,8 +11,8 @@ import { chatRoutes } from "./routes/chat.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 import { rateLimit } from "elysia-rate-limit";
-import { Room } from "./models/Room";
-import { Whiteboard } from "./models/Whiteboard";
+import { multiplayerService } from "./services/multiplayer.service.js";
+import { multiplayerSocket } from "./sockets/multiplayer.socket.js";
 
 // Boot up MongoDB
 connectDB();
@@ -22,316 +22,56 @@ const jwtConfig = jwt({
   secret: process.env.JWT_SECRET || "fallback_secret_for_development",
 });
 
-// Multiplayer State (In-memory for development)
-const activePlayers = new Map<string, Map<string, any>>(); // roomId -> (wsId -> data)
+const app = new Elysia()
+  .use(rateLimit({ duration: 60000, max: 100 }))
+  .use(cors())
+  .use(jwtConfig)
+  .use(authRoutes)
+  .use(resourceRoutes)
+  .use(forumRoutes)
+  .use(roomRoutes)
+  .use(eventRoutes)
+  .use(chatRoutes)
+  .use(adminRoutes);
 
-const app = new Elysia().use(
-  rateLimit({
-    duration: 60000,
-    max: 100,
-  }),
-);
-
+// Global Broadcasters
 export const broadcastForumUpdate = () => {
-  if (!app.server) {
-    console.log("⚠️ Server instance not ready for broadcast");
-    return;
-  }
-  console.log("📢 Broadcasting forum update to global-forum...");
-  const message = JSON.stringify({
+  if (!app.server) return;
+  app.server.publish("global-forum", JSON.stringify({
     type: "forum_refresh",
     payload: { timestamp: Date.now() },
-  });
-  app.server.publish("global-forum", message);
+  }));
 };
-
-// Periodic snapshots (every 30s) to persist multiplayer state without Redis
-setInterval(async () => {
-  for (const [roomId, roomPlayers] of activePlayers.entries()) {
-    if (roomId === "lobby" || roomPlayers.size === 0) continue;
-
-    try {
-      const room = await Room.findOne({ code: roomId });
-      if (room) {
-        if (!room.savedPositions) room.savedPositions = new Map();
-
-        for (const [wsId, playerData] of roomPlayers.entries()) {
-          // Find matching userId if possible (in this simplified setup we'd need to store userId in activePlayers)
-          // For now, we update based on what we have.
-          // Note: In a production app, activePlayers should store {userId, x, y, ...}
-        }
-        await room.save();
-      }
-    } catch (e) {
-      console.error(`Error in snapshot for room ${roomId}:`, e);
-    }
-  }
-}, 30000);
 
 export const broadcastNotification = (userId: string) => {
   if (!app.server) return;
-  console.log(`📢 Broadcasting notification to user-${userId}`);
-  const message = JSON.stringify({
+  app.server.publish(`user-${userId}`, JSON.stringify({
     type: "new_notification",
     payload: { timestamp: Date.now() },
-  });
-  app.server.publish(`user-${userId}`, message);
+  }));
 };
 
-// 1. Plugins & Routes
-app.use(cors());
-app.use(jwtConfig);
-app.use(authRoutes);
-app.use(resourceRoutes);
-app.use(forumRoutes);
-app.use(roomRoutes);
-app.use(eventRoutes);
-app.use(chatRoutes);
-app.use(adminRoutes);
-
-// 2. HTTP Handlers
+// HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
 
-app.get(
-  "/api/livekit/token",
-  async ({ query, jwt, headers, set }: any) => {
-    // 1. Verify Authorization Header
-    const auth = headers["authorization"];
-    if (!auth || !auth.startsWith("Bearer ")) {
-      set.status = 401;
-      return { error: "Unauthorized: Missing or invalid token" };
-    }
+app.get("/api/livekit/token", async ({ query, jwt, headers, set }: any) => {
+  const auth = headers["authorization"];
+  if (!auth) { set.status = 401; return { error: "Missing token" }; }
+  
+  const token = auth.startsWith("Bearer ") ? auth.split(" ")[1] : auth;
+  const profile = await jwt.verify(token);
+  if (!profile) { set.status = 401; return { error: "Invalid token" }; }
 
-    const sessionToken = auth.split(" ")[1];
-    const profile = await jwt.verify(sessionToken);
-
-    if (!profile) {
-      set.status = 401;
-      return { error: "Unauthorized: Invalid session token" };
-    }
-
-    const { room, username } = query;
-    // Basic authorization check: verify identity matches
-    if (profile.userId !== username) {
-      set.status = 403;
-      return { error: "Forbidden: Identity mismatch" };
-    }
-
-    const effectiveRoomId = room || "lobby";
-    const at = new AccessToken(
-      process.env.LIVEKIT_API_KEY!,
-      process.env.LIVEKIT_API_SECRET!,
-      { identity: username },
-    );
-    at.addGrant({ roomJoin: true, room: effectiveRoomId });
-    return { token: await at.toJwt() };
-  },
-  {
-    query: t.Object({ room: t.Optional(t.String()), username: t.String() }),
-  },
-);
-
-// 3. WebSocket Setup
-app.ws("/ws", {
-  query: t.Object({
-    room: t.Optional(t.String()),
-    userId: t.Optional(t.String()),
-  }),
-  body: t.Object({ type: t.String(), payload: t.Any() }),
-  open(ws: any) {
-    const roomId = ws.data.query.room || "lobby";
-    const userId = ws.data.query.userId;
-
-    console.log(
-      `📡 New connection in room ${roomId}: ${ws.id}${userId ? ` (User: ${userId})` : ""}`,
-    );
-
-    if (roomId !== "lobby") {
-      ws.subscribe(`room-${roomId}`);
-    }
-    ws.subscribe("global-forum");
-
-    if (userId) {
-      ws.subscribe(`user-${userId}`);
-    }
-
-    if (roomId !== "lobby") {
-      if (!activePlayers.has(roomId)) {
-        activePlayers.set(roomId, new Map());
-      }
-
-      const room = activePlayers.get(roomId)!;
-
-      // Kick existing connections for same userId to prevent ghosts
-      if (userId) {
-        for (const [oldWsId, data] of room.entries()) {
-          if (data.userId === userId && oldWsId !== ws.id) {
-            console.log(
-              `👢 Kicking stale session for user ${userId} (Old: ${oldWsId}, New: ${ws.id})`,
-            );
-            room.delete(oldWsId);
-            ws.publish(`room-${roomId}`, {
-              type: "player_left",
-              payload: { id: oldWsId },
-            });
-          }
-        }
-      }
-
-      room.set(ws.id, {
-        id: ws.id,
-        userId: userId,
-        x: 0,
-        y: 0,
-        isSitting: false,
-        character: "Adam",
-      });
-    }
-
-    const playersInRoom =
-      roomId !== "lobby" ? Object.fromEntries(activePlayers.get(roomId)!) : {};
-    ws.send({
-      type: "initial_state",
-      payload: { players: playersInRoom },
-    });
-
-    // Asynchronously update position from DB if exists
-    if (roomId !== "lobby" && userId) {
-      Room.findOne({ code: roomId })
-        .then((dbRoom) => {
-          if (
-            dbRoom &&
-            dbRoom.savedPositions &&
-            dbRoom.savedPositions.has(userId)
-          ) {
-            const pos = dbRoom.savedPositions.get(userId);
-            if (pos) {
-              const room = activePlayers.get(roomId);
-              if (room && room.has(ws.id)) {
-                const currentData = room.get(ws.id);
-                const updatedData = { ...currentData, x: pos.x, y: pos.y };
-                room.set(ws.id, updatedData);
-
-                // Broadcast the loaded position to others
-                ws.publish(`room-${roomId}`, {
-                  type: "player_moved",
-                  payload: updatedData,
-                });
-              }
-            }
-          }
-        })
-        .catch((err) =>
-          console.error("Error loading initial position from DB:", err),
-        );
-    }
-
-    // Send whiteboard state if exists
-    if (roomId !== "lobby") {
-      Whiteboard.findOne({ roomId }).then((wb) => {
-        if (wb) {
-          ws.send({
-            type: "whiteboard_update",
-            payload: {
-              elements: wb.elements,
-              appState: wb.appState,
-              files: wb.files,
-            },
-          });
-        }
-      });
-    }
-  },
-  message(ws: any, { type, payload }: any) {
-    const roomId = ws.data.query.room || "lobby";
-    if (type === "move") {
-      const room = activePlayers.get(roomId);
-      if (room) {
-        room.set(ws.id, { id: ws.id, ...payload });
-      }
-      ws.publish(`room-${roomId}`, {
-        type: "player_moved",
-        payload: { id: ws.id, ...payload },
-      });
-    } else if (type === "chat_message") {
-      ws.publish(`room-${roomId}`, {
-        type: "chat_message",
-        payload,
-      });
-    } else if (type === "emote") {
-      ws.publish(`room-${roomId}`, {
-        type: "emote",
-        payload: { id: ws.id, ...payload },
-      });
-    } else if (type === "whiteboard_update") {
-      ws.publish(`room-${roomId}`, {
-        type: "whiteboard_update",
-        payload,
-      });
-
-      // Persist to DB (throttled logic ideally, but for now simple update)
-      // We use roomId from payload or data query
-      const rid = payload.roomId || roomId;
-      if (rid && rid !== "lobby") {
-        Whiteboard.findOneAndUpdate(
-          { roomId: rid },
-          {
-            elements: payload.elements,
-            appState: payload.appState,
-            files: payload.files,
-          },
-          { upsert: true, new: true },
-        ).catch((e) => console.error("Error saving whiteboard:", e));
-      }
-    }
-  },
-  close(ws: any) {
-    const roomId = ws.data.query.room || "lobby";
-    const userId = ws.data.query.userId;
-    console.log(`🔌 Connection closed in room ${roomId}: ${ws.id}`);
-
-    const room = activePlayers.get(roomId);
-    if (room) {
-      const playerData = room.get(ws.id);
-
-      // Save position to DB asynchronously (only if moved from origin)
-      if (
-        playerData &&
-        userId &&
-        roomId !== "lobby" &&
-        (playerData.x !== 0 || playerData.y !== 0)
-      ) {
-        Room.findOne({ code: roomId })
-          .then((dbRoom) => {
-            if (dbRoom) {
-              if (!dbRoom.savedPositions) {
-                dbRoom.savedPositions = new Map();
-              }
-              dbRoom.savedPositions.set(userId, {
-                x: playerData.x,
-                y: playerData.y,
-              });
-              dbRoom
-                .save()
-                .catch((e) => console.error("Error saving position:", e));
-            }
-          })
-          .catch(console.error);
-      }
-
-      room.delete(ws.id);
-      if (room.size === 0) activePlayers.delete(roomId);
-    }
-
-    ws.publish(`room-${roomId}`, {
-      type: "player_left",
-      payload: { id: ws.id },
-    });
-  },
+  const { room, username } = query;
+  const at = new AccessToken(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!, { identity: username });
+  at.addGrant({ roomJoin: true, room: room || "lobby" });
+  return { token: await at.toJwt() };
+}, {
+  query: t.Object({ room: t.Optional(t.String()), username: t.String() })
 });
 
-app.listen(process.env.PORT || 3000);
+// WebSocket Setup
+app.use(multiplayerSocket);
 
-console.log(
-  `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`,
-);
+app.listen(process.env.PORT || 3000);
+console.log(`🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`);

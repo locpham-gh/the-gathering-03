@@ -13,14 +13,14 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>(
   {
-    email: { type: String, required: true, unique: true },
-    displayName: { type: String },
+    email: { type: String, required: true, unique: true, index: true },
+    displayName: { type: String, index: true },
     avatarUrl: { type: String },
     googleId: { type: String, sparse: true, unique: true },
     otpCode: { type: String },
     otpExpiresAt: { type: Date },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
-    status: { type: String, enum: ["active", "banned"], default: "active" },
+    role: { type: String, enum: ["user", "admin"], default: "user", index: true },
+    status: { type: String, enum: ["active", "banned"], default: "active", index: true },
   },
   { timestamps: true }
 );

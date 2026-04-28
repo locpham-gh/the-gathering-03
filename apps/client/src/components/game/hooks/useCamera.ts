@@ -46,10 +46,10 @@ export function useCamera(
       camExactPos.current.y += (targetCamY - camExactPos.current.y) * 0.1 * delta;
     }
     
-    // ✅ DPI-AWARE ROUNDING: Snaps to physical pixels rather than CSS pixels.
-    const dpr = window.devicePixelRatio || 1;
-    worldRef.current.x = Math.round(camExactPos.current.x * dpr) / dpr;
-    worldRef.current.y = Math.round(camExactPos.current.y * dpr) / dpr;
+    // ✅ STRICT INTEGER ROUNDING: Prevent any subpixel camera positioning
+    // Subpixel values on the parent container can cause the child sprites to bleed textures.
+    worldRef.current.x = Math.round(camExactPos.current.x);
+    worldRef.current.y = Math.round(camExactPos.current.y);
   }, [worldRef, screenW, screenH, mapWidth, mapHeight]);
 
   return { updateCamera };
