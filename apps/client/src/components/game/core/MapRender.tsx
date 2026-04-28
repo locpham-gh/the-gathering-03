@@ -49,8 +49,8 @@ const MapRenderComponent: React.FC<MapRenderProps> = ({ mapData }) => {
             <Sprite
               key={`${layerIdx}-${index}`}
               texture={texture}
-              x={x}
-              y={y}
+              x={Math.round(x)}
+              y={Math.round(y)}
               scale={{ x: flipX ? -scale : scale, y: flipY ? -scale : scale }}
               anchor={{ x: flipX ? 1 : 0, y: flipY ? 1 : 0 }}
             />

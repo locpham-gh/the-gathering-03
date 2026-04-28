@@ -6,8 +6,7 @@ import {
   ParticipantTile,
   useRemoteParticipants
 } from "@livekit/components-react";
-import { Track } from "livekit-client";
-import "@livekit/components-styles";
+import { Track, Participant } from "livekit-client";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { Zone } from "../core/zones";
 import { Lock } from "lucide-react";
@@ -163,24 +162,26 @@ const SpatialAudioRenderer: React.FC<{
   );
 };
 
-const ParticipantAudio: React.FC<{ participant: any; volume: number }> = ({ participant, volume }) => {
-  const audioTracks = Array.from(participant.audioTrackPublications.values()) as any[];
+const ParticipantAudio: React.FC<{ participant: Participant; volume: number }> = ({ participant, volume }) => {
+  const audioTracks = Array.from(participant.audioTrackPublications.values());
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
+    const audioEl = audioRef.current;
+    if (audioEl) {
+      audioEl.volume = volume;
     }
   }, [volume]);
 
   useEffect(() => {
     const trackPub = audioTracks.find((t) => t.track);
-    if (trackPub && trackPub.track && audioRef.current) {
-      trackPub.track.attach(audioRef.current);
+    const audioEl = audioRef.current;
+    if (trackPub && trackPub.track && audioEl) {
+      trackPub.track.attach(audioEl);
     }
     return () => {
-      if (trackPub && trackPub.track && audioRef.current) {
-        trackPub.track.detach(audioRef.current);
+      if (trackPub && trackPub.track && audioEl) {
+        trackPub.track.detach(audioEl);
       }
     };
   }, [audioTracks]);

@@ -7,6 +7,8 @@ interface User {
   avatarUrl?: string;
   role: "user" | "admin";
   status: "active" | "banned";
+  whitelistedBy?: string;
+  whitelistedByEmail?: string;
 }
 
 interface AuthContextType {

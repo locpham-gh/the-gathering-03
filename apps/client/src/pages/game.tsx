@@ -127,8 +127,8 @@ export default function GamePage() {
         onOpenInvite={() => setShowInviteModal(true)}
       />
 
-      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
-        <div className="relative pointer-events-auto w-full h-full">
+      <div className="flex-1 relative overflow-hidden bg-slate-900">
+        <div className="absolute inset-0 pointer-events-auto">
           <GameCanvas
             roomId={roomId}
             onZoneChange={setCurrentZone}

@@ -12,7 +12,17 @@ interface WhitelistItem {
   createdAt: string;
 }
 
-export const WhitelistManager: React.FC = () => {
+interface WhitelistManagerProps {
+  currentUserId?: string;
+  currentUserEmail?: string;
+  whitelistedByEmail?: string;
+}
+
+export const WhitelistManager: React.FC<WhitelistManagerProps> = ({
+  currentUserId,
+  currentUserEmail,
+  whitelistedByEmail,
+}) => {
   const [whitelist, setWhitelist] = useState<WhitelistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -231,13 +241,33 @@ export const WhitelistManager: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-8 py-6 text-right">
-                      <button
-                        onClick={() => handleRemoveEmail(item.email)}
-                        className="p-3 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
-                        title="Revoke Access"
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                      {(() => {
+                        const isSelf = !!((currentUserId && String(item._id) === String(currentUserId)) || 
+                                     (currentUserEmail && item.email === currentUserEmail));
+                        const isGranter = !!(whitelistedByEmail && item.email === whitelistedByEmail);
+                        const isDisabled = isSelf || isGranter;
+                        
+                        return (
+                          <button
+                            onClick={() => handleRemoveEmail(item.email)}
+                            disabled={isDisabled}
+                            className={`p-3 rounded-2xl transition-all ${
+                              isDisabled 
+                                ? "opacity-20 cursor-not-allowed text-slate-300" 
+                                : "text-slate-300 hover:text-rose-600 hover:bg-rose-50 opacity-0 group-hover:opacity-100"
+                            }`}
+                            title={
+                              isSelf 
+                                ? "Self-revocation restricted" 
+                                : isGranter 
+                                  ? "Authorization granter protection" 
+                                  : "Revoke Access"
+                            }
+                          >
+                            <Trash2 size={20} />
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))

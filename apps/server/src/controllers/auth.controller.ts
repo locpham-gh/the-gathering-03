@@ -26,7 +26,7 @@ export const authController = {
         .map((e) => e.trim());
 
       const isMasterAdmin = masterAdminEmails.includes(email.toLowerCase());
-      const whitelisted = await Whitelist.findOne({ email: email.toLowerCase() });
+      const whitelisted = await Whitelist.findOne({ email: email.toLowerCase() }).populate("addedBy", "email");
       const isAdmin = isMasterAdmin || !!whitelisted;
       const assignedRole = isAdmin ? "admin" : "user";
 
@@ -72,6 +72,8 @@ export const authController = {
           avatarUrl: user.avatarUrl,
           role: user.role,
           status: user.status,
+          whitelistedBy: (whitelisted?.addedBy as any)?._id?.toString(),
+          whitelistedByEmail: (whitelisted?.addedBy as any)?.email,
         },
         token,
       };
@@ -137,7 +139,7 @@ export const authController = {
         .map((e) => e.trim());
 
       const isMasterAdmin = masterAdminEmails.includes(email.toLowerCase());
-      const whitelisted = await Whitelist.findOne({ email: email.toLowerCase() });
+      const whitelisted = await Whitelist.findOne({ email: email.toLowerCase() }).populate("addedBy", "email");
       const isAdmin = isMasterAdmin || !!whitelisted;
       const assignedRole = isAdmin ? "admin" : "user";
 
@@ -167,6 +169,8 @@ export const authController = {
           avatarUrl: user.avatarUrl,
           role: user.role,
           status: user.status,
+          whitelistedBy: (whitelisted?.addedBy as any)?._id?.toString(),
+          whitelistedByEmail: (whitelisted?.addedBy as any)?.email,
         },
         token,
       };

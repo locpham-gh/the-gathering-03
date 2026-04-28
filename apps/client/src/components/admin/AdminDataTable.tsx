@@ -23,6 +23,9 @@ interface AdminDataTableProps {
   onUpdateRole?: (id: string, currentRole: string) => void;
   onUpdateStatus?: (id: string, currentStatus: string) => void;
   onDelete?: (id: string) => void;
+  currentUserId?: string;
+  currentUserEmail?: string;
+  currentUserWhitelistedBy?: string;
 }
 
 export const AdminDataTable: React.FC<AdminDataTableProps> = ({
@@ -33,6 +36,9 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
   onUpdateRole,
   onUpdateStatus,
   onDelete,
+  currentUserId,
+  currentUserEmail,
+  currentUserWhitelistedBy,
 }) => {
   return (
     <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-slate-200 overflow-hidden animate-in fade-in duration-500">
@@ -170,39 +176,64 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
                           {item.status}
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
-                          <button
-                            onClick={() =>
-                              onUpdateRole?.(item._id, item.role || "")
-                            }
-                            className="p-3 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-2xl transition-all"
-                            title={
-                              item.role === "admin"
-                                ? "Demote Privilege"
-                                : "Elevate Privilege"
-                            }
-                          >
-                            <Shield size={20} />
-                          </button>
-                          <button
-                            onClick={() =>
-                              onUpdateStatus?.(item._id, item.status || "")
-                            }
-                            className={`p-3 rounded-2xl transition-all ${item.status === "active" ? "text-slate-400 hover:bg-rose-50 hover:text-rose-600" : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600"}`}
-                            title={
-                              item.status === "active"
-                                ? "Terminate Access"
-                                : "Restore Access"
-                            }
-                          >
-                            {item.status === "active" ? (
-                              <UserX size={20} />
-                            ) : (
-                              <UserCheck size={20} />
-                            )}
-                          </button>
-                        </div>
+                      <td className="px-8 py-6">
+                        {(() => {
+                          const isSelf = !!((currentUserId && String(item._id) === String(currentUserId)) || 
+                                       (currentUserEmail && item.email === currentUserEmail));
+                          const isGranter = !!(currentUserWhitelistedBy && String(item._id) === String(currentUserWhitelistedBy));
+                          const isDisabled = isSelf || isGranter;
+                          
+                          return (
+                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-4 group-hover:translate-x-0">
+                              <button
+                                onClick={() => onUpdateRole?.(item._id, item.role || "")}
+                                disabled={isDisabled}
+                                className={`p-3 rounded-2xl transition-all ${
+                                  isDisabled 
+                                    ? "opacity-20 cursor-not-allowed" 
+                                    : "text-slate-400 hover:bg-indigo-50 hover:text-indigo-600"
+                                }`}
+                                title={
+                                  isSelf 
+                                    ? "Self-demotion restricted"
+                                    : isGranter
+                                      ? "Authorization granter protection"
+                                      : item.role === "admin"
+                                        ? "Demote Privilege"
+                                        : "Elevate Privilege"
+                                }
+                              >
+                                <Shield size={20} />
+                              </button>
+                              <button
+                                onClick={() => onUpdateStatus?.(item._id, item.status || "")}
+                                disabled={isDisabled}
+                                className={`p-3 rounded-2xl transition-all ${
+                                  isDisabled 
+                                    ? "opacity-20 cursor-not-allowed" 
+                                    : item.status === "active" 
+                                      ? "text-slate-400 hover:bg-rose-50 hover:text-rose-600" 
+                                      : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600"
+                                }`}
+                                title={
+                                  isSelf
+                                    ? "Self-termination restricted"
+                                    : isGranter
+                                      ? "Authorization granter protection"
+                                      : item.status === "active"
+                                        ? "Terminate Access"
+                                        : "Restore Access"
+                                }
+                              >
+                                {item.status === "active" ? (
+                                  <UserX size={20} />
+                                ) : (
+                                  <UserCheck size={20} />
+                                )}
+                              </button>
+                            </div>
+                          );
+                        })()}
                       </td>
                     </>
                   ) : activeTab === "rooms" ? (

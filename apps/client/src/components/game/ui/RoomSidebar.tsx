@@ -199,82 +199,41 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
           className="absolute top-0 left-[60px] h-full z-40 pointer-events-auto flex"
           style={{ width: "calc(100vw - 60px)" }}
         >
-          {/* Mini-sidebar */}
-          <div
-            className="w-52 h-full flex flex-col shrink-0 transition-colors duration-300"
-            style={{
-              background: colors.bgPanel,
-              borderRight: `1px solid ${colors.border}`,
-            }}
-          >
-            {/* Header */}
-            <div
-              className="h-14 flex items-center justify-between px-4 shrink-0"
-              style={{ borderBottom: `1px solid ${colors.border}` }}
-            >
-              <div className="flex items-center gap-2">
-                {activeTab === "chat"
-                  ? <MessageSquare size={15} style={{ color: colors.activeTabText }} />
-                  : <CalendarDays size={15} style={{ color: colors.activeTabText }} />
-                }
-                <span className="font-semibold text-sm" style={{ color: colors.textPrimary }}>
-                  {TABS.find((t) => t.id === activeTab)?.label}
-                </span>
+          {/* Content area only, no second sidebar */}
+          <div className="flex-1 h-full overflow-hidden transition-colors duration-300 relative flex flex-col" style={{ background: colors.bgContent }}>
+            {/* Header for the content */}
+            <div className="h-14 flex items-center justify-between px-8 shrink-0" style={{ borderBottom: `1px solid ${colors.border}` }}>
+              <div className="flex items-center gap-3">
+                {activeTab === "chat" ? (
+                  <>
+                    <MessageSquare size={18} className="text-indigo-500" />
+                    <h2 className="text-base font-bold" style={{ color: colors.textPrimary }}>Community Chat</h2>
+                  </>
+                ) : (
+                  <>
+                    <CalendarDays size={18} className="text-indigo-500" />
+                    <h2 className="text-base font-bold" style={{ color: colors.textPrimary }}>Space Events</h2>
+                  </>
+                )}
               </div>
               <button
                 onClick={() => setActiveTab(null)}
-                className="p-1.5 rounded-lg transition-all"
-                style={{ color: colors.textMuted }}
+                className="p-2 rounded-xl hover:bg-slate-800/10 transition-all text-slate-400"
               >
-                <X size={15} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* Tab nav */}
-            <div className="p-2.5 flex flex-col gap-0.5">
-              {TABS.map((tab) => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] transition-all w-full text-left"
-                    style={{
-                      background: isActive ? colors.activeTabBg : "transparent",
-                      color: isActive ? colors.activeTabText : colors.textSecondary,
-                      fontWeight: isActive ? 600 : 400,
-                    }}
-                  >
-                    <tab.icon size={15} />
-                    {tab.label}
-                  </button>
-                );
-              })}
+            <div className="flex-1 overflow-hidden">
+              {activeTab === "chat" && <DiscordChat user={user} roomId={roomId} isDark={isDark} />}
+              {activeTab === "events" && (
+                <div className="h-full overflow-y-auto p-10 custom-scrollbar">
+                  <div className="max-w-4xl mx-auto">
+                    <EventsManager user={user} initialRoomId={roomId} />
+                  </div>
+                </div>
+              )}
             </div>
-
-            <div className="flex-1" />
-
-            {/* Back button */}
-            <div className="p-3" style={{ borderTop: `1px solid ${colors.border}` }}>
-              <button
-                onClick={() => setActiveTab(null)}
-                className="flex items-center gap-2 text-[12px] px-3 py-2.5 rounded-lg w-full transition-all"
-                style={{ color: colors.textSecondary }}
-              >
-                <ArrowLeft size={13} />
-                Back to game
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 h-full overflow-hidden transition-colors duration-300" style={{ background: colors.bgContent }}>
-            {activeTab === "chat" && <DiscordChat user={user} roomId={roomId} isDark={isDark} />}
-            {activeTab === "events" && (
-              <div className="h-full overflow-y-auto p-6 custom-scrollbar">
-                <EventsManager user={user} initialRoomId={roomId} />
-              </div>
-            )}
           </div>
         </div>
       )}

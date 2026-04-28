@@ -57,35 +57,73 @@ export const adminController = {
     };
   },
 
-  updateUserRole: async ({ params, body, set }: any) => {
+  updateUserRole: async ({ params, body, user, set }: any) => {
+    if (params.id === user.userId) {
+      set.status = 403;
+      return { success: false, error: "Cannot modify your own administrative role" };
+    }
+
+    // Protection: Cannot demote the person who whitelisted you
+    const [targetUser, currentUserWhitelist] = await Promise.all([
+      User.findById(params.id),
+      Whitelist.findOne({ email: user.email.toLowerCase() })
+    ]);
+
+    if (currentUserWhitelist && currentUserWhitelist.addedBy && targetUser && 
+        currentUserWhitelist.addedBy.toString() === targetUser._id.toString()) {
+      set.status = 403;
+      return { success: false, error: "Security restriction: Cannot modify the role of your authorization granter" };
+    }
+
     const { role } = body;
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       params.id,
       { role },
       { new: true },
     );
-    if (!user) {
+    if (!updatedUser) {
       set.status = 404;
       return { success: false, error: "User not found" };
     }
-    return { success: true, user };
+    return { success: true, user: updatedUser };
   },
 
-  updateUserStatus: async ({ params, body, set }: any) => {
+  updateUserStatus: async ({ params, body, user, set }: any) => {
+    if (params.id === user.userId) {
+      set.status = 403;
+      return { success: false, error: "Cannot modify your own account status" };
+    }
+
+    // Protection: Cannot ban the person who whitelisted you
+    const [targetUser, currentUserWhitelist] = await Promise.all([
+      User.findById(params.id),
+      Whitelist.findOne({ email: user.email.toLowerCase() })
+    ]);
+
+    if (currentUserWhitelist && currentUserWhitelist.addedBy && targetUser && 
+        currentUserWhitelist.addedBy.toString() === targetUser._id.toString()) {
+      set.status = 403;
+      return { success: false, error: "Security restriction: Cannot modify the status of your authorization granter" };
+    }
+
     const { status } = body;
-    const user = await User.findByIdAndUpdate(
+    const updatedUser = await User.findByIdAndUpdate(
       params.id,
       { status },
       { new: true },
     );
-    if (!user) {
+    if (!updatedUser) {
       set.status = 404;
       return { success: false, error: "User not found" };
     }
-    return { success: true, user };
+    return { success: true, user: updatedUser };
   },
 
-  deleteUser: async ({ params }: any) => {
+  deleteUser: async ({ params, user, set }: any) => {
+    if (params.id === user.userId) {
+      set.status = 403;
+      return { success: false, error: "Cannot delete your own administrative account" };
+    }
     await User.findByIdAndDelete(params.id);
     return { success: true };
   },
@@ -178,7 +216,7 @@ export const adminController = {
     return { success: true, item: whitelisted };
   },
 
-  removeFromWhitelist: async ({ params, set }: any) => {
+  removeFromWhitelist: async ({ params, user, set }: any) => {
     const email = params.email.toLowerCase().trim();
     const masterAdminEmails = (process.env.MASTER_ADMIN_EMAIL || "")
       .toLowerCase()
@@ -191,6 +229,28 @@ export const adminController = {
         success: false,
         error: "Cannot remove Master Admin from whitelist",
       };
+    }
+
+    // Protection: Cannot remove the person who whitelisted you
+    const [targetWhitelist, currentUserWhitelist] = await Promise.all([
+      Whitelist.findOne({ email }),
+      Whitelist.findOne({ email: user.email.toLowerCase() })
+    ]);
+
+    if (currentUserWhitelist && currentUserWhitelist.addedBy && targetWhitelist &&
+        currentUserWhitelist.addedBy.toString() === (targetWhitelist as any)._id.toString()) {
+        // Wait, addedBy is an ID, targetWhitelist is an object.
+        // We need to see if the target person is the one who added us.
+        // But targetWhitelist is identified by email. 
+        // We need the User ID of the person with that email.
+    }
+    
+    // Better logic:
+    const targetUser = await User.findOne({ email });
+    if (currentUserWhitelist && currentUserWhitelist.addedBy && targetUser &&
+        currentUserWhitelist.addedBy.toString() === targetUser._id.toString()) {
+        set.status = 403;
+        return { success: false, error: "Security restriction: Cannot revoke access for your authorization granter" };
     }
 
     const deleted = await Whitelist.findOneAndDelete({ email });

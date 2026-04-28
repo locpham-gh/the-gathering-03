@@ -7,7 +7,7 @@ export const baseTextures: Record<string, PIXI.BaseTexture> = {};
 export const textureCache: Record<string, PIXI.Texture> = {};
 export const adamTextureCache: Record<string, PIXI.Texture> = {};
 
-export const DIR_COL_OFFSET: Record<DirString, number> = {
+export const DIR_COL_OFFSET: Record<string, number> = {
   right: 0,
   up: 6,
   left: 12,

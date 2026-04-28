@@ -167,7 +167,13 @@ export default function AdminPage() {
             </div>
             ) : null}
 
-            {activeTab === "whitelist" && <WhitelistManager />}
+            {activeTab === "whitelist" && (
+                <WhitelistManager 
+                    currentUserId={user.id}
+                    currentUserEmail={user.email}
+                    whitelistedByEmail={user.whitelistedByEmail}
+                />
+            )}
             
             {activeTab === "library" && <LibraryManager />}
 
@@ -233,6 +239,8 @@ export default function AdminPage() {
                     onUpdateRole={handleUpdateUserRole}
                     onUpdateStatus={handleUpdateUserStatus}
                     onDelete={handleDeleteItem}
+                    currentUserId={user.id}
+                    currentUserEmail={user.email}
                 />
             </div>
             )}

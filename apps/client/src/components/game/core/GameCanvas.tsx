@@ -84,7 +84,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
         }}
-        style={{ imageRendering: "pixelated" }}
+        style={{ imageRendering: "pixelated", outline: "none", border: "none" }}
       >
         <Container ref={worldRef}>
           <MapRender mapData={mapData} />

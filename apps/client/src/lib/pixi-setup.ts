@@ -11,10 +11,13 @@ export const setupPixi = () => {
     pixiSettings.RENDER_OPTIONS.hello = false;
   }
 
-  // ✅ Anti-glitch: Disable rounding and mipmaps to prevent edge bleeding on zoomed maps
+  // ✅ Anti-glitch: Enable rounding and disable mipmaps
   pixiSettings.ROUND_PIXELS = true;
   PIXI.BaseTexture.defaultOptions.scaleMode = PIXI.SCALE_MODES.NEAREST;
   PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
+  
+  // High precision for fragment shaders to prevent pixel drift
+  PIXI.settings.PRECISION_FRAGMENT = PIXI.PRECISION.HIGH;
 
   // Silence common but harmless/unfixable console warnings
   const originalWarn = console.warn;
