@@ -65,6 +65,11 @@ This document lists all functional requirements currently in the The Gathering c
 | FR-42 | The system must provide an Admin Panel for managing users, rooms, and forum content. | Must | Implemented |
 | FR-43 | The system must perform periodic snapshots (30s) of player states to ensure data persistence without Redis. | Must | Implemented |
 | FR-44 | The system must implement API rate limiting to prevent abuse. | Must | Implemented |
+| FR-45 | The system must implement Spatial Chat filtering, only displaying messages from players within a 250px radius. | Must | Implemented |
+| FR-46 | The system must ensure message uniqueness in Nearby Chat using unique IDs to prevent duplicate rendering. | Must | Implemented |
+| FR-47 | The system must persist player X and Y coordinates across sessions for every room. | Must | Implemented |
+| FR-48 | The system must provide a scalable Admin Dashboard supporting pagination for large data sets. | Must | Implemented |
+| FR-49 | The system must ensure correct player orientation (sitting direction) based on the specific chair design in the map. | Must | Implemented |
 
 ## 4. Out of Scope (Current Version)
 

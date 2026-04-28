@@ -9,6 +9,7 @@
 | 2.0     | 2026-04-23 | Rewritten to match current The Gathering project |
 | 2.1     | 2026-04-28 | Added Whiteboard, Admin Panel, and Enhanced Maps |
 | 2.2     | 2026-04-28 | Added Spatial Chat, Phone Sync, and Role-based Dashboard |
+| 2.3     | 2026-04-28 | Implemented Scalable Admin (Pagination), Message De-duplication, and Improved Sync |
 
 ## Table of Contents
 
@@ -253,14 +254,14 @@ Core game module is under `components/game`:
 - `GET /api/livekit/token?room=<room>&username=<name>`
 
 #### Admin
-- `GET /api/admin/stats`
-- `GET /api/admin/users`
-- `POST /api/admin/users/:id/admin`
-- `POST /api/admin/users/:id/ban`
+- `GET /api/admin/stats` (Summary cards)
+- `GET /api/admin/users?page=1&limit=10&search=...` (Paginated user list)
+- `PATCH /api/admin/users/:id/role` (Promote/Demote)
+- `PATCH /api/admin/users/:id/status` (Ban/Unban)
 - `DELETE /api/admin/users/:id`
-- `GET /api/admin/rooms`
+- `GET /api/admin/rooms?page=1&limit=10` (Paginated rooms)
 - `DELETE /api/admin/rooms/:id`
-- `GET /api/admin/forum/topics`
+- `GET /api/admin/forum/topics?page=1&limit=10` (Paginated topics)
 - `DELETE /api/admin/forum/topics/:id`
 
 ### 3.2 WebSocket Contract
@@ -281,6 +282,8 @@ Message types:
   - `phone_state` (Synced instantly via `move` type payload)
 
 Realtime player positions are snapshots every 30s to MongoDB; Whiteboard state is persisted on each broadcast. Other states (emotes) are in-memory.
+
+**Message De-duplication**: Nearby chat uses a unique `msgId` generated at the client. Incoming messages are filtered by ID to prevent duplicates from broadcasting loops or local optimistic UI updates.
 
 ### 3.3 API Versioning
 
