@@ -25,11 +25,12 @@ const jwtConfig = jwt({
 // Multiplayer State (In-memory for development)
 const activePlayers = new Map<string, Map<string, any>>(); // roomId -> (wsId -> data)
 
-const app = new Elysia()
-  .use(rateLimit({
+const app = new Elysia().use(
+  rateLimit({
     duration: 60000,
     max: 100,
-  }));
+  }),
+);
 
 export const broadcastForumUpdate = () => {
   if (!app.server) {
@@ -48,15 +49,15 @@ export const broadcastForumUpdate = () => {
 setInterval(async () => {
   for (const [roomId, roomPlayers] of activePlayers.entries()) {
     if (roomId === "lobby" || roomPlayers.size === 0) continue;
-    
+
     try {
       const room = await Room.findOne({ code: roomId });
       if (room) {
         if (!room.savedPositions) room.savedPositions = new Map();
-        
+
         for (const [wsId, playerData] of roomPlayers.entries()) {
           // Find matching userId if possible (in this simplified setup we'd need to store userId in activePlayers)
-          // For now, we update based on what we have. 
+          // For now, we update based on what we have.
           // Note: In a production app, activePlayers should store {userId, x, y, ...}
         }
         await room.save();
@@ -103,7 +104,7 @@ app.get(
 
     const sessionToken = auth.split(" ")[1];
     const profile = await jwt.verify(sessionToken);
-    
+
     if (!profile) {
       set.status = 401;
       return { error: "Unauthorized: Invalid session token" };
@@ -158,14 +159,16 @@ app.ws("/ws", {
       if (!activePlayers.has(roomId)) {
         activePlayers.set(roomId, new Map());
       }
-      
+
       const room = activePlayers.get(roomId)!;
-      
+
       // Kick existing connections for same userId to prevent ghosts
       if (userId) {
         for (const [oldWsId, data] of room.entries()) {
           if (data.userId === userId && oldWsId !== ws.id) {
-            console.log(`👢 Kicking stale session for user ${userId} (Old: ${oldWsId}, New: ${ws.id})`);
+            console.log(
+              `👢 Kicking stale session for user ${userId} (Old: ${oldWsId}, New: ${ws.id})`,
+            );
             room.delete(oldWsId);
             ws.publish(`room-${roomId}`, {
               type: "player_left",
@@ -194,36 +197,46 @@ app.ws("/ws", {
 
     // Asynchronously update position from DB if exists
     if (roomId !== "lobby" && userId) {
-      Room.findOne({ code: roomId }).then(dbRoom => {
-        if (dbRoom && dbRoom.savedPositions && dbRoom.savedPositions.has(userId)) {
-          const pos = dbRoom.savedPositions.get(userId);
-          const room = activePlayers.get(roomId);
-          if (room && room.has(ws.id)) {
-            const currentData = room.get(ws.id);
-            const updatedData = { ...currentData, x: pos.x, y: pos.y };
-            room.set(ws.id, updatedData);
-            
-            // Broadcast the loaded position to others
-            ws.publish(`room-${roomId}`, {
-              type: "player_moved",
-              payload: updatedData,
-            });
+      Room.findOne({ code: roomId })
+        .then((dbRoom) => {
+          if (
+            dbRoom &&
+            dbRoom.savedPositions &&
+            dbRoom.savedPositions.has(userId)
+          ) {
+            const pos = dbRoom.savedPositions.get(userId);
+            if (pos) {
+              const room = activePlayers.get(roomId);
+              if (room && room.has(ws.id)) {
+                const currentData = room.get(ws.id);
+                const updatedData = { ...currentData, x: pos.x, y: pos.y };
+                room.set(ws.id, updatedData);
+
+                // Broadcast the loaded position to others
+                ws.publish(`room-${roomId}`, {
+                  type: "player_moved",
+                  payload: updatedData,
+                });
+              }
+            }
           }
-        }
-      }).catch(err => console.error("Error loading initial position from DB:", err));
+        })
+        .catch((err) =>
+          console.error("Error loading initial position from DB:", err),
+        );
     }
 
     // Send whiteboard state if exists
     if (roomId !== "lobby") {
-      Whiteboard.findOne({ roomId }).then(wb => {
+      Whiteboard.findOne({ roomId }).then((wb) => {
         if (wb) {
           ws.send({
             type: "whiteboard_update",
             payload: {
               elements: wb.elements,
               appState: wb.appState,
-              files: wb.files
-            }
+              files: wb.files,
+            },
           });
         }
       });
@@ -262,13 +275,13 @@ app.ws("/ws", {
       if (rid && rid !== "lobby") {
         Whiteboard.findOneAndUpdate(
           { roomId: rid },
-          { 
+          {
             elements: payload.elements,
             appState: payload.appState,
-            files: payload.files
+            files: payload.files,
           },
-          { upsert: true, new: true }
-        ).catch(e => console.error("Error saving whiteboard:", e));
+          { upsert: true, new: true },
+        ).catch((e) => console.error("Error saving whiteboard:", e));
       }
     }
   },
@@ -280,18 +293,30 @@ app.ws("/ws", {
     const room = activePlayers.get(roomId);
     if (room) {
       const playerData = room.get(ws.id);
-      
+
       // Save position to DB asynchronously (only if moved from origin)
-      if (playerData && userId && roomId !== "lobby" && (playerData.x !== 0 || playerData.y !== 0)) {
-        Room.findOne({ code: roomId }).then(dbRoom => {
-          if (dbRoom) {
-            if (!dbRoom.savedPositions) {
-              dbRoom.savedPositions = new Map();
+      if (
+        playerData &&
+        userId &&
+        roomId !== "lobby" &&
+        (playerData.x !== 0 || playerData.y !== 0)
+      ) {
+        Room.findOne({ code: roomId })
+          .then((dbRoom) => {
+            if (dbRoom) {
+              if (!dbRoom.savedPositions) {
+                dbRoom.savedPositions = new Map();
+              }
+              dbRoom.savedPositions.set(userId, {
+                x: playerData.x,
+                y: playerData.y,
+              });
+              dbRoom
+                .save()
+                .catch((e) => console.error("Error saving position:", e));
             }
-            dbRoom.savedPositions.set(userId, { x: playerData.x, y: playerData.y });
-            dbRoom.save().catch(e => console.error("Error saving position:", e));
-          }
-        }).catch(console.error);
+          })
+          .catch(console.error);
       }
 
       room.delete(ws.id);

@@ -62,7 +62,7 @@ export function RoomManageModal({
   }, [room._id]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     fetchMembers();
   }, [fetchMembers]);
 
