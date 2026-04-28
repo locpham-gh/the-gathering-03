@@ -217,32 +217,35 @@ export const Player: React.FC<PlayerProps> = ({
         setIsSitting(true);
         sitOrigin.current = { x, y };
 
-        // Infer chair direction from GID (simplified mapping for WA_Seats)
-        // Row-based orientation in WA_Seats:
-        // GIDs 1375-1387 (Row 0): Facing Down (Front)
-        // GIDs 1388-1413 (Row 1-2): Facing Side (Left/Right)
-        // GIDs 1414-1439 (Row 3-4): Facing Up (Back)
+        // Better direction detection based on tileset layout
+        let sitDir: DirString = direction;
         
-        let sitDir: DirString = direction; // Default to current
+        // WA_Seats (1375-1557) usually follows a 4-row pattern:
+        // Front (Down), Back (Up), Left (Side-Left), Right (Side-Right)
         if (gid >= 1375 && gid <= 1557) {
           const localId = gid - 1375;
-          const row = Math.floor(localId / 13);
+          const rowInTileset = Math.floor(localId / 13);
+          const patternIdx = rowInTileset % 4;
           
-          // Refined WA_Seats mapping:
-          // Row 0: Facing Down
-          // Row 1: Facing Up
-          // Row 2: Facing Left
-          // Row 3: Facing Right
-          // (Patterns often repeat every 4 rows for different chair styles)
-          const dirPattern: DirString[] = ["down", "up", "left", "right"];
-          sitDir = dirPattern[row % 4] || direction;
+          if (patternIdx === 0) sitDir = "down";
+          else if (patternIdx === 1) sitDir = "up";
+          else if (patternIdx === 2) sitDir = "left";
+          else if (patternIdx === 3) sitDir = "right";
+        } else if (tilesetName.includes("couch") || tilesetName.includes("sofa")) {
+          // Couches often face front (down) or back (up)
+          sitDir = gid % 2 === 0 ? "down" : "up"; 
         }
+
         setDirection(sitDir);
 
         // Center the player on the tile and adjust Y for sitting depth
         setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
         setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL + 8); 
         foundChair = true;
+        
+        // Hide popup immediately
+        setNearbyChair(false);
+        setCurrentZone(null);
       }
     }
 
@@ -379,8 +382,10 @@ export const Player: React.FC<PlayerProps> = ({
       isNearbyChair = tName.includes("seat") || tName.includes("chair") || (tileNearby.gid >= 1375 && tileNearby.gid <= 1557);
     }
 
-    if (isNearbyChair !== nearbyChair) {
+    if (isNearbyChair !== nearbyChair && !isSitting) {
       setNearbyChair(isNearbyChair);
+    } else if (isSitting && nearbyChair) {
+      setNearbyChair(false);
     }
 
     // Combine real zones with synthetic seat zone

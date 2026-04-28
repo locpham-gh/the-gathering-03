@@ -225,11 +225,14 @@ export default function GamePage() {
         <NearbyChat 
           isOpen={isPhoneOpen}
           onClose={() => setIsPhoneOpen(false)}
-          user={user}
+          user={{ 
+            ...user, 
+            displayName: customDisplayName || user.displayName 
+          }} 
           roomId={roomId}
           players={players}
           localPosition={localPosition}
-          onSendMessage={(text) => sendChatMessage({ content: text, senderId: user.id, senderName: user.displayName, roomId })}
+          onSendMessage={(text, id) => sendChatMessage({ id, content: text, senderId: user.id, senderName: customDisplayName || user.displayName, roomId })}
         />
 
         <ZoneOverlay zone={currentZone} onPressE={handleInteract} />

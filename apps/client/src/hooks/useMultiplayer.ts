@@ -84,9 +84,6 @@ export function useMultiplayer(roomId?: string) {
           // Skip if this is the local player
           if (payload.userId === user.id) return;
 
-          // Skip if coordinates are 0 (prevents ghost NPC at top left)
-          if (payload.x === 0 && payload.y === 0) return;
-
           setPlayers((prev) => ({
             ...prev,
             [payload.id]: {
@@ -97,6 +94,7 @@ export function useMultiplayer(roomId?: string) {
               y: payload.y,
               direction: payload.direction,
               isSitting: payload.isSitting,
+              isPhoneOut: payload.isPhoneOut, // Sync phone state
               character: payload.character,
               lastUpdate: Date.now(),
               displayName: payload.displayName,
@@ -105,13 +103,18 @@ export function useMultiplayer(roomId?: string) {
           }));
         } else if (type === "initial_state") {
           // Filter out local player from initial state
-          const filteredPlayers: Record<string, RemotePlayer> = {};
-          Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
-            if (p.userId !== user.id && (p.x !== 0 || p.y !== 0)) {
-              filteredPlayers[id] = p;
-            }
+          setPlayers((prev) => {
+            const next = { ...prev };
+            Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
+              if (p.userId !== user.id) {
+                next[id] = {
+                  ...p,
+                  isPhoneOut: p.isPhoneOut // Ensure initial state has phone info
+                };
+              }
+            });
+            return next;
           });
-          setPlayers(filteredPlayers);
         } else if (type === "player_left") {
           setPlayers((prev) => {
             const next = { ...prev };
@@ -123,7 +126,7 @@ export function useMultiplayer(roomId?: string) {
         } else if (type === "chat_message") {
           window.dispatchEvent(new CustomEvent("chat-message", { detail: payload }));
           // Show chat bubble on matching remote player
-          const authorUserId = payload.authorId?._id || payload.authorId;
+          const authorUserId = payload.authorId?._id || payload.authorId || payload.senderId;
           if (authorUserId && typeof payload.content === "string") {
             setPlayers((prev) => {
               const updated = { ...prev };

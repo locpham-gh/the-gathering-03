@@ -16,7 +16,7 @@ interface NearbyChatProps {
   roomId?: string;
   players?: any;
   localPosition?: { x: number; y: number };
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, id: string) => void;
 }
 
 export const NearbyChat: React.FC<NearbyChatProps> = ({ 
@@ -32,40 +32,61 @@ export const NearbyChat: React.FC<NearbyChatProps> = ({
   const [messages, setMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // Use refs for values that change frequently to avoid re-binding the event listener constantly
+  const playersRef = useRef(players);
+  const localPosRef = useRef(localPosition);
+  
+  useEffect(() => {
+    playersRef.current = players;
+    localPosRef.current = localPosition;
+  }, [players, localPosition]);
+
   // Listen for chat events from the global system
   useEffect(() => {
     const handleGlobalChat = (e: any) => {
-      const { senderId, senderName, content, roomId: msgRoomId } = e.detail;
+      const payload = e.detail;
+      // Extract fields handling different payload structures (Nearby vs Global/Discord)
+      const content = payload.content || payload.text;
+      const senderId = payload.senderId || (payload.authorId?._id || payload.authorId);
+      const senderName = payload.senderName || payload.authorId?.displayName || "Unknown";
+      const msgRoomId = payload.roomId || payload.roomCode;
+      const msgId = payload.id || payload._id || Math.random().toString(36).substr(2, 9);
       
       // Only show messages if they belong to the current room
       if (roomId && msgRoomId !== roomId) return;
 
-      // SPATIAL CHAT LOGIC: Check distance if sender is someone else
-      if (senderId !== user?.id && players && localPosition) {
-        const sender = players[senderId];
-        if (sender) {
-          const dist = Math.sqrt(
-            Math.pow(sender.x - localPosition.x, 2) + 
-            Math.pow(sender.y - localPosition.y, 2)
-          );
-          // Only show if within 250 pixels
-          if (dist > 250) return;
-        }
-      }
+      // PREVENT DUPLICATES: Check if we already have this message ID
+      setMessages(prev => {
+        if (prev.some(m => m.id === msgId)) return prev;
 
-      const newMessage: Message = {
-        id: Math.random().toString(36).substr(2, 9),
-        senderId,
-        senderName,
-        text: content,
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev.slice(-49), newMessage]);
+        // SPATIAL CHAT LOGIC: Check distance if sender is someone else
+        if (senderId !== user?.id && playersRef.current && localPosRef.current) {
+          // Find player by userId since players is keyed by socket ID
+          const sender = Object.values(playersRef.current).find((p: any) => p.userId === senderId) as any;
+          if (sender) {
+            const dist = Math.sqrt(
+              Math.pow(sender.x - localPosRef.current.x, 2) + 
+              Math.pow(sender.y - localPosRef.current.y, 2)
+            );
+            // Only show if within 250 pixels
+            if (dist > 250) return prev;
+          }
+        }
+
+        const newMessage: Message = {
+          id: msgId,
+          senderId,
+          senderName,
+          text: content,
+          timestamp: Date.now()
+        };
+        return [...prev.slice(-49), newMessage];
+      });
     };
 
-    window.addEventListener("chat-message-received" as any, handleGlobalChat);
-    return () => window.removeEventListener("chat-message-received" as any, handleGlobalChat);
-  }, [user?.id, roomId]);
+    window.addEventListener("chat-message" as any, handleGlobalChat);
+    return () => window.removeEventListener("chat-message" as any, handleGlobalChat);
+  }, [user?.id, roomId]); // Removed players and localPosition from deps
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -79,7 +100,33 @@ export const NearbyChat: React.FC<NearbyChatProps> = ({
     e.preventDefault();
     if (!inputText.trim()) return;
     
-    onSendMessage(inputText);
+    // Create unique ID for this message to prevent duplicates
+    const msgId = "msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 5);
+
+    // Create local message object for immediate feedback
+    const localMsg: Message = {
+      id: msgId,
+      senderId: user.id,
+      senderName: user.displayName,
+      text: inputText,
+      timestamp: Date.now()
+    };
+    
+    // Add to list immediately
+    setMessages(prev => [...prev.slice(-49), localMsg]);
+    
+    // Dispatch event to show bubble above own character
+    window.dispatchEvent(new CustomEvent("send-chat-message", { 
+      detail: { 
+        id: msgId, // Include ID for duplicate prevention
+        content: inputText, 
+        senderId: user.id,
+        senderName: user.displayName,
+        roomId
+      } 
+    }));
+
+    onSendMessage(inputText, msgId);
     setInputText("");
   };
 
