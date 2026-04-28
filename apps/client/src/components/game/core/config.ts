@@ -2,7 +2,7 @@
 // MAP CONFIGURATION
 // ------------------------------------
 export const MAP_CONFIG = {
-  type: "classroom" as "office" | "classroom",
+  type: "office" as "office" | "classroom",
 };
 
 export const CHARACTER_CONFIG = {

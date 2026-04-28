@@ -19,7 +19,9 @@ export default function GamePage() {
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
   const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
   const [isCalling, setIsCalling] = useState(false);
-  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<string | null>(
+    null,
+  );
 
   const { players, updatePosition } = useMultiplayer(roomId);
 
@@ -100,12 +102,11 @@ export default function GamePage() {
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
-      
       {/* 1. Gather.town Style Sidebar */}
-      <RoomSidebar 
-        roomId={roomId} 
-        user={{ ...user, avatarUrl: user.avatarUrl || "" }} 
-        players={players} 
+      <RoomSidebar
+        roomId={roomId}
+        user={{ ...user, avatarUrl: user.avatarUrl || "" }}
+        players={players}
       />
 
       {/* 2. Main Game Viewport */}
@@ -139,7 +140,6 @@ export default function GamePage() {
             }}
           />
         )}
-
       </div>
 
       {!selectedCharacter && (

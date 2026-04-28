@@ -30,7 +30,7 @@ export const broadcastForumUpdate = () => {
   console.log("📢 Broadcasting forum update to global-forum...");
   const message = JSON.stringify({
     type: "forum_refresh",
-    payload: { timestamp: Date.now() }
+    payload: { timestamp: Date.now() },
   });
   app.server.publish("global-forum", message);
 };
@@ -40,7 +40,7 @@ export const broadcastNotification = (userId: string) => {
   console.log(`📢 Broadcasting notification to user-${userId}`);
   const message = JSON.stringify({
     type: "new_notification",
-    payload: { timestamp: Date.now() }
+    payload: { timestamp: Date.now() },
   });
   app.server.publish(`user-${userId}`, message);
 };
@@ -77,22 +77,24 @@ app.get(
 
 // 3. WebSocket Setup
 app.ws("/ws", {
-  query: t.Object({ 
+  query: t.Object({
     room: t.Optional(t.String()),
-    userId: t.Optional(t.String())
+    userId: t.Optional(t.String()),
   }),
   body: t.Object({ type: t.String(), payload: t.Any() }),
   open(ws: any) {
     const roomId = ws.data.query.room || "lobby";
     const userId = ws.data.query.userId;
-    
-    console.log(`📡 New connection in room ${roomId}: ${ws.id}${userId ? ` (User: ${userId})` : ""}`);
-    
+
+    console.log(
+      `📡 New connection in room ${roomId}: ${ws.id}${userId ? ` (User: ${userId})` : ""}`,
+    );
+
     if (roomId !== "lobby") {
       ws.subscribe(`room-${roomId}`);
     }
     ws.subscribe("global-forum");
-    
+
     if (userId) {
       ws.subscribe(`user-${userId}`);
     }
@@ -110,7 +112,8 @@ app.ws("/ws", {
       });
     }
 
-    const playersInRoom = roomId !== "lobby" ? Object.fromEntries(activePlayers.get(roomId)!) : {};
+    const playersInRoom =
+      roomId !== "lobby" ? Object.fromEntries(activePlayers.get(roomId)!) : {};
     ws.send({
       type: "initial_state",
       payload: { players: playersInRoom },

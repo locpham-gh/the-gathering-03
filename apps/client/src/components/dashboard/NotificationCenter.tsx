@@ -25,6 +25,30 @@ interface User {
   displayName: string;
 }
 
+const NotificationAvatar = ({ src, name }: { src?: string; name: string }) => {
+  const [error, setError] = useState(false);
+  const initials = name.charAt(0).toUpperCase();
+
+  if (!src || error) {
+    return (
+      <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold border border-slate-100 shrink-0 text-sm">
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
+      onError={() => setError(true)}
+      className="w-10 h-10 rounded-full object-cover border border-slate-100 shrink-0"
+      alt={name}
+    />
+  );
+};
+
 export function NotificationCenter({ user }: { user: User }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -36,7 +60,9 @@ export function NotificationCenter({ user }: { user: User }) {
       const res = await notificationsApi.getNotifications();
       if (res.success) {
         setNotifications(res.notifications);
-        const count = res.notifications.filter((n: Notification) => !n.isRead).length;
+        const count = res.notifications.filter(
+          (n: Notification) => !n.isRead,
+        ).length;
         setUnreadCount(count);
       }
     } catch (err) {
@@ -54,7 +80,7 @@ export function NotificationCenter({ user }: { user: User }) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const host = apiUrl.replace(/^https?:\/\//, "");
-    
+
     // Connect with userId to subscribe to personal room
     const ws = new WebSocket(`${protocol}//${host}/ws?userId=${user.id}`);
 
@@ -65,12 +91,17 @@ export function NotificationCenter({ user }: { user: User }) {
           loadNotifications();
           // Optional: Play a subtle sound?
         }
-      } catch { /* Ignore */ }
+      } catch {
+        /* Ignore */
+      }
     };
 
     // Close on click outside
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
         setIsOpen(false);
       }
     };
@@ -86,15 +117,19 @@ export function NotificationCenter({ user }: { user: User }) {
   const handleMarkAsRead = async (id: string) => {
     try {
       await notificationsApi.markAsRead(id);
-      setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch (err) {
       console.error(err);
     }
   };
 
   const timeAgo = (dateStr: string) => {
-    const min = Math.floor((new Date().getTime() - new Date(dateStr).getTime()) / 60000);
+    const min = Math.floor(
+      (new Date().getTime() - new Date(dateStr).getTime()) / 60000,
+    );
     if (min < 1) return "now";
     if (min < 60) return `${min}m`;
     const hrs = Math.floor(min / 60);
@@ -120,7 +155,9 @@ export function NotificationCenter({ user }: { user: User }) {
         <div className="absolute right-0 mt-3 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
             <h4 className="font-bold text-slate-800">Notifications</h4>
-            <span className="text-xs text-slate-400 font-medium">{unreadCount} new</span>
+            <span className="text-xs text-slate-400 font-medium">
+              {unreadCount} new
+            </span>
           </div>
 
           <div className="max-h-[400px] overflow-y-auto">
@@ -138,25 +175,36 @@ export function NotificationCenter({ user }: { user: User }) {
                   }`}
                 >
                   <div className="relative shrink-0">
-                    <img
+                    <NotificationAvatar
                       src={n.sender.avatarUrl}
-                      className="w-10 h-10 rounded-full object-cover border border-slate-100"
-                      alt="Avatar"
+                      name={n.sender.displayName}
                     />
-                    <div className={`absolute -bottom-1 -right-1 p-1 rounded-full text-white ${
-                      (n.type === 'like' || n.type === 'reply_like') ? 'bg-red-500' : 'bg-teal-500'
-                    }`}>
-                      {(n.type === 'like' || n.type === 'reply_like') ? <Heart size={10} className="fill-current" /> : <MessageCircle size={10} />}
+                    <div
+                      className={`absolute -bottom-1 -right-1 p-1 rounded-full text-white ${
+                        n.type === "like" || n.type === "reply_like"
+                          ? "bg-red-500"
+                          : "bg-teal-500"
+                      }`}
+                    >
+                      {n.type === "like" || n.type === "reply_like" ? (
+                        <Heart size={10} className="fill-current" />
+                      ) : (
+                        <MessageCircle size={10} />
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-800 leading-snug">
-                      <span className="font-bold">{n.sender.displayName}</span>
-                      {" "}
-                      {n.type === 'like' ? 'liked your post' : 
-                       n.type === 'reply_like' ? 'liked your comment' : 'replied to you'}
+                      <span className="font-bold">{n.sender.displayName}</span>{" "}
+                      {n.type === "like"
+                        ? "liked your post"
+                        : n.type === "reply_like"
+                          ? "liked your comment"
+                          : "replied to you"}
                       {": "}
-                      <span className="text-slate-500 italic">"{n.topicId.title}"</span>
+                      <span className="text-slate-500 italic">
+                        "{n.topicId.title}"
+                      </span>
                     </p>
                     <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">
                       {timeAgo(n.createdAt)}
@@ -169,7 +217,7 @@ export function NotificationCenter({ user }: { user: User }) {
               ))
             )}
           </div>
-          
+
           <div className="p-3 bg-slate-50/50 border-t border-slate-50 text-center">
             <button className="text-[11px] font-bold text-slate-400 hover:text-teal-600 uppercase tracking-widest transition-colors">
               View All

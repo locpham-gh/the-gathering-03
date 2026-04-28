@@ -52,6 +52,42 @@ interface User {
   displayName: string;
 }
 
+const UserAvatar = ({ 
+  src, 
+  name, 
+  size = "12",
+  className = "" 
+}: { 
+  src?: string; 
+  name?: string; 
+  size?: string;
+  className?: string;
+}) => {
+  const [error, setError] = useState(false);
+  const initials = (name || "?").charAt(0).toUpperCase();
+  
+  const sizeClass = size === "10" ? "w-10 h-10 text-sm" : "w-12 h-12 text-lg";
+
+  if (!src || error) {
+    return (
+      <div className={`${sizeClass} ${className} rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold border-2 border-white shadow-sm shrink-0`}>
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
+      onError={() => setError(true)}
+      className={`${sizeClass} ${className} rounded-full object-cover border-2 border-white shadow-sm shrink-0 bg-slate-100`}
+      alt={name}
+    />
+  );
+};
+
 // --- Sub-Components ---
 
 /**
@@ -76,14 +112,11 @@ const ForumComposer = ({
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8 transition-all focus-within:ring-2 focus-within:ring-teal-500/10">
       <div className="flex gap-4">
-        <img
-          src={user.avatarUrl}
-          referrerPolicy="no-referrer"
-          className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-slate-50 shadow-sm"
-          alt="User Avatar"
-        />
+        <UserAvatar src={user.avatarUrl} name={user.displayName} />
         <form onSubmit={handleSubmit} className="flex-1">
           <textarea
+            id="forum-composer-content"
+            name="content"
             value={content}
             onChange={(e) => {
               setContent(e.target.value);
@@ -133,14 +166,10 @@ const ReplyItem = ({
     )}
 
     <div className="shrink-0 z-10">
-      <img
-        src={
-          reply.authorId?.avatarUrl ||
-          "https://api.dicebear.com/8.x/notionists/svg?seed=fallback"
-        }
-        referrerPolicy="no-referrer"
-        className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover bg-slate-200"
-        alt="Reply Author"
+      <UserAvatar 
+        src={reply.authorId?.avatarUrl} 
+        name={reply.authorId?.displayName} 
+        size="10" 
       />
     </div>
     <div className="flex-1 min-w-0">
@@ -187,7 +216,9 @@ const ReplyItem = ({
         >
           <Heart
             size={12}
-            className={reply.likes?.includes(currentUserId) ? "fill-current" : ""}
+            className={
+              reply.likes?.includes(currentUserId) ? "fill-current" : ""
+            }
           />
           {reply.likes?.length > 0 && <span>{reply.likes.length}</span>}
         </button>
@@ -216,11 +247,7 @@ const ReplyForm = ({
 }) => (
   <div className="p-6 bg-slate-50/80 border-t border-slate-100">
     <div className="flex gap-4">
-      <img
-        src={user.avatarUrl}
-        className="w-10 h-10 rounded-full border-2 border-white shadow-sm object-cover"
-        alt="User Avatar"
-      />
+      <UserAvatar src={user.avatarUrl} name={user.displayName} size="10" />
       <form onSubmit={onSubmit} className="flex-1">
         {replyToUser && (
           <div className="flex items-center gap-2 mb-2 animate-in fade-in slide-in-from-left-2">
@@ -238,6 +265,8 @@ const ReplyForm = ({
         )}
         <div className="flex gap-2">
           <input
+            id={`reply-input-${replyToUser?.id || 'general'}`}
+            name="reply-content"
             autoFocus
             value={content}
             onChange={(e) => onContentChange(e.target.value)}
@@ -432,10 +461,9 @@ export function CommunityForum({ user }: { user: User }) {
             >
               <div className="p-6">
                 <div className="flex gap-4">
-                  <img
-                    src={topic.authorId.avatarUrl}
-                    className="w-12 h-12 rounded-full border-2 border-white shadow-sm"
-                    alt="Author"
+                  <UserAvatar 
+                    src={topic.authorId.avatarUrl} 
+                    name={topic.authorId.displayName} 
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -508,7 +536,9 @@ export function CommunityForum({ user }: { user: User }) {
                             topicId: topic._id,
                           });
                         }}
-                        onToggleLike={() => handleToggleLikeReply(topic._id, reply._id)}
+                        onToggleLike={() =>
+                          handleToggleLikeReply(topic._id, reply._id)
+                        }
                       />
                     ))}
                   </div>

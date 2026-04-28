@@ -26,6 +26,19 @@ export const getAllTopics = async () => {
     }
 };
 
+const populateTopic = async (topicId: string | mongoose.Types.ObjectId) => {
+    return await ForumTopic.findById(topicId)
+        .populate('authorId', 'displayName avatarUrl')
+        .populate({
+            path: 'replies.authorId',
+            select: 'displayName avatarUrl'
+        })
+        .populate({
+            path: 'replies.replyTo',
+            select: 'displayName'
+        });
+};
+
 export const createTopic = async (title: string, authorId: string) => {
     try {
         const topic = new ForumTopic({
@@ -34,7 +47,7 @@ export const createTopic = async (title: string, authorId: string) => {
             replies: []
         });
         await topic.save();
-        return topic;
+        return await populateTopic(topic._id);
     } catch (error) {
         console.error("Error creating topic:", error);
         throw new Error("Failed to create topic");
@@ -81,7 +94,7 @@ export const addReply = async (topicId: string, content: string, authorId: strin
             broadcastNotification(recipientId.toString());
         }
 
-        return topic;
+        return await populateTopic(topic._id);
     } catch (error) {
         console.error("Error adding reply:", error);
         throw new Error("Failed to add reply");
@@ -146,7 +159,7 @@ export const toggleLikeTopic = async (topicId: string, userId: string) => {
         }
 
         await topic.save();
-        return topic;
+        return await populateTopic(topic._id);
     } catch (error) {
         console.error("Error toggling like:", error);
         throw new Error("Failed to toggle like");
@@ -193,7 +206,7 @@ export const toggleLikeReply = async (topicId: string, replyId: string, userId: 
         }
 
         await topic.save();
-        return topic;
+        return await populateTopic(topic._id);
     } catch (error) {
         console.error("Error toggling reply like:", error);
         throw new Error("Failed to toggle reply like");
@@ -214,7 +227,7 @@ export const deleteReply = async (topicId: string, replyId: string, userId: stri
 
         topic.replies.splice(replyIndex, 1);
         await topic.save();
-        return topic;
+        return await populateTopic(topic._id);
     } catch (error) {
         console.error("Error deleting reply:", error);
         throw new Error("Failed to delete reply");
