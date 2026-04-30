@@ -10,8 +10,7 @@ This document lists all functional requirements currently in the The Gathering c
 
 ## 2. Actors
 
-- Guest: Unauthenticated user.
-- Authenticated User: User who has logged in via Google or OTP.
+- User: Authenticated user who has logged in via Google or OTP.
 - Room Owner: User who owns a room.
 - Admin: User with administrative privileges (User/Room/Forum management).
 - Event Host: User who creates an event (can be the same as the Room Owner).
@@ -70,6 +69,9 @@ This document lists all functional requirements currently in the The Gathering c
 | FR-47 | The system must persist player X and Y coordinates across sessions for every room. | Must | Implemented |
 | FR-48 | The system must provide a scalable Admin Dashboard supporting pagination for large data sets. | Must | Implemented |
 | FR-49 | The system must ensure correct player orientation (sitting direction) based on the specific chair design in the map. | Must | Implemented |
+| FR-50 | The system must use a custom Web Audio API engine for spatial audio with exponential decay and stereo panning. | Must | Implemented |
+| FR-51 | The system must implement a Glassmorphic design for the bottom control bar and game overlays. | Should | Implemented |
+| FR-52 | The system must render remote participants' video tracks as a floating overlay above their avatars on the game canvas. | Must | Implemented |
 
 ## 4. Out of Scope (Current Version)
 
