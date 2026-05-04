@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 
 declare global {
@@ -27,6 +27,26 @@ let isGoogleInitialized = false;
 export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true }) => {
   const { user, login } = useAuth();
   const btnRef = useRef<HTMLDivElement>(null);
+  const [isPopupBlocked, setIsPopupBlocked] = useState(false);
+
+  useEffect(() => {
+    // Intercept console.error to detect Google's popup blocker warning
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      if (
+        args[0] &&
+        typeof args[0] === "string" &&
+        args[0].includes("Failed to open popup window")
+      ) {
+        setIsPopupBlocked(true);
+      }
+      originalConsoleError.apply(console, args);
+    };
+
+    return () => {
+      console.error = originalConsoleError;
+    };
+  }, []);
 
   useEffect(() => {
     if (user) return; // Skip if already authenticated
@@ -85,5 +105,14 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
     }
   }, [login, showPrompt, user]);
 
-  return <div ref={btnRef} className="flex justify-center min-h-[40px]"></div>;
+  return (
+    <div className="flex flex-col items-center gap-3">
+      <div ref={btnRef} className="flex justify-center min-h-[40px]"></div>
+      {isPopupBlocked && (
+        <div className="text-xs text-rose-500 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100 max-w-sm text-center animate-in zoom-in duration-300">
+          ⚠️ Trình duyệt đang chặn cửa sổ đăng nhập. Vui lòng cho phép <b>Popup</b> trên thanh địa chỉ hoặc tắt <b>Chặn theo dõi (Tracking Prevention)</b> để tiếp tục!
+        </div>
+      )}
+    </div>
+  );
 };
