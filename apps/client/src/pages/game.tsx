@@ -93,8 +93,10 @@ export default function GamePage() {
     const handleRemoteClose = () => {
       if (!isWhiteboardLeader) setActiveZone(null);
     };
+
     window.addEventListener("whiteboard-open", handleRemoteOpen);
     window.addEventListener("whiteboard-close", handleRemoteClose);
+
     return () => {
       window.removeEventListener("whiteboard-open", handleRemoteOpen);
       window.removeEventListener("whiteboard-close", handleRemoteClose);

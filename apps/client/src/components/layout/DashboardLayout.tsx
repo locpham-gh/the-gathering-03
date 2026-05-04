@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { NotificationCenter } from "../dashboard/NotificationCenter";
 import { QuickCreateRoomModal } from "../dashboard/rooms/QuickCreateRoomModal";
+import { AdminModal } from "../admin/AdminModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ interface DashboardLayoutProps {
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [isAdminOpen, setIsAdminOpen] = React.useState(false);
 
   const menuItems = [
     { name: "Overview", path: "/home", icon: <Home size={20} /> },
@@ -30,10 +32,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     { name: "Community", path: "/home/forum", icon: <MessageCircle size={20} /> },
     { name: "Profile", path: "/home/profile", icon: <Settings size={20} /> },
   ];
-
-  if (user?.role === "admin") {
-    menuItems.push({ name: "Admin", path: "/admin", icon: <Shield size={20} /> });
-  }
 
   const [isQuickCreateOpen, setIsQuickCreateOpen] = React.useState(false);
 
@@ -45,6 +43,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         isOpen={isQuickCreateOpen} 
         onClose={() => setIsQuickCreateOpen(false)} 
         userDisplayName={user.displayName}
+      />
+
+      <AdminModal 
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
       />
       
       {/* Sidebar */}
@@ -76,6 +79,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 </Link>
               );
             })}
+
+            {/* Admin Toggle Button */}
+            {user.role === "admin" && (
+                <button
+                  onClick={() => setIsAdminOpen(true)}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 group text-indigo-500 hover:bg-indigo-50 font-medium mt-4 border border-indigo-100"
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield size={20} />
+                    <span>Admin Panel</span>
+                  </div>
+                </button>
+            )}
           </nav>
         </div>
 
