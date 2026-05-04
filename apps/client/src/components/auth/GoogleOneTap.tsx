@@ -24,7 +24,9 @@ interface GoogleOneTapProps {
 
 let isGoogleInitialized = false;
 
-export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true }) => {
+export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({
+  showPrompt = true,
+}) => {
   const { user, login } = useAuth();
   const btnRef = useRef<HTMLDivElement>(null);
   const [isPopupBlocked, setIsPopupBlocked] = useState(false);
@@ -60,7 +62,8 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID",
           callback: async (response: { credential: string }) => {
             try {
-              const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+              const apiUrl =
+                import.meta.env.VITE_API_URL || "http://localhost:3000";
               const res = await fetch(`${apiUrl}/api/auth/google`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -98,7 +101,9 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
     if (window.google) {
       startAuth();
     } else {
-      const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      const script = document.querySelector(
+        'script[src="https://accounts.google.com/gsi/client"]',
+      );
       if (script) {
         script.addEventListener("load", startAuth);
       }
@@ -110,7 +115,8 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({ showPrompt = true })
       <div ref={btnRef} className="flex justify-center min-h-[40px]"></div>
       {isPopupBlocked && (
         <div className="text-xs text-rose-500 bg-rose-50 px-3 py-2 rounded-lg border border-rose-100 max-w-sm text-center animate-in zoom-in duration-300">
-          ⚠️ Trình duyệt đang chặn cửa sổ đăng nhập. Vui lòng cho phép <b>Popup</b> trên thanh địa chỉ hoặc tắt <b>Chặn theo dõi (Tracking Prevention)</b> để tiếp tục!
+          ⚠️ Trình duyệt đang chặn cửa sổ đăng nhập. Vui lòng tắt{" "}
+          <b>AdGuard / Adblock</b> hoặc cho phép <b>Popup</b> để tiếp tục!
         </div>
       )}
     </div>
