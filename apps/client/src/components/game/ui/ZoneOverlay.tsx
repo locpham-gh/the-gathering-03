@@ -8,19 +8,31 @@ interface ZoneOverlayProps {
 export function ZoneOverlay({ zone, onPressE }: ZoneOverlayProps) {
   if (!zone) return null;
 
+  const isSeat = zone.id === "seat";
+
   return (
     <div
       className="absolute top-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none"
       onClick={onPressE}
     >
-      <div className="bg-slate-900 border-2 border-teal-500 shadow-[0_0_40px_-5px_rgba(20,184,166,0.3)] px-6 py-4 rounded-2xl flex items-center gap-4 animate-bounce">
-        <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center text-teal-400">
-          <span className="text-2xl font-black">⌨️</span>
+      <div className={`${
+        isSeat 
+          ? "bg-slate-900/90 border-amber-400 shadow-[0_0_30px_-5px_rgba(251,191,36,0.3)]" 
+          : "bg-slate-900 border-teal-500 shadow-[0_0_40px_-5px_rgba(20,184,166,0.3)]"
+      } border-2 px-6 py-3 rounded-2xl flex items-center gap-4 animate-bounce backdrop-blur-sm`}>
+        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+          isSeat ? "bg-amber-500/20 text-amber-400" : "bg-teal-500/20 text-teal-400"
+        }`}>
+          <span className="text-xl">{isSeat ? "🪑" : "⌨️"}</span>
         </div>
-        <div className="text-center">
-          <p className="text-white font-bold text-lg mb-0.5">{zone.label}</p>
-          <p className="text-teal-400 font-medium text-sm">
-            Press <kbd className="px-2 py-1 bg-teal-500/20 rounded-md text-xs font-mono font-black border border-teal-500/30">E</kbd> to enter
+        <div>
+          <p className="text-white font-bold text-base mb-0.5">{zone.label}</p>
+          <p className={`font-medium text-sm ${isSeat ? "text-amber-400" : "text-teal-400"}`}>
+            Press <kbd className={`px-2 py-0.5 rounded-md text-xs font-mono font-black border ${
+              isSeat 
+                ? "bg-amber-500/20 border-amber-500/30" 
+                : "bg-teal-500/20 border-teal-500/30"
+            }`}>E</kbd> to {isSeat ? "sit" : "enter"}
           </p>
         </div>
       </div>

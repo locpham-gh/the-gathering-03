@@ -43,7 +43,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
 
   const fetchMembers = useCallback(() => {

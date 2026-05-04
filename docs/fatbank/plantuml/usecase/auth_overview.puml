@@ -1,4 +1,4 @@
-@startuml
+@startuml AuthOverview
 skinparam actorStyle stickman
 
 actor "User" as U

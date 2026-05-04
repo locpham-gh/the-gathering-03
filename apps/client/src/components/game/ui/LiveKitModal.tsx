@@ -3,13 +3,16 @@ import {
   LiveKitRoom,
   ControlBar,
   useTracks,
-  ParticipantTile,
+  useLocalParticipant,
   useRemoteParticipants
 } from "@livekit/components-react";
 import { Track, Participant } from "livekit-client";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { Zone } from "../core/zones";
 import { Lock } from "lucide-react";
+
+// Proximity radius in game pixels — cameras only show within this range
+const CAMERA_PROXIMITY = 300;
 
 interface LiveKitModalProps {
   token: string;
@@ -39,7 +42,7 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
         onDisconnected={onDisconnect}
         style={{ width: "100%", display: "flex", justifyContent: "center" }}
       >
-        <CustomVideoGrid currentZone={currentZone} />
+        <CustomVideoGrid currentZone={currentZone} players={players} localPosition={localPosition} />
         <SpatialAudioRenderer 
           players={players} 
           localPosition={localPosition} 
@@ -50,7 +53,11 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
   );
 };
 
-const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }) => {
+const CustomVideoGrid: React.FC<{
+  currentZone: Zone | null;
+  players: Record<string, RemotePlayer>;
+  localPosition: { x: number; y: number };
+}> = ({ currentZone, players, localPosition }) => {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -58,6 +65,25 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
     ],
     { onlySubscribed: false },
   );
+  const { localParticipant } = useLocalParticipant();
+
+  // Filter tracks: own camera always visible, remote cameras only within proximity
+  const visibleTracks = tracks.filter((track) => {
+    // Always show own camera tile (self-view)
+    if (track.participant.identity === localParticipant?.identity) return true;
+    // For screen share, always show
+    if (track.source === Track.Source.ScreenShare) return true;
+    // For remote tiles: only show if they are within proximity range
+    const remotePlayer = Object.values(players).find(
+      (rp) => rp.userId === track.participant.identity || rp.id === track.participant.identity
+    );
+    if (!remotePlayer) return false;
+    const dist = Math.sqrt(
+      Math.pow(remotePlayer.x - localPosition.x, 2) +
+      Math.pow(remotePlayer.y - localPosition.y, 2)
+    );
+    return dist <= CAMERA_PROXIMITY;
+  });
 
   return (
     <div className="flex flex-col items-center gap-3 pointer-events-auto transition-all">
@@ -67,40 +93,82 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
            <span>Isolated Audio: {currentZone.label}</span>
         </div>
       )}
-      {/* Horizontal Camera Array (Floating independently) */}
+
+      {/* Camera grid — own tile always visible, remote tiles proximity-gated */}
       <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-        {tracks.map((track) => {
+
+        {visibleTracks.map((track) => {
           const isScreenShare = track.source === Track.Source.ScreenShare;
+          // Find display name from remote players list
+          const remotePlayer = Object.values(players).find(
+            (rp) => rp.userId === track.participant.identity || rp.id === track.participant.identity
+          );
+          const displayName = remotePlayer?.displayName || track.participant.name || "";
           return (
-            <div 
-              key={`${track.participant.identity}-${track.source}`} 
+            <div
+              key={`${track.participant.identity}-${track.source}`}
               className={`${
-                isScreenShare 
-                  ? "w-[480px] h-[360px] md:w-[640px] md:h-[480px] border-indigo-500 shadow-indigo-500/20" 
+                isScreenShare
+                  ? "w-[480px] h-[360px] md:w-[640px] md:h-[480px] border-indigo-500 shadow-indigo-500/20"
                   : "w-[160px] h-[120px] md:w-[200px] md:h-[150px] border-white"
-              } rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 bg-slate-100 shrink-0 relative transition-all duration-500`}
+              } rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 bg-slate-100 shrink-0 relative transition-all duration-300`}
             >
-               <ParticipantTile trackRef={track} />
+              <VideoTile
+                track={track}
+                isMuted={track.participant.identity === localParticipant?.identity}
+              />
+              {displayName && (
+                <div className="absolute bottom-1 left-0 right-0 text-center">
+                  <span className="text-white text-xs font-medium bg-black/50 px-2 py-0.5 rounded-full">
+                    {displayName}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      
+
       {/* Control Bar - Floating Pill */}
       <div className="flex justify-center bg-white/95 backdrop-blur-xl px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
-         <ControlBar 
-           variation="minimal" 
-           controls={{ 
-             chat: false, 
-             leave: false, 
+         <ControlBar
+           variation="minimal"
+           controls={{
+             chat: false,
+             leave: false,
              screenShare: currentZone?.id === "presentation" || currentZone?.id === "conference"
-           }} 
-           style={{ background: 'transparent', boxShadow: 'none', padding: 0, minHeight: 'auto' }} 
+           }}
+           style={{ background: 'transparent', boxShadow: 'none', padding: 0, minHeight: 'auto' }}
          />
       </div>
     </div>
   );
 };
+
+/** Dedicated video tile — attaches track via useEffect for instant display */
+const VideoTile: React.FC<{ track: any; isMuted: boolean }> = ({ track, isMuted }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    const el = videoRef.current;
+    const mediaTrack = track.publication?.track;
+    if (el && mediaTrack) {
+      mediaTrack.attach(el);
+      return () => { mediaTrack.detach(el); };
+    }
+  }, [track.publication?.track]);
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      muted={isMuted}
+      playsInline
+      className="w-full h-full object-cover"
+    />
+  );
+};
+
 
 const SpatialAudioRenderer: React.FC<{
   players: Record<string, RemotePlayer>;
