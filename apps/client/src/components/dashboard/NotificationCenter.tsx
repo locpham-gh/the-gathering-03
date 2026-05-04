@@ -176,8 +176,8 @@ export function NotificationCenter({ user }: { user: User }) {
                 >
                   <div className="relative shrink-0">
                     <NotificationAvatar
-                      src={n.sender.avatarUrl}
-                      name={n.sender.displayName}
+                      src={n.sender?.avatarUrl}
+                      name={n.sender?.displayName || "Unknown"}
                     />
                     <div
                       className={`absolute -bottom-1 -right-1 p-1 rounded-full text-white ${
@@ -195,7 +195,7 @@ export function NotificationCenter({ user }: { user: User }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-800 leading-snug">
-                      <span className="font-bold">{n.sender.displayName}</span>{" "}
+                      <span className="font-bold">{n.sender?.displayName || "Someone"}</span>{" "}
                       {n.type === "like"
                         ? "liked your post"
                         : n.type === "reply_like"
@@ -203,7 +203,7 @@ export function NotificationCenter({ user }: { user: User }) {
                           : "replied to you"}
                       {": "}
                       <span className="text-slate-500 italic">
-                        "{n.topicId.title}"
+                        "{n.topicId?.title || 'Deleted Topic'}"
                       </span>
                     </p>
                     <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">

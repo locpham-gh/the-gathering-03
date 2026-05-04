@@ -8,7 +8,8 @@ import {
   Loader2,
   X,
   Image as ImageIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Upload
 } from "lucide-react";
 import { apiFetch } from "../../lib/api";
 import type { Resource } from "../game/library/types";
@@ -28,6 +29,45 @@ export const LibraryManager: React.FC = () => {
     thumbnailUrl: "",
     tags: ""
   });
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [uploadingThumb, setUploadingThumb] = useState(false);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'fileUrl' | 'thumbnailUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (type === 'fileUrl') setUploadingFile(true);
+    if (type === 'thumbnailUrl') setUploadingThumb(true);
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("file", file);
+
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/admin/upload`, {
+        method: "POST",
+        headers: {
+          ...(token ? { "Authorization": `Bearer ${token}` } : {})
+        },
+        body: formDataUpload
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setFormData(prev => ({ ...prev, [type]: data.url }));
+      } else {
+        alert("Upload failed: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Upload error. Please try again.");
+    } finally {
+      if (type === 'fileUrl') setUploadingFile(false);
+      if (type === 'thumbnailUrl') setUploadingThumb(false);
+      // Reset input
+      e.target.value = '';
+    }
+  };
 
   const fetchResources = useCallback(async () => {
     try {
@@ -154,30 +194,44 @@ export const LibraryManager: React.FC = () => {
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <LinkIcon size={12} /> Source URL
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
+                    <span className="flex items-center gap-2"><LinkIcon size={12} /> Source URL or Upload File</span>
+                    {uploadingFile && <Loader2 size={12} className="animate-spin text-indigo-500" />}
                 </label>
-                <input 
-                  type="url" 
-                  required
-                  placeholder="https://example.com/resource"
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold"
-                  value={formData.fileUrl}
-                  onChange={e => setFormData({...formData, fileUrl: e.target.value})}
-                />
+                <div className="flex gap-2">
+                  <input 
+                    type="url" 
+                    required
+                    placeholder="https://example.com/resource or upload..."
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold"
+                    value={formData.fileUrl}
+                    onChange={e => setFormData({...formData, fileUrl: e.target.value})}
+                  />
+                  <label className="flex-shrink-0 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-4 rounded-2xl transition-all flex items-center justify-center">
+                    <input type="file" className="hidden" onChange={e => handleFileUpload(e, 'fileUrl')} />
+                    <Upload size={20} />
+                  </label>
+                </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                    <ImageIcon size={12} /> Thumbnail Image URL
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
+                    <span className="flex items-center gap-2"><ImageIcon size={12} /> Thumbnail Image URL</span>
+                    {uploadingThumb && <Loader2 size={12} className="animate-spin text-indigo-500" />}
                 </label>
-                <input 
-                  type="url" 
-                  required
-                  placeholder="https://unsplash.com/..."
-                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold"
-                  value={formData.thumbnailUrl}
-                  onChange={e => setFormData({...formData, thumbnailUrl: e.target.value})}
-                />
+                <div className="flex gap-2">
+                  <input 
+                    type="url" 
+                    required
+                    placeholder="https://unsplash.com/... or upload..."
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-50 focus:border-indigo-500 transition-all font-bold"
+                    value={formData.thumbnailUrl}
+                    onChange={e => setFormData({...formData, thumbnailUrl: e.target.value})}
+                  />
+                  <label className="flex-shrink-0 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-4 rounded-2xl transition-all flex items-center justify-center">
+                    <input type="file" accept="image/*" className="hidden" onChange={e => handleFileUpload(e, 'thumbnailUrl')} />
+                    <Upload size={20} />
+                  </label>
+                </div>
               </div>
               {formData.thumbnailUrl && (
                 <div className="w-full h-40 rounded-2xl overflow-hidden border border-slate-100 shadow-sm">

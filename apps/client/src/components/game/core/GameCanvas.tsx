@@ -72,19 +72,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative" style={{ isolation: "isolate", transform: "translateZ(0)" }}>
       <Stage
         key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
         width={screenW}
         height={screenH}
         options={{
           backgroundColor: 0xf8fafc,
+          backgroundAlpha: 1,
           antialias: false,
           hello: false,
           resolution: window.devicePixelRatio || 1,
           autoDensity: true,
+          clearBeforeRender: true,
+          preserveDrawingBuffer: false,
         }}
-        style={{ imageRendering: "pixelated", outline: "none", border: "none" }}
+        style={{ 
+          imageRendering: "pixelated", 
+          outline: "none", 
+          border: "none", 
+          position: "absolute", 
+          inset: 0, 
+          zIndex: 0, 
+          transform: "translateZ(0)",
+          willChange: "transform"
+        }}
       >
         <Container ref={worldRef}>
           <MapRender mapData={mapData} />

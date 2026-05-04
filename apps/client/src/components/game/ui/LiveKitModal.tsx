@@ -37,9 +37,13 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
         token={token}
         serverUrl={serverUrl}
         onDisconnected={onDisconnect}
-        style={{ width: "100%", display: "flex", justifyContent: "center" }}
+        style={{ width: "100%", display: "flex", justifyContent: "center", transform: "translateZ(0)", willChange: "transform" }}
       >
-        <CustomVideoGrid currentZone={currentZone} />
+        <CustomVideoGrid 
+          currentZone={currentZone} 
+          players={players} 
+          localPosition={localPosition} 
+        />
         <SpatialAudioRenderer 
           players={players} 
           localPosition={localPosition} 
@@ -50,7 +54,11 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
   );
 };
 
-const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }) => {
+const CustomVideoGrid: React.FC<{ 
+  currentZone: Zone | null;
+  players: Record<string, RemotePlayer>;
+  localPosition: { x: number; y: number };
+}> = ({ currentZone, players, localPosition }) => {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -59,17 +67,71 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
     { onlySubscribed: false },
   );
 
+  const isAvZone = currentZone && currentZone.id !== "library";
+
+  // Filter tracks based on proximity or zone
+  const visibleTracks = tracks.filter((track) => {
+    // Always show screen shares
+    if (track.source === Track.Source.ScreenShare) return true;
+
+    // Find remote player matching the track
+    const remotePlayer = Object.values(players).find(
+      (rp) => rp.userId === track.participant.identity || rp.id === track.participant.identity
+    );
+
+    // If it's a local participant, we decide if we show our own camera
+    if (track.participant.isLocal) {
+      // We'll show local camera if there is ANY remote player nearby or in the same zone
+      // Or if we are in a zone
+      return true; // Usually people want to see themselves if they have camera on
+    }
+
+    if (remotePlayer) {
+      if (isAvZone) {
+        // If in a zone, show people in the same zone
+        const rx = remotePlayer.x;
+        const ry = remotePlayer.y;
+        if (
+          rx >= currentZone!.x &&
+          rx <= currentZone!.x + currentZone!.width &&
+          ry >= currentZone!.y &&
+          ry <= currentZone!.y + currentZone!.height
+        ) {
+          return true;
+        }
+      } else {
+        // Not in a zone, check distance
+        const dist = Math.sqrt(
+          Math.pow(remotePlayer.x - localPosition.x, 2) + Math.pow(remotePlayer.y - localPosition.y, 2)
+        );
+        return dist < 400;
+      }
+    }
+    
+    return false;
+  });
+
+  // If no one else is visible (and we are not screen sharing), maybe we don't need to show the UI
+  // But we still need the control bar. Let's just render the visible tracks.
+  const hasVisiblePeers = visibleTracks.some(t => !t.participant.isLocal);
+
+  // If we are not near anyone and not in a zone, we might want to hide the whole grid to save screen space
+  // but we still show it if the user turned on their own camera?
+  // Let's hide the video grid completely if no peers are nearby AND we aren't in a zone
+  // Wait, if we hide the control bar, they can't turn on their mic/cam.
+  // We should always show the control bar.
+
   return (
-    <div className="flex flex-col items-center gap-3 pointer-events-auto transition-all">
-      {currentZone && (
-        <div className="flex items-center gap-2 bg-indigo-600/90 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(79,70,229,0.5)] backdrop-blur-md mb-2">
+    <div className="flex flex-col items-center gap-3 pointer-events-auto transition-all" style={{ transform: "translateZ(0)", willChange: "transform" }}>
+      {isAvZone && (
+        <div className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(79,70,229,0.5)] mb-2">
            <Lock size={14} className="text-indigo-200" />
            <span>Isolated Audio: {currentZone.label}</span>
         </div>
       )}
       {/* Horizontal Camera Array (Floating independently) */}
-      <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-        {tracks.map((track) => {
+      <div className="flex flex-wrap items-center justify-center gap-3 w-full" style={{ transform: "translateZ(0)" }}>
+        {(hasVisiblePeers || isAvZone) && visibleTracks.map((track) => {
           const isScreenShare = track.source === Track.Source.ScreenShare;
           return (
             <div 
@@ -79,6 +141,7 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
                   ? "w-[480px] h-[360px] md:w-[640px] md:h-[480px] border-indigo-500 shadow-indigo-500/20" 
                   : "w-[160px] h-[120px] md:w-[200px] md:h-[150px] border-white"
               } rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 bg-slate-100 shrink-0 relative transition-all duration-500`}
+              style={{ transform: "translateZ(0)", backfaceVisibility: "hidden" }}
             >
                <ParticipantTile trackRef={track} />
             </div>
@@ -87,7 +150,7 @@ const CustomVideoGrid: React.FC<{ currentZone: Zone | null }> = ({ currentZone }
       </div>
       
       {/* Control Bar - Floating Pill */}
-      <div className="flex justify-center bg-white/95 backdrop-blur-xl px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
+      <div className="flex justify-center bg-white px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
          <ControlBar 
            variation="minimal" 
            controls={{ 
@@ -124,11 +187,12 @@ const SpatialAudioRenderer: React.FC<{
           // Since we don't have remote player zone data directly, we can check their coordinates!
           
           let sameZone = false;
-          if (currentZone) {
+          const isAvZone = currentZone && currentZone.id !== "library";
+          if (isAvZone) {
             const rx = remotePlayer.x;
             const ry = remotePlayer.y;
-            if (rx >= currentZone.x && rx <= currentZone.x + currentZone.width &&
-                ry >= currentZone.y && ry <= currentZone.y + currentZone.height) {
+            if (rx >= currentZone!.x && rx <= currentZone!.x + currentZone!.width &&
+                ry >= currentZone!.y && ry <= currentZone!.y + currentZone!.height) {
               sameZone = true;
             }
           }

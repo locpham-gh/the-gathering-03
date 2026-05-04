@@ -46,5 +46,11 @@ export const adminRoutes = new Elysia({ prefix: "/api/admin" })
       tags: t.Array(t.String()),
     })
   })
-  .delete("/library/:id", adminController.deleteResource);
+  .delete("/library/:id", adminController.deleteResource)
+  
+  .post("/upload", adminController.uploadFile, {
+    body: t.Object({
+      file: t.File()
+    })
+  });
 

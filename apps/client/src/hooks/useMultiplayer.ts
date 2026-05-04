@@ -17,12 +17,41 @@ export interface RemotePlayer {
   isPhoneOut?: boolean;
 }
 
+export interface MovePayload {
+  x: number;
+  y: number;
+  direction: string;
+  isSitting?: boolean;
+  isPhoneOut?: boolean;
+  character?: string;
+  userId: string;
+  displayName?: string;
+  avatarUrl?: string;
+}
+
+export interface ChatMessagePayload {
+  id?: string;
+  _id?: string;
+  content?: string;
+  text?: string;
+  authorId?: string | { _id: string; displayName: string; avatarUrl: string };
+  senderId?: string;
+  senderName?: string;
+  roomCode?: string;
+  roomId?: string;
+  channelName?: string;
+  createdAt?: string;
+}
+
 export function useMultiplayer(roomId?: string) {
   const { user } = useAuth();
   const [players, setPlayers] = useState<Record<string, RemotePlayer>>({});
-  const [localPosition, setLocalPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [localPosition, setLocalPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
   const wsRef = useRef<WebSocket | null>(null);
-  const lastUpdatePayloadRef = useRef<any>(null);
+  const lastUpdatePayloadRef = useRef<MovePayload | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -32,7 +61,7 @@ export function useMultiplayer(roomId?: string) {
     // Use the backend URL from env or fallback to current host with port 3000
     const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
     const host = apiUrl.replace(/^https?:\/\//, "");
-    
+
     let isClosing = false;
     let reconnectTimeoutId: ReturnType<typeof setTimeout>;
     let reconnectAttempts = 0;
@@ -40,21 +69,25 @@ export function useMultiplayer(roomId?: string) {
 
     const connect = () => {
       if (isClosing) return;
-      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`);
+      const ws = new WebSocket(
+        `${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`,
+      );
       wsRef.current = ws;
 
       ws.onopen = () => {
         console.log(`✅ WS Connected to room: ${roomId}`);
-        
+
         // Resend last position if this is a reconnection
         if (reconnectAttempts > 0 && lastUpdatePayloadRef.current) {
           console.log(`🔄 Reconnected. Sending last known position...`);
-          ws.send(JSON.stringify({
-            type: "move",
-            payload: lastUpdatePayloadRef.current
-          }));
+          ws.send(
+            JSON.stringify({
+              type: "move",
+              payload: lastUpdatePayloadRef.current,
+            }),
+          );
         }
-        
+
         reconnectAttempts = 0; // Reset attempts on successful connection
       };
 
@@ -62,11 +95,14 @@ export function useMultiplayer(roomId?: string) {
         console.error("❌ WS Connection Error:", error);
       };
 
-      ws.onclose = (_event) => {
+      ws.onclose = () => {
         if (isClosing) return;
         console.log(`🔌 WS Connection closed, attempting reconnect...`);
         if (reconnectAttempts < maxReconnectAttempts) {
-          const timeout = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // Exponential backoff up to 30s
+          const timeout = Math.min(
+            1000 * Math.pow(2, reconnectAttempts),
+            30000,
+          ); // Exponential backoff up to 30s
           reconnectTimeoutId = setTimeout(() => {
             reconnectAttempts++;
             connect();
@@ -79,7 +115,7 @@ export function useMultiplayer(roomId?: string) {
       ws.onmessage = (event) => {
         if (isClosing) return;
         const { type, payload } = JSON.parse(event.data);
-        
+
         if (type === "player_moved") {
           // Skip if this is the local player
           if (payload.userId === user.id) return;
@@ -105,11 +141,13 @@ export function useMultiplayer(roomId?: string) {
           // Filter out local player from initial state
           setPlayers((prev) => {
             const next = { ...prev };
-            Object.entries(payload.players as Record<string, RemotePlayer>).forEach(([id, p]) => {
+            Object.entries(
+              payload.players as Record<string, RemotePlayer>,
+            ).forEach(([id, p]) => {
               if (p.userId !== user.id) {
                 next[id] = {
                   ...p,
-                  isPhoneOut: p.isPhoneOut // Ensure initial state has phone info
+                  isPhoneOut: p.isPhoneOut, // Ensure initial state has phone info
                 };
               }
             });
@@ -124,15 +162,24 @@ export function useMultiplayer(roomId?: string) {
         } else if (type === "forum_refresh") {
           window.dispatchEvent(new CustomEvent("forum-refresh"));
         } else if (type === "chat_message") {
-          window.dispatchEvent(new CustomEvent("chat-message", { detail: payload }));
+          window.dispatchEvent(
+            new CustomEvent("chat-message", { detail: payload }),
+          );
           // Show chat bubble on matching remote player
-          const authorUserId = payload.authorId?._id || payload.authorId || payload.senderId;
+          const authorUserId =
+            payload.authorId?._id || payload.authorId || payload.senderId;
           if (authorUserId && typeof payload.content === "string") {
             setPlayers((prev) => {
               const updated = { ...prev };
               for (const [wsId, p] of Object.entries(updated)) {
                 if (p.userId === authorUserId) {
-                  updated[wsId] = { ...p, chatBubble: { text: payload.content, timestamp: Date.now() } };
+                  updated[wsId] = {
+                    ...p,
+                    chatBubble: {
+                      text: payload.content,
+                      timestamp: Date.now(),
+                    },
+                  };
                   break;
                 }
               }
@@ -162,7 +209,9 @@ export function useMultiplayer(roomId?: string) {
             };
           });
         } else if (type === "whiteboard_update") {
-          window.dispatchEvent(new CustomEvent("whiteboard-update", { detail: payload }));
+          window.dispatchEvent(
+            new CustomEvent("whiteboard-update", { detail: payload }),
+          );
         }
       };
     };
@@ -186,74 +235,98 @@ export function useMultiplayer(roomId?: string) {
   const lastSent = useRef<number>(0);
   const lastSittingState = useRef<boolean | undefined>(undefined);
   const lastPhoneState = useRef<boolean | undefined>(undefined);
-  
+
   // Monitor Outgoing Message Rate
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => {
-    const now = Date.now();
-    const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
-    if (!stateChanged && now - lastSent.current < 50) return;
-    
-    setLocalPosition({ x, y });
+  const updatePosition = useCallback(
+    (
+      x: number,
+      y: number,
+      direction: string,
+      isSitting?: boolean,
+      character?: string,
+      customName?: string,
+      isPhoneOut?: boolean,
+    ) => {
+      const now = Date.now();
+      const stateChanged =
+        isSitting !== lastSittingState.current ||
+        isPhoneOut !== lastPhoneState.current;
+      if (!stateChanged && now - lastSent.current < 50) return;
 
-    if (wsRef.current?.readyState === WebSocket.OPEN && user) {
-      try {
-        const payload = {
-          x,
-          y,
-          direction,
-          isSitting,
-          isPhoneOut,
-          character,
-          userId: user.id,
-          displayName: customName || user.displayName,
-          avatarUrl: user.avatarUrl
-        };
-        lastUpdatePayloadRef.current = payload;
-        wsRef.current.send(JSON.stringify({
-          type: "move",
-          payload
-        }));
-        lastSent.current = now;
-        lastSittingState.current = isSitting;
-        lastPhoneState.current = isPhoneOut;
+      setLocalPosition({ x, y });
 
-        // Log monitor stats
-        msgCounter.current++;
-        if (now - lastLogTime.current >= 1000) {
-          if (import.meta.env.DEV) {
-            console.log(`📡 WS Outgoing Rate: ${msgCounter.current} msg/s (Throttle: 20Hz target)`);
+      if (wsRef.current?.readyState === WebSocket.OPEN && user) {
+        try {
+          const payload = {
+            x,
+            y,
+            direction,
+            isSitting,
+            isPhoneOut,
+            character,
+            userId: user.id,
+            displayName: customName || user.displayName,
+            avatarUrl: user.avatarUrl,
+          };
+          lastUpdatePayloadRef.current = payload;
+          wsRef.current.send(
+            JSON.stringify({
+              type: "move",
+              payload,
+            }),
+          );
+          lastSent.current = now;
+          lastSittingState.current = isSitting;
+          lastPhoneState.current = isPhoneOut;
+
+          // Log monitor stats
+          msgCounter.current++;
+          if (now - lastLogTime.current >= 1000) {
+            if (import.meta.env.DEV) {
+              console.log(
+                `📡 WS Outgoing Rate: ${msgCounter.current} msg/s (Throttle: 20Hz target)`,
+              );
+            }
+            msgCounter.current = 0;
+            lastLogTime.current = now;
           }
-          msgCounter.current = 0;
-          lastLogTime.current = now;
+        } catch (err) {
+          console.error("❌ Failed to send WS message:", err);
         }
-      } catch (err) {
-        console.error("❌ Failed to send WS message:", err);
       }
-    }
-  }, [user]);
+    },
+    [user],
+  );
 
-  const sendChatMessage = useCallback((payload: any) => {
+  const sendChatMessage = useCallback((payload: ChatMessagePayload) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: "chat_message",
-        payload
-      }));
+      wsRef.current.send(
+        JSON.stringify({
+          type: "chat_message",
+          payload,
+        }),
+      );
     }
   }, []);
 
-  const sendEmote = useCallback((emoteId: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN && user) {
-      wsRef.current.send(JSON.stringify({
-        type: "emote",
-        payload: { id: user.id, emoteId, roomId }
-      }));
-    }
-  }, [user, roomId]);
+  const sendEmote = useCallback(
+    (emoteId: string) => {
+      if (wsRef.current?.readyState === WebSocket.OPEN && user) {
+        wsRef.current.send(
+          JSON.stringify({
+            type: "emote",
+            payload: { id: user.id, emoteId, roomId },
+          }),
+        );
+      }
+    },
+    [user, roomId],
+  );
 
-  const sendMessage = useCallback((type: string, payload: any) => {
+  const sendMessage = useCallback((type: string, payload: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type, payload }));
     }
@@ -263,9 +336,23 @@ export function useMultiplayer(roomId?: string) {
     const handleSendChat = (e: CustomEvent) => {
       sendChatMessage(e.detail);
     };
-    window.addEventListener("send-chat-message", handleSendChat as EventListener);
-    return () => window.removeEventListener("send-chat-message", handleSendChat as EventListener);
+    window.addEventListener(
+      "send-chat-message",
+      handleSendChat as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "send-chat-message",
+        handleSendChat as EventListener,
+      );
   }, [sendChatMessage]);
 
-  return { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage };
+  return {
+    players,
+    localPosition,
+    updatePosition,
+    sendChatMessage,
+    sendEmote,
+    sendMessage,
+  };
 }

@@ -54,6 +54,15 @@ export const broadcastNotification = (userId: string) => {
 // HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
 
+app.get("/public/*", async ({ params }) => {
+  const filePath = params["*"];
+  const file = Bun.file(`./public/${filePath}`);
+  if (!(await file.exists())) {
+    return new Response("Not Found", { status: 404 });
+  }
+  return file;
+});
+
 app.get("/api/livekit/token", async ({ query, jwt, headers, set }: any) => {
   const auth = headers["authorization"];
   if (!auth) { set.status = 401; return { error: "Missing token" }; }
