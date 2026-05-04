@@ -17,7 +17,6 @@ import { LibraryModal } from "../components/game/library/LibraryModal";
 import { RoomSidebar } from "../components/game/ui/RoomSidebar";
 import { LiveKitModal } from "../components/game/ui/LiveKitModal";
 import { PreJoinScreen } from "../components/game/ui/PreJoinScreen";
-import { ConferenceModal } from "../components/game/ui/ConferenceModal";
 import { WhiteboardModal } from "../components/game/ui/WhiteboardModal";
 import { InviteModal } from "../components/game/ui/InviteModal";
 import { NearbyChat } from "../components/game/ui/NearbyChat";
@@ -43,6 +42,7 @@ export default function GamePage() {
   const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
+  const [isWhiteboardLeader, setIsWhiteboardLeader] = useState(false);
 
   // 4. Voice/Video Logic
   const { token: liveKitToken, setToken: setLiveKitToken } = useLiveKit(isJoined, user, roomId, authToken);
@@ -53,9 +53,54 @@ export default function GamePage() {
     setSelectedCharacter(data.characterId);
     setIsJoined(true);
   };
+  const handleZoneClose = useCallback(() => {
+    // If leader closes whiteboard, broadcast to attendees
+    if (isWhiteboardLeader) {
+      sendMessage("whiteboard_close", { roomId });
+    }
+    setIsWhiteboardLeader(false);
+    setActiveZone(null);
+  }, [isWhiteboardLeader, roomId, sendMessage]);
 
-  const handleZoneClose = useCallback(() => setActiveZone(null), []);
-  const handleInteract = useCallback(() => currentZone && setActiveZone(currentZone), [currentZone]);
+  const handleInteract = useCallback(() => {
+    if (!currentZone || currentZone.id === "chill") return;
+    
+    // ONLY the person standing at the whiteboard can be the leader
+    if (currentZone.id === "whiteboard_leader") {
+      setIsWhiteboardLeader(true);
+      setActiveZone(currentZone);
+      sendMessage("whiteboard_open", { roomId });
+      return;
+    }
+    
+    // Others in the conference zone cannot open it manually by pressing E
+    if (currentZone.id === "conference") return;
+
+    setActiveZone(currentZone);
+  }, [currentZone, roomId, sendMessage]);
+
+  // Listen for whiteboard_open broadcast from leader → auto-open for attendees
+  useEffect(() => {
+    const handleRemoteOpen = () => {
+      // If I am in the meeting room or near the board, open the viewer
+      if (currentZone?.id === "conference" || currentZone?.id === "whiteboard_leader") {
+        if (!isWhiteboardLeader) {
+          setIsWhiteboardLeader(false);
+          setActiveZone({ id: "conference", label: "Meeting Room", x: 0, y: 0, width: 0, height: 0, description: "" });
+        }
+      }
+    };
+    const handleRemoteClose = () => {
+      if (!isWhiteboardLeader) setActiveZone(null);
+    };
+    window.addEventListener("whiteboard-open", handleRemoteOpen);
+    window.addEventListener("whiteboard-close", handleRemoteClose);
+    return () => {
+      window.removeEventListener("whiteboard-open", handleRemoteOpen);
+      window.removeEventListener("whiteboard-close", handleRemoteClose);
+    };
+  }, [currentZone, isWhiteboardLeader]);
+
 
   // 6. Global Events
   useGameEvents({
@@ -168,9 +213,16 @@ export default function GamePage() {
         <ZoneOverlay zone={currentZone} onPressE={handleInteract} />
 
         {activeZone?.id === "library" && <LibraryModal onClose={handleZoneClose} />}
-        {activeZone?.id === "conference" && <ConferenceModal onClose={handleZoneClose} />}
+        {(activeZone?.id === "conference" || activeZone?.id === "whiteboard_leader") && (
+          <WhiteboardModal
+            onClose={handleZoneClose}
+            roomId={roomId}
+            sendMessage={sendMessage}
+            isLeader={isWhiteboardLeader}
+          />
+        )}
         {activeZone?.id === "whiteboard" && (
-          <WhiteboardModal onClose={handleZoneClose} roomId={roomId} sendMessage={sendMessage} />
+          <WhiteboardModal onClose={handleZoneClose} roomId={roomId} sendMessage={sendMessage} isLeader={true} />
         )}
 
         {liveKitToken && (

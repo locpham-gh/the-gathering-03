@@ -163,6 +163,10 @@ export function useMultiplayer(roomId?: string) {
           });
         } else if (type === "whiteboard_update") {
           window.dispatchEvent(new CustomEvent("whiteboard-update", { detail: payload }));
+        } else if (type === "whiteboard_open") {
+          window.dispatchEvent(new CustomEvent("whiteboard-open", { detail: payload }));
+        } else if (type === "whiteboard_close") {
+          window.dispatchEvent(new CustomEvent("whiteboard-close", { detail: payload }));
         }
       };
     };

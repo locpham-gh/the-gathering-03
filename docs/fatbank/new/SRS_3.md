@@ -34,41 +34,37 @@ The Gathering system serves three main groups of users: Authenticated Users, Roo
 # **II. SYSTEM CONTEXT DIAGRAM**
 
 ## **1\. Overview**
-The System Context Diagram for **The Gathering** project provides a high-level, visual representation of the platform and its interactions with external entities. Designed as a web-based collaborative environment, The Gathering aims to optimize remote teamwork by integrating a React-based frontend with a high-performance Bun/Elysia backend and third-party communication services.
+The System Context Diagram for **The Gathering** project provides a high-level, visual representation of the platform. Unlike traditional systems with separate management portals, The Gathering utilizes a **Unified Single-Page Application (SPA)** architecture. Both regular users and administrators access the same web platform, with administrative features integrated as protected components triggered by role-based access control (RBAC).
 
 ## **2\. System Boundary**
 
 The Gathering System encompasses all components developed and controlled by the project team:
 
-- **Frontend (apps/client)**: A React-based single-page application (SPA) built with Vite, utilizing PixiJS for 2D rendering and Tailwind CSS for the UI. It handles user interactions, game canvas logic, and real-time state visualization.
-- **Backend (apps/server)**: A Bun-based server using the ElysiaJS framework. it manages RESTful APIs for business logic, WebSocket connections for multiplayer sync, and database integration via Mongoose.
-- **Database**: A MongoDB instance (hosted on MongoDB Atlas) that stores user profiles, room data, event schedules, forum posts, and resource metadata.
+- **Unified Web App (apps/client)**: A single React-based application. For Administrators, the UI dynamically injects a "Management Panel" component allowing oversight without leaving the main environment.
+- **Backend (apps/server)**: A Bun-based server using ElysiaJS. It serves both user and admin requests, enforcing security via JWT and role-based middleware.
+- **Database**: A MongoDB instance storing all platform data.
 
-## **3\. External Entities**
-
-The diagram identifies four external entities that interact with The Gathering System:
-
-- **User**: remote workers or students who interact with the dashboard and 2D space to collaborate.
-- **Google Identity Service**: A third-party OAuth 2.0 provider used for secure "One Tap" authentication.
-- **SMTP Service (Gmail)**: Used for sending OTP codes and event invitations.
-- **LiveKit Server**: An external real-time communication platform used to facilitate proximity-based audio/video calls.
-
-## **4\. Interactions**
-
-Each external entity interacts with The Gathering System through bidirectional flows:
-
-- **User**:
-  - **Interaction & Control**: Commands sent from User to the system, such as room creation, movement in 2D space, or forum posting.
-  - **Real-time Feedback**: Data received by User, including positions of other players, event notifications, and chat messages.
-- **Google Identity**:
-  - **Auth Request**: The system sends identity tokens to Google for verification.
-  - **Profile Data**: Google returns verified user information (email, name, avatar).
-- **SMTP Provider**:
-  - **Mail Delivery**: The system sends mail payloads (OTP/Invitations) to the provider.
-  - **Status**: Confirmation of email transmission.
-- **LiveKit**:
-  - **Token Request**: The system requests access tokens for specific video rooms.
-  - **Media Stream**: The client establishes a direct WebRTC connection for video/audio.
+```mermaid
+graph TD
+    User((User))
+    Admin((Admin))
+    
+    subgraph "The Gathering Web App (SPA)"
+        UI[Main Interface]
+        AdminComp[Admin Panel Component]
+    end
+    
+    User --> UI
+    Admin --> UI
+    Admin -- "Access" --> AdminComp
+    
+    UI <--> Backend[Bun/Elysia Backend]
+    Backend <--> DB[(MongoDB)]
+    
+    Backend <--> LiveKit[LiveKit Server]
+    Backend <--> Google[Google Auth]
+    Backend <--> SMTP[SMTP Service]
+```
 
 # **III. BUSINESS REQUIREMENT**
 

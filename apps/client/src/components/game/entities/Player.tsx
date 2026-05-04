@@ -20,6 +20,8 @@ import { useMapTeleport } from "../hooks/useMapTeleport";
 // Components
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
 
+type DirString = "up" | "down" | "left" | "right";
+
 interface PlayerProps {
   mapData: MapData;
   mapType: string;
@@ -84,6 +86,13 @@ export const Player: React.FC<PlayerProps> = ({
 
   const handleInteraction = () => {
     if (isPaused) return;
+    
+    // If sitting and in an interactive zone (e.g. library), allow opening it without standing up
+    if (isSitting && currentZone && currentZone.id !== "seat") {
+      onInteract?.();
+      return;
+    }
+
     if (isSitting) {
       setIsSitting(false);
       if (sitOriginRef.current) {
@@ -191,6 +200,41 @@ export const Player: React.FC<PlayerProps> = ({
       return;
     }
 
+    // Always update camera and detect zones/proximity, even when sitting
+    updateCamera(x, y, delta);
+    const zone = checkZoneCollision(x, y, zones);
+    checkNearbyPlayers(x, y, players, onNearbyPlayer);
+    
+    // Teleportation Check
+    if (!isSitting && checkTeleport(x, y)) return;
+
+    // Chair proximity detection — check tile player is facing
+    const interactRange = WORLD_CONFIG.INTERACTION_RANGE;
+    let chairFocusX = x, chairFocusY = y;
+    if (direction === "up") chairFocusY -= interactRange;
+    else if (direction === "down") chairFocusY += interactRange;
+    else if (direction === "left") chairFocusX -= interactRange;
+    else if (direction === "right") chairFocusX += interactRange;
+    const fCol = Math.floor((chairFocusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const fRow = Math.floor((chairFocusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const facingTile = getTileAt(mapData.layers, fCol, fRow, mapData.width);
+    let chairDetected = false;
+    if (facingTile) {
+      const td = getTileDataForGid(facingTile.gid, mapData);
+      const tsName = td?.tilesetName?.toLowerCase() || "";
+      chairDetected = tsName.includes("seat") || tsName.includes("chair") || (facingTile.gid >= 1375 && facingTile.gid <= 1557);
+    }
+    if (chairDetected !== nearbyChair) setNearbyChair(chairDetected);
+
+    let effectiveZone = zone;
+    if (nearbyChair && !isSitting) {
+      effectiveZone = { id: "seat", label: "Chair", x: 0, y: 0, width: 0, height: 0, description: "Interactive furniture" };
+    }
+    if (effectiveZone?.id !== currentZone?.id) {
+      setCurrentZone(effectiveZone);
+      onZoneChange?.(effectiveZone);
+    }
+
     if (isSitting) {
       if (isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
         updatePosition(x, y, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
@@ -225,43 +269,9 @@ export const Player: React.FC<PlayerProps> = ({
       setIsMoving(false);
     }
 
-    updateCamera(finalX, finalY, delta);
     if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
       updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
       lastSyncSit.current = isSitting; lastSyncPhone.current = isPhoneOut;
-    }
-
-    const zone = checkZoneCollision(finalX, finalY, zones);
-    checkNearbyPlayers(finalX, finalY, players, onNearbyPlayer);
-    
-    // Teleportation Check
-    if (checkTeleport(finalX, finalY)) return;
-
-    // Chair proximity detection — check tile player is facing
-    const interactRange = WORLD_CONFIG.INTERACTION_RANGE;
-    let chairFocusX = finalX, chairFocusY = finalY;
-    if (direction === "up") chairFocusY -= interactRange;
-    else if (direction === "down") chairFocusY += interactRange;
-    else if (direction === "left") chairFocusX -= interactRange;
-    else if (direction === "right") chairFocusX += interactRange;
-    const fCol = Math.floor((chairFocusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-    const fRow = Math.floor((chairFocusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-    const facingTile = getTileAt(mapData.layers, fCol, fRow, mapData.width);
-    let chairDetected = false;
-    if (facingTile) {
-      const td = getTileDataForGid(facingTile.gid, mapData);
-      const tsName = td?.tilesetName?.toLowerCase() || "";
-      chairDetected = tsName.includes("seat") || tsName.includes("chair") || (facingTile.gid >= 1375 && facingTile.gid <= 1557);
-    }
-    if (chairDetected !== nearbyChair) setNearbyChair(chairDetected);
-
-    let effectiveZone = zone;
-    if (nearbyChair && !isSitting) {
-      effectiveZone = { id: "seat", label: "Chair", x: 0, y: 0, width: 0, height: 0, description: "Interactive furniture" };
-    }
-    if (effectiveZone?.id !== currentZone?.id) {
-      setCurrentZone(effectiveZone);
-      onZoneChange?.(effectiveZone);
     }
   });
 

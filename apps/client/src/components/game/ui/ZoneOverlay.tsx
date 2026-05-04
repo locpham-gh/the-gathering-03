@@ -6,9 +6,17 @@ interface ZoneOverlayProps {
 }
 
 export function ZoneOverlay({ zone, onPressE }: ZoneOverlayProps) {
-  if (!zone) return null;
+  // Hide popup for passive/auto-entry zones:
+  // - chill: auto-mute and music (passive)
+  // - conference: auto-view whiteboard (passive for attendees)
+  if (!zone || zone.id === "chill" || zone.id === "conference") return null;
 
   const isSeat = zone.id === "seat";
+  const isLeader = zone.id === "whiteboard_leader";
+  const isLibrary = zone.id === "library";
+  
+  // Use "open" if sitting in a zone like library
+  const actionText = isSeat ? "sit" : (isLeader ? "present" : (isLibrary ? "open" : "enter"));
 
   return (
     <div
@@ -32,7 +40,7 @@ export function ZoneOverlay({ zone, onPressE }: ZoneOverlayProps) {
               isSeat 
                 ? "bg-amber-500/20 border-amber-500/30" 
                 : "bg-teal-500/20 border-teal-500/30"
-            }`}>E</kbd> to {isSeat ? "sit" : "enter"}
+            }`}>E</kbd> to {actionText}
           </p>
         </div>
       </div>

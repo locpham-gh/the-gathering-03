@@ -9,7 +9,8 @@ import {
 import { Track, Participant } from "livekit-client";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { Zone } from "../core/zones";
-import { Lock } from "lucide-react";
+import { Lock, Music } from "lucide-react";
+import { ChillZoneManager } from "./ChillZoneManager";
 
 // Proximity radius in game pixels — cameras only show within this range
 const CAMERA_PROXIMITY = 300;
@@ -43,6 +44,7 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
         style={{ width: "100%", display: "flex", justifyContent: "center" }}
       >
         <CustomVideoGrid currentZone={currentZone} players={players} localPosition={localPosition} />
+        <ChillZoneManager currentZone={currentZone} />
         <SpatialAudioRenderer 
           players={players} 
           localPosition={localPosition} 
@@ -87,12 +89,17 @@ const CustomVideoGrid: React.FC<{
 
   return (
     <div className="flex flex-col items-center gap-3 pointer-events-auto transition-all">
-      {currentZone && (
+      {currentZone?.id === "chill" ? (
+        <div className="flex items-center gap-2 bg-emerald-700/90 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(16,185,129,0.5)] backdrop-blur-md mb-2 animate-pulse">
+          <Music size={14} className="text-emerald-200" />
+          <span>Chill Zone 🌿 — Mic &amp; Cam off</span>
+        </div>
+      ) : currentZone ? (
         <div className="flex items-center gap-2 bg-indigo-600/90 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(79,70,229,0.5)] backdrop-blur-md mb-2">
            <Lock size={14} className="text-indigo-200" />
            <span>Isolated Audio: {currentZone.label}</span>
         </div>
-      )}
+      ) : null}
 
       {/* Camera grid — own tile always visible, remote tiles proximity-gated */}
       <div className="flex flex-wrap items-center justify-center gap-3 w-full">

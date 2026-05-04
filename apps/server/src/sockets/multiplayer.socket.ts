@@ -84,6 +84,10 @@ export const multiplayerSocket = (app: Elysia) =>
       } else if (type === "whiteboard_update") {
         ws.publish(`room-${roomId}`, { type: "whiteboard_update", payload });
         multiplayerService.updateWhiteboard(payload.roomId || roomId, payload);
+      } else if (type === "whiteboard_open") {
+        ws.publish(`room-${roomId}`, { type: "whiteboard_open", payload });
+      } else if (type === "whiteboard_close") {
+        ws.publish(`room-${roomId}`, { type: "whiteboard_close", payload });
       }
     },
     async close(ws: any) {
