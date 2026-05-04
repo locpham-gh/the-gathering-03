@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-// @ts-expect-error - Excalidraw types might not be resolved correctly
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
 import { X, Save, Share2 } from "lucide-react";
@@ -10,22 +9,13 @@ interface WhiteboardModalProps {
   sendMessage: (type: string, payload: unknown) => void;
 }
 
-interface ExcalidrawAPI {
-  updateScene: (scene: {
-    elements: unknown;
-    appState: unknown;
-    files: unknown;
-  }) => void;
-}
-
 export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
   onClose,
   roomId,
   sendMessage,
 }) => {
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawAPI | null>(
-    null,
-  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
   const isRemoteUpdate = useRef(false);
   const lastSentTime = useRef(0);
 
@@ -56,9 +46,12 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
   const onChange = useCallback(
     (
-      elements: readonly unknown[],
-      appState: Record<string, unknown>,
-      files: unknown,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      elements: any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      appState: any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      files: any,
     ) => {
       if (isRemoteUpdate.current) return;
 
@@ -110,7 +103,8 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         {/* Excalidraw Canvas */}
         <div className="flex-1 relative bg-slate-50">
           <Excalidraw
-            excalidrawAPI={(api: ExcalidrawAPI) => setExcalidrawAPI(api)}
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            excalidrawAPI={(api: any) => setExcalidrawAPI(api)}
             theme="light"
             onChange={onChange}
           />

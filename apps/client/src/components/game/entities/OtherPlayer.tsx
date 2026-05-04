@@ -22,7 +22,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
 
     if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
       if (!isMoving) setIsMoving(true);
-      setDirection((prevDir) => getNewDirection(dx, dy, prevDir));
+      setDirection((prevDir: DirString) => getNewDirection(dx, dy, prevDir));
     } else {
       if (isMoving) setIsMoving(false);
       // If sitting, use the explicit direction provided by the server
