@@ -24,14 +24,18 @@ export const multiplayerSocket = (app: Elysia) =>
 
         // Kick duplicates
         if (userId) {
-          for (const [oldWsId, data] of room.entries()) {
-            if (data.userId === userId && oldWsId !== ws.id) {
-              room.delete(oldWsId);
-              ws.publish(`room-${roomId}`, {
-                type: "player_left",
-                payload: { id: oldWsId },
-              });
+          try {
+            for (const [oldWsId, data] of room.entries()) {
+              if (data.userId === userId && oldWsId !== ws.id) {
+                room.delete(oldWsId);
+                ws.publish(`room-${roomId}`, {
+                  type: "player_left",
+                  payload: { id: oldWsId },
+                });
+              }
             }
+          } catch (e) {
+            console.error("Error kicking duplicate", e);
           }
         }
 
@@ -46,22 +50,26 @@ export const multiplayerSocket = (app: Elysia) =>
         room.set(ws.id, initialData);
 
         // Load position from DB
-        const pos = await multiplayerService.loadInitialPosition(roomId, userId);
-        if (pos) {
-          const updated = { ...initialData, x: pos.x, y: pos.y };
-          room.set(ws.id, updated);
-          ws.publish(`room-${roomId}`, { type: "player_moved", payload: updated });
+        try {
+          const pos = await multiplayerService.loadInitialPosition(roomId, userId);
+          if (pos) {
+            const updated = { ...initialData, x: pos.x, y: pos.y };
+            room.set(ws.id, updated);
+            ws.publish(`room-${roomId}`, { type: "player_moved", payload: updated });
+          }
+
+          // Initial state
+          ws.send({
+            type: "initial_state",
+            payload: { players: Object.fromEntries(room) },
+          });
+
+          // Whiteboard
+          const wb = await multiplayerService.getWhiteboard(roomId);
+          if (wb) ws.send({ type: "whiteboard_update", payload: wb });
+        } catch (err) {
+          console.error("WS Open Async Error:", err);
         }
-
-        // Initial state
-        ws.send({
-          type: "initial_state",
-          payload: { players: Object.fromEntries(room) },
-        });
-
-        // Whiteboard
-        const wb = await multiplayerService.getWhiteboard(roomId);
-        if (wb) ws.send({ type: "whiteboard_update", payload: wb });
       } else {
         ws.send({ type: "initial_state", payload: { players: {} } });
       }
@@ -97,18 +105,29 @@ export const multiplayerSocket = (app: Elysia) =>
       const playerData = room.get(ws.id);
 
       if (playerData && userId) {
-        await multiplayerService.savePosition(
-          roomId,
-          userId,
-          playerData.x,
-          playerData.y,
-        );
+        try {
+          await multiplayerService.savePosition(
+            roomId,
+            userId,
+            playerData.x,
+            playerData.y,
+          );
+        } catch (e) {
+          console.error("Failed to save position on close", e);
+        }
       }
 
       multiplayerService.removePlayer(roomId, ws.id);
-      ws.publish(`room-${roomId}`, {
-        type: "player_left",
-        payload: { id: ws.id },
-      });
+      
+      // In Bun, publishing on a closing socket can cause segfaults.
+      // We wrap it in a try-catch to be safe.
+      try {
+        ws.publish(`room-${roomId}`, {
+          type: "player_left",
+          payload: { id: ws.id },
+        });
+      } catch (err) {
+        console.error("Failed to publish player_left", err);
+      }
     },
   });

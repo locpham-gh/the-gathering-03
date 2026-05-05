@@ -314,4 +314,34 @@ export const adminController = {
     await Resource.findByIdAndDelete(params.id);
     return { success: true };
   },
+
+  uploadFile: async ({ body, set }: any) => {
+    try {
+      const file = body.file as File;
+      if (!file) {
+        set.status = 400;
+        return { success: false, error: "No file provided" };
+      }
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+      const path = `./public/uploads/${fileName}`;
+      
+      // Ensure directory exists
+      const fs = require('fs');
+      if (!fs.existsSync('./public/uploads')) {
+        fs.mkdirSync('./public/uploads', { recursive: true });
+      }
+      
+      fs.writeFileSync(path, buffer);
+      
+      const fileUrl = `${process.env.VITE_API_URL || "http://localhost:3000"}/public/uploads/${fileName}`;
+      
+      return { success: true, url: fileUrl };
+    } catch (error: any) {
+      set.status = 500;
+      return { success: false, error: error.message };
+    }
+  },
 };

@@ -7,7 +7,7 @@ import { WORLD_CONFIG } from "../lib/constants";
 import { getNewDirection, getTileDataForGid, getTileAt, getMapSpawnPoint } from "../lib/tileUtils";
 import { getZonesForMap, checkZoneCollision } from "../core/zones";
 import type { Zone } from "../core/zones";
-import type { RemotePlayer, MapData } from "../../../types/game";
+import type { RemotePlayer, MapData, DirString } from "../../../types/game";
 
 // Hooks
 import { usePlayerInput } from "../hooks/usePlayerInput";
