@@ -20,8 +20,6 @@ import { useMapTeleport } from "../hooks/useMapTeleport";
 // Components
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
 
-type DirString = "up" | "down" | "left" | "right";
-
 interface PlayerProps {
   mapData: MapData;
   mapType: string;
