@@ -36,7 +36,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<PaginationInfo | null>(null);
-  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
     if (activeTab === "whitelist" || activeTab === "library") return; 
@@ -52,7 +51,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
         console.error("Failed to fetch stats");
       }
       setLoading(false);
-      setLastRefreshed(new Date());
       return;
     }
 
@@ -70,7 +68,6 @@ export const AdminModal: React.FC<AdminModalProps> = ({ isOpen, onClose }) => {
       console.error("Failed to fetch data");
     }
     setLoading(false);
-    setLastRefreshed(new Date());
   }, [activeTab, searchTerm, page]);
 
   useEffect(() => {

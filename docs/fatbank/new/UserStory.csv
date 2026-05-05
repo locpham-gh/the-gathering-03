@@ -1,0 +1,65 @@
+Group Function;User Story ID;As a <type of user>;I want to <perform some task>;So that I can <achieve some goal>;Acceptance Criteria;Description;
+Authentication;AUTH-01;New user;register and verify my account via Google or an Email OTP;ensure my identity is validated before accessing the platform;"AC1: System displays registration form
+AC2: OTP is sent and verified
+AC3: Google One Tap creates account";The system shall allow new users to create memberships via Google Identity or Email OTP before issuing JWT;
+Authentication;AUTH-02;Existing user;sign in with email and password;access dashboard securely;"AC1: Authenticate credentials
+AC2: Issue JWT
+AC3: Invalid returns 401";The system shall allow login and grant access via JWT;
+Authentication;AUTH-03;User;sign in with Google One Tap;avoid managing password;"AC1: Validate Google token
+AC2: Issue JWT
+AC3: Create/update profile";The system shall validate Google identity and issue JWT;
+Authentication;AUTH-04;Authenticated user;persist session across routes;work without interruption;"AC1: JWT sent on API
+AC2: Invalid ? redirect login
+AC3: AuthContext manages state";The system shall verify JWT on protected routes;
+Profile Management;PROF-01;User;update display name and avatar;personalize identity;"AC1: Update profile form
+AC2: Save to DB
+AC3: Reflect realtime";The system shall allow profile customization with realtime update;
+Profile Management;PROF-02;User;auto-save last position;resume work after refresh;"AC1: Save every 30s
+AC2: Restore on login";The system shall persist player coordinates;
+Room Management;ROOM-01;User;create room with code;create private workspace;"AC1: Create roomCode
+AC2: Assign owner
+AC3: Generate link";The system shall create rooms with shareable access code;
+Room Management;ROOM-02;User;join room via code;collaborate with team;"AC1: Validate code
+AC2: Add member
+AC3: Error if invalid";The system shall allow joining via invitation code;
+Room Management;ROOM-03;Owner;manage room;control access;"AC1: Update settings
+AC2: Kick members
+AC3: Owner-only";The system shall allow moderation by owner;
+Realtime Gameplay;SPACE-01;User;move avatar;navigate workspace;"AC1: WASD movement
+AC2: Sync WebSocket
+AC3: Animation";The system shall sync avatar movement in real-time;
+Realtime Gameplay;SPACE-02;User;auto proximity audio/video;natural communication;"AC1: Get LiveKit token
+AC2: Auto connect
+AC3: Auto disconnect";The system shall enable proximity-based WebRTC;
+Realtime Gameplay;SPACE-03;User;trigger phone animation;show busy state;"AC1: Trigger animation
+AC2: Broadcast state
+AC3: Visible to others";The system shall sync phone animation state;
+Realtime Gameplay;SPACE-04;User;view mini-map;understand layout;"AC1: Render map
+AC2: Update realtime";The system shall provide real-time mini-map;
+Realtime Gameplay;SPACE-05;User;chat nearby users;focused conversation;"AC1: Filter by distance
+AC2: Hide far messages
+AC3: Global chat exists";The system shall filter chat by proximity;
+Collaboration;COL-01;Host;create event + email invites;organize meetings;"AC1: Save event
+AC2: Send email
+AC3: Show dashboard";The system shall support event creation and email notification;
+Collaboration;COL-02;User;use whiteboard;collaborate visually;"AC1: Sync Excalidraw
+AC2: Realtime update
+AC3: Save DB";The system shall sync whiteboard in real-time;
+Collaboration;COL-03;User;create forum thread;share knowledge;"AC1: Save topic
+AC2: Show immediately
+AC3: Broadcast event";The system shall create forum topics;
+Collaboration;COL-04;User;reply forum;contribute discussion;"AC1: Save reply
+AC2: Broadcast
+AC3: Delete permission";The system shall manage replies with permissions;
+Collaboration;COL-05;User;search library;find resources;"AC1: Search index
+AC2: Show results
+AC3: Access control";The system shall support search via MongoDB index;
+Admin;ADM-01;Admin;manage system;ensure platform control;"AC1: Admin-only access
+AC2: Show stats
+AC3: Manage users";The system shall provide admin dashboard;
+Stability & Error Handling;SYS-01;User;get clear error messages;understand issues;"AC1: JSON errors
+AC2: Catch exceptions
+AC3: Show UI message";The system shall standardize error handling;
+Stability & Error Handling;SYS-02;User;validate inputs;prevent errors;"AC1: Validate schema
+AC2: Validate WS
+AC3: Return 400";The system shall validate all inputs;
