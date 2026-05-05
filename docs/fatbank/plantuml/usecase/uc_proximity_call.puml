@@ -1,0 +1,9 @@
+@startuml
+skinparam actorStyle stickman
+
+actor "User" as U
+usecase "Proximity Audio/Video Call" as UC
+
+U -- UC
+
+@enduml

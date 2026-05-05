@@ -1,0 +1,21 @@
+@startuml
+
+actor "Authenticated User" as User
+actor "LiveKit Server" as LK
+
+rectangle "Communication Module" {
+    usecase "UC-09 Start Proximity Call" as UC09
+    usecase "UC-20 Spatial Chat Filtering" as UC20
+    usecase "UC-22 Web Audio Spatial Engine" as UC22
+    usecase "UC-23 Spatial Video Overlay" as UC23
+}
+
+User -- UC09
+User -- UC20
+User -- UC22
+User -- UC23
+
+UC09 -- LK
+UC23 -- LK
+
+@enduml

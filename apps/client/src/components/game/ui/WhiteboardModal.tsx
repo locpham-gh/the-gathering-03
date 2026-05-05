@@ -1,20 +1,22 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+// @ts-ignore - Excalidraw types can be complex to resolve in some environments
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
-import { X, Save, Share2 } from "lucide-react";
+import { X, Save, Share2, Crown, Eye } from "lucide-react";
 
 interface WhiteboardModalProps {
   onClose: () => void;
   roomId?: string;
   sendMessage: (type: string, payload: unknown) => void;
+  isLeader?: boolean;
 }
 
 export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
   onClose,
   roomId,
   sendMessage,
+  isLeader = true,
 }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
   const isRemoteUpdate = useRef(false);
   const lastSentTime = useRef(0);
@@ -26,7 +28,14 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
       const { elements, appState, files } = e.detail;
       isRemoteUpdate.current = true;
-      excalidrawAPI.updateScene({ elements, appState, files });
+      
+      // Sanitize appState to remove Map/internal objects that break on serialization
+      const sanitizedAppState = { ...appState };
+      delete (sanitizedAppState as any).collaborators;
+      delete (sanitizedAppState as any).draggingElement;
+
+      excalidrawAPI.updateScene({ elements, appState: sanitizedAppState, files });
+      
       // Reset after a short delay to allow the change to propagate without triggering an echo
       setTimeout(() => {
         isRemoteUpdate.current = false;
@@ -46,28 +55,33 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
 
   const onChange = useCallback(
     (
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      elements: any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      elements: readonly any[],
       appState: any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       files: any,
     ) => {
       if (isRemoteUpdate.current) return;
+      if (!isLeader) return; // Attendees cannot draw
 
       const now = Date.now();
       // Throttle updates to 200ms to avoid overwhelming the server
       if (now - lastSentTime.current < 200) return;
 
       lastSentTime.current = now;
+      
+      // Clean appState for transmission
+      const cleanAppState = { ...appState };
+      delete (cleanAppState as any).collaborators;
+      delete (cleanAppState as any).draggingElement;
+      delete (cleanAppState as any).toast;
+
       sendMessage("whiteboard_update", {
         roomId,
         elements,
-        appState: { ...appState, collaborate: true },
+        appState: cleanAppState,
         files,
       });
     },
-    [roomId, sendMessage],
+    [roomId, sendMessage, isLeader],
   );
 
   return (
@@ -76,21 +90,36 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         {/* Header */}
         <div className="bg-slate-900 p-4 text-white flex justify-between items-center shrink-0">
           <div>
-            <h2 className="text-xl font-bold tracking-tight">
-              Collaborative Whiteboard
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tight">
+                Meeting Whiteboard
+              </h2>
+              {isLeader ? (
+                <span className="flex items-center gap-1 bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full border border-amber-500/30">
+                  <Crown size={11} /> Leader
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 bg-teal-500/20 text-teal-400 text-xs font-bold px-2 py-0.5 rounded-full border border-teal-500/30">
+                  <Eye size={11} /> Viewer
+                </span>
+              )}
+            </div>
             <div className="text-teal-400 text-xs font-medium uppercase tracking-widest mt-1">
-              {roomId ? `Room: ${roomId}` : "Public Space"}
+              {isLeader ? "You are presenting — others can see your board" : "Live session — read-only view"}
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-              <Save size={16} /> Save
-            </button>
-            <button className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-teal-600/20">
-              <Share2 size={16} /> Share
-            </button>
+            {isLeader && (
+              <>
+                <button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                  <Save size={16} /> Save
+                </button>
+                <button className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-teal-600/20">
+                  <Share2 size={16} /> Share
+                </button>
+              </>
+            )}
             <button
               onClick={onClose}
               className="ml-2 text-slate-400 hover:text-white p-2 transition-colors rounded-full hover:bg-slate-800"
@@ -103,11 +132,17 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
         {/* Excalidraw Canvas */}
         <div className="flex-1 relative bg-slate-50">
           <Excalidraw
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             excalidrawAPI={(api: any) => setExcalidrawAPI(api)}
             theme="light"
             onChange={onChange}
           />
+          {/* Viewer overlay — block interaction for non-leaders */}
+          {!isLeader && (
+            <div
+              className="absolute inset-0 z-10 cursor-not-allowed"
+              title="Viewing only — leader is presenting"
+            />
+          )}
         </div>
       </div>
     </div>

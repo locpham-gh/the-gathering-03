@@ -1,0 +1,21 @@
+@startuml
+skinparam packageStyle rectangle
+
+title PlantUML Notations for Use Case Diagrams
+
+actor "Actor Name" as Actor
+usecase "Use Case Name" as UC1
+usecase "Another Use Case" as UC2
+
+rectangle "System Boundary" {
+    usecase "Included Use Case" as UC_Inc
+    usecase "Extended Use Case" as UC_Ext
+}
+
+' Relationships
+Actor -- UC1 : Association
+UC2 --|> UC1 : Generalization (Inheritance)
+UC1 ..> UC_Inc : <<include>>
+UC_Ext ..> UC1 : <<extend>>
+
+@enduml

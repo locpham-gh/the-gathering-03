@@ -40,50 +40,71 @@ This document specifies use cases using the standard SRS table format to facilit
 | UC-16 | Use Collaborative Whiteboard | Authenticated User | Must |
 | UC-17 | Manage Platform (Admin) | Admin | Must |
 | UC-18 | View Mini-map & Environment | Authenticated User | Should |
+| UC-19 | Phone Interaction (Q Key) | Authenticated User | Must |
+| UC-20 | Spatial Chat Filtering | Authenticated User | Must |
+| UC-21 | Directional Seat Snapping | Authenticated User | Must |
+| UC-22 | Web Audio Spatial Engine | Authenticated User | Must |
+| UC-23 | Spatial Video Overlay | Authenticated User | Must |
+| UC-24 | Glassmorphic UI Interaction | Authenticated User | Should |
+| UC-25 | Periodic State Snapshots | System | Must |
+| UC-26 | API Rate Limiting | System | Must |
 
 ## 4. Use Case Diagram
 
 ```mermaid
-flowchart LR
-    G[Guest]
-    U[Authenticated User]
-    O[Room Owner]
-    H[Event Host]
-    GI[Google Identity]
-    SMTP[SMTP Provider]
-    LK[LiveKit]
+usecaseDiagram
+    actor "User" as U
+    actor "Room Owner" as O
+    actor "Event Host" as H
+    actor "Admin" as A
+    actor "System" as S
 
-    UC1((UC-01 Login with Google))
-    UC2((UC-02 Login with Email OTP))
-    UC3((UC-03 Update Profile))
-    UC4((UC-04 Create Room))
-    UC5((UC-05 Join Room by Code))
-    UC6((UC-06 Manage Room Members))
-    UC7((UC-07 Enter 2D Room))
-    UC8((UC-08 Sync Multiplayer Position))
-    UC9((UC-09 Start Proximity Call))
-    UC10((UC-10 Schedule Event))
-    UC11((UC-11 Manage Own Events))
-    UC12((UC-12 Post/Reply Forum Topic))
-    UC13((UC-13 Access Digital Library))
+    package "The Gathering" {
+        usecase "UC-01 Login" as UC1
+        usecase "UC-03 Update Profile" as UC3
+        usecase "UC-04 Create Room" as UC4
+        usecase "UC-05 Join Room" as UC5
+        usecase "UC-07 Enter 2D Room" as UC7
+        usecase "UC-08 Sync Position" as UC8
+        usecase "UC-09 Proximity Call" as UC9
+        usecase "UC-10 Schedule Event" as UC10
+        usecase "UC-12 Forum Post" as UC12
+        usecase "UC-13 Digital Library" as UC13
+        usecase "UC-16 Whiteboard" as UC16
+        usecase "UC-17 Admin Panel" as UC17
+        usecase "UC-19 Phone Animation" as UC19
+        usecase "UC-20 Spatial Chat" as UC20
+        usecase "UC-21 Seat Snapping" as UC21
+        usecase "UC-22 Spatial Audio" as UC22
+        usecase "UC-23 Spatial Video Overlay" as UC23
+        usecase "UC-25 State Snapshots" as UC25
+    }
 
-    G --> UC1
-    G --> UC2
+    U --> UC1
     U --> UC3
     U --> UC5
     U --> UC7
     U --> UC8
+    U --> UC9
     U --> UC12
     U --> UC13
-    O --> UC4
-    O --> UC6
-    H --> UC10
-    H --> UC11
+    U --> UC16
+    U --> UC19
+    U --> UC20
+    U --> UC21
+    U --> UC22
+    U --> UC23
 
-    UC1 --> GI
-    UC2 --> SMTP
-    UC9 --> LK
-    UC10 --> SMTP
+    U <|-- O
+    O --> UC4
+    
+    U <|-- H
+    H --> UC10
+
+    U <|-- A
+    A --> UC17
+
+    S --> UC25
 ```
 
 ## 5. Detailed Use Cases (SRS Tables)
@@ -298,7 +319,80 @@ flowchart LR
 | Postconditions | Platform state is updated based on admin actions. |
 
 
+### UC-21 - Directional Seat Snapping
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-21 |
+| Use Case Name | Directional Seat Snapping |
+| Primary Actor | Authenticated User |
+| Preconditions | User is near a chair defined in map data; room is active. |
+| Trigger | User presses the 'E' key. |
+| Basic Flow | 1. Client detects proximity to a seat entity.<br>2. Client calculates target position and orientation (Up/Down/Left/Right) from map config.<br>3. Character "snaps" to the position and updates sprite frame.<br>4. State is synced via WebSocket `move` event with `isSitting: true` and `direction`. |
+| Postconditions | User is seated in the correct direction; others see the seated animation. |
+
+### UC-22 - Web Audio Spatial Engine
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-22 |
+| Use Case Name | Web Audio Spatial Engine |
+| Primary Actor | Authenticated User |
+| Preconditions | User is in a room with other participants or audio sources. |
+| Basic Flow | 1. Client initializes Web Audio Context.<br>2. Client calculates distance and X-offset to target players.<br>3. PannerNode adjusts stereo balance.<br>4. GainNode applies exponential volume decay based on distance.<br>5. Audio is rendered in real-time as users move. |
+| Postconditions | Immersive 2D spatial audio experience. |
+
+### UC-23 - Spatial Video Overlay
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-23 |
+| Use Case Name | Spatial Video Overlay |
+| Primary Actor | Authenticated User |
+| Preconditions | Proximity video call is active. |
+| Basic Flow | 1. Client receives video track from LiveKit.<br>2. Client converts world coordinates of the remote player to screen pixels.<br>3. Video track is rendered in a floating circle above the avatar.<br>4. Position updates every frame during movement. |
+| Postconditions | Video follows the avatar on the game canvas. |
+| **_Alternative Flows:_** | A1. User minimizes the video overlay -> overlay hidden but call remains active. |
+
+### UC-24 - Glassmorphic UI Interaction
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-24 |
+| Use Case Name | Glassmorphic UI Interaction |
+| Primary Actor | Authenticated User |
+| Preconditions | User is logged in and interacting with the dashboard or game room. |
+| Trigger | User opens a modal, sidebar, or bottom control bar. |
+| Basic Flow | 1. User clicks on a UI trigger.<br>2. System renders the target component with `backdrop-filter: blur()`.<br>3. User interacts with buttons/fields inside the glassmorphic container.<br>4. System applies hover/active transitions to maintain premium aesthetic. |
+| Postconditions | Consistent, high-end visual experience across all system interfaces. |
+
+### UC-25 - Periodic State Snapshots
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-25 |
+| Use Case Name | Periodic State Snapshots |
+| Primary Actor | System |
+| Preconditions | System is running; active rooms or player sessions exist. |
+| Trigger | 30-second interval timer (snapshot loop). |
+| Basic Flow | 1. System background task triggers every 30 seconds.<br>2. System iterates through `activePlayers` and `whiteboardStates` in memory.<br>3. System writes serialized state data to MongoDB collections.<br>4. System logs success/failure of the snapshot. |
+| Exception Flow | E1. Database timeout -> system skips current snapshot and retries in the next interval. |
+| Postconditions | Volatile in-memory state is persisted, allowing recovery after server restarts. |
+
+### UC-26 - API Rate Limiting
+
+| Field | Description |
+|---|---|
+| Use Case ID | UC-26 |
+| Use Case Name | API Rate Limiting |
+| Primary Actor | System |
+| Preconditions | System is exposed to public network traffic. |
+| Trigger | Incoming HTTP/WebSocket request. |
+| Basic Flow | 1. Client sends request to the server.<br>2. Rate-limit middleware checks client IP against current request count.<br>3. If below threshold, request proceeds to controller.<br>4. If threshold exceeded, server returns `429 Too Many Requests`. |
+| Postconditions | Server protected against brute-force attacks and resource exhaustion. |
+
+
 ## 6. Traceability
 
 - Functional requirements mapping: `docs/FunctionalRequirement.md`.
-- Architecture and interfaces: `docs/SRS.md`, `docs/diagram.md`, `docs/api_schema_2026.md`.
+- Architecture and interfaces: `docs/SRS_2.md`, `docs/diagram.md`, `docs/api_schema_2026.md`.

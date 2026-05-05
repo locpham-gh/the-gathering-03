@@ -1,0 +1,104 @@
+@startuml UsecaseDiagram
+left to right direction
+skinparam packageStyle rectangle
+
+actor "Guest" as G
+actor "Authenticated User" as U
+actor "Room Owner" as RO
+actor "Event Host" as EH
+actor "Admin" as AD
+actor "System" as S
+
+actor "Google Identity" as Google <<External>>
+actor "SMTP Provider" as SMTP <<External>>
+actor "LiveKit Server" as LK <<External>>
+
+rectangle "The Gathering System" {
+    package "Authentication" {
+        usecase "UC-01: Login with Google" as UC01
+        usecase "UC-02: Login with Email OTP" as UC02
+        usecase "UC-03: Update Profile" as UC03
+    }
+
+    package "Room & Multiplayer" {
+        usecase "UC-04: Create Room" as UC04
+        usecase "UC-05: Join Room by Code" as UC05
+        usecase "UC-06: Manage Room Members" as UC06
+        usecase "UC-07: Enter 2D Room" as UC07
+        usecase "UC-08: Sync Multiplayer Position" as UC08
+        usecase "UC-18: View Mini-map & Environment" as UC18
+        usecase "UC-19: Phone Interaction (Q Key)" as UC19
+        usecase "UC-21: Directional Seat Snapping" as UC21
+    }
+
+    package "Communication" {
+        usecase "UC-09: Start Proximity Call" as UC09
+        usecase "UC-20: Spatial Chat Filtering" as UC20
+        usecase "UC-22: Web Audio Spatial Engine" as UC22
+        usecase "UC-23: Spatial Video Overlay" as UC23
+    }
+
+    package "Integrated Modules" {
+        usecase "UC-10: Schedule Event" as UC10
+        usecase "UC-11: Manage Own Events" as UC11
+        usecase "UC-12: Post/Reply Forum Topic" as UC12
+        usecase "UC-13: Access Digital Library" as UC13
+        usecase "UC-14: Toggle Light/Dark Theme" as UC14
+        usecase "UC-15: Open Fullscreen Chat/Calendar" as UC15
+        usecase "UC-16: Use Collaborative Whiteboard" as UC16
+    }
+
+    package "Administration" {
+        usecase "UC-17: Manage Platform" as UC17
+    }
+
+    package "System Maintenance" {
+        usecase "UC-25: Periodic State Snapshots" as UC25
+        usecase "UC-26: API Rate Limiting" as UC26
+    }
+}
+
+' Relationships
+G --> UC01
+G --> UC02
+
+U <|-- RO
+U <|-- EH
+U <|-- AD
+
+U --> UC03
+U --> UC05
+U --> UC07
+U --> UC08
+U --> UC09
+U --> UC12
+U --> UC13
+U --> UC14
+U --> UC15
+U --> UC16
+U --> UC18
+U --> UC19
+U --> UC20
+U --> UC21
+U --> UC22
+U --> UC23
+
+RO --> UC04
+RO --> UC06
+
+EH --> UC10
+EH --> UC11
+
+AD --> UC17
+
+S --> UC25
+S --> UC26
+
+' Supporting Actors
+UC01 -- Google
+UC02 -- SMTP
+UC10 -- SMTP
+UC09 -- LK
+UC23 -- LK
+
+@enduml

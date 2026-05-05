@@ -145,7 +145,7 @@ export const NearbyChat: React.FC<NearbyChatProps> = ({
           </div>
           <div>
             <h3 className="text-white font-bold text-sm">Nearby Chat</h3>
-            <p className="text-slate-400 text-[10px] uppercase tracking-wider font-bold">Encrypted</p>
+
           </div>
         </div>
         <button 
