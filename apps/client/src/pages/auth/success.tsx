@@ -1,15 +1,30 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function AuthSuccess() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { login } = useAuth();
 
   useEffect(() => {
+    const token = searchParams.get('token');
+    const userStr = searchParams.get('user');
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userStr));
+        login(user, token);
+      } catch (err) {
+        console.error("Failed to parse user data from redirect", err);
+      }
+    }
+
     const timer = setTimeout(() => {
-      navigate('/game');
+      navigate('/home');
     }, 1500);
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, searchParams, login]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-950">

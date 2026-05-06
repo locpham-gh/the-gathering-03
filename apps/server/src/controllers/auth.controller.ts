@@ -6,7 +6,7 @@ import { sendOtpEmail } from "../services/email.service.js";
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const authController = {
-  verifyGoogle: async ({ body, jwt, set }: any) => {
+  verifyGoogle: async ({ body, headers, jwt, set }: any) => {
     try {
       const { credential } = body;
       const ticket = await client.verifyIdToken({
@@ -63,21 +63,39 @@ export const authController = {
         status: user.status,
       });
 
+      const userObj = {
+        id: user._id.toString(),
+        email: user.email,
+        displayName: user.displayName,
+        avatarUrl: user.avatarUrl,
+        role: user.role,
+        status: user.status,
+        whitelistedBy: (whitelisted?.addedBy as any)?._id?.toString(),
+        whitelistedByEmail: (whitelisted?.addedBy as any)?.email,
+      };
+
+      const isFormPost = headers["content-type"] === "application/x-www-form-urlencoded";
+
+      if (isFormPost) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        const encodedUser = encodeURIComponent(JSON.stringify(userObj));
+        set.redirect = `${frontendUrl}/auth/success?token=${token}&user=${encodedUser}`;
+        return;
+      }
+
       return {
         success: true,
-        user: {
-          id: user._id.toString(),
-          email: user.email,
-          displayName: user.displayName,
-          avatarUrl: user.avatarUrl,
-          role: user.role,
-          status: user.status,
-          whitelistedBy: (whitelisted?.addedBy as any)?._id?.toString(),
-          whitelistedByEmail: (whitelisted?.addedBy as any)?.email,
-        },
+        user: userObj,
         token,
       };
     } catch (error: any) {
+      const isFormPost = headers && headers["content-type"] === "application/x-www-form-urlencoded";
+      if (isFormPost) {
+        const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+        set.redirect = `${frontendUrl}/auth/failed?error=${encodeURIComponent(error.message)}`;
+        return;
+      }
+
       set.status = 401;
       return { success: false, error: error.message };
     }

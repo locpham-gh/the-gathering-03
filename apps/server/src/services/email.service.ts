@@ -8,12 +8,19 @@ async function getGmailTransporter() {
   }
 
   const transporter = nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: {
       user: emailUser,
       pass: emailPass,
     },
-  });
+    tls: {
+      rejectUnauthorized: false
+    },
+    // Force IPv4 because Railway blocks outbound IPv6 SMTP connections
+    family: 4
+  } as any);
 
   return { transporter, emailUser };
 }

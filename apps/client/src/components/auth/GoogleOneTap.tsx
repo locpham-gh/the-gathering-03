@@ -8,7 +8,9 @@ declare global {
         id: {
           initialize: (config: {
             client_id: string;
-            callback: (response: { credential: string }) => void;
+            callback?: (response: { credential: string }) => void;
+            ux_mode?: "popup" | "redirect";
+            login_uri?: string;
           }) => void;
           renderButton: (element: HTMLElement, options: unknown) => void;
           prompt: () => void;
@@ -58,28 +60,11 @@ export const GoogleOneTap: React.FC<GoogleOneTapProps> = ({
 
       // 1. Initialize only ONCE globally
       if (!isGoogleInitialized) {
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         window.google.accounts.id.initialize({
           client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || "MOCK_CLIENT_ID",
-          callback: async (response: { credential: string }) => {
-            try {
-              const apiUrl =
-                import.meta.env.VITE_API_URL || "http://localhost:3000";
-              const res = await fetch(`${apiUrl}/api/auth/google`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ credential: response.credential }),
-              });
-
-              const data = await res.json();
-              if (data.success) {
-                login(data.user, data.token);
-              } else {
-                console.error("Login failed:", data.error);
-              }
-            } catch (err) {
-              console.error("API error", err);
-            }
-          },
+          ux_mode: "redirect",
+          login_uri: `${apiUrl}/api/auth/google`,
         });
         isGoogleInitialized = true;
       }
