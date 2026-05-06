@@ -98,9 +98,10 @@ export const LibraryModal: React.FC<{ onClose: () => void }> = ({
         <div className="flex-1 flex flex-col relative h-full bg-white">
           <button
             onClick={onClose}
-            className="absolute top-8 right-8 p-3 bg-slate-100 hover:bg-slate-900 hover:text-white rounded transition-all z-20 text-slate-500"
+            className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-rose-500 hover:text-white rounded-full transition-colors z-50 text-slate-400 shadow-sm border border-slate-200"
+            title="Đóng Thư viện"
           >
-            <X size={20} />
+            <X size={24} strokeWidth={2.5} />
           </button>
 
           <LibraryHeader
