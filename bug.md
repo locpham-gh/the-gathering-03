@@ -6,7 +6,7 @@
 | **Severity**  | **High** (Security/Access Control issue) |
 | **Priority**  | **High**                                 |
 | **Component** | Room Management / Real-time Socket       |
-| **Status**    | New                                      |
+| **Status**    | **Fixed (needs verify on deployed env)** |
 
 **Bug Summary**
 
@@ -32,7 +32,7 @@ Chủ phòng có thể thực hiện thao tác "Kick" Thành viên A thành côn
 - Kiểm tra danh sách thành viên bên phía Owner.
 - Quan sát màn hình và trạng thái của **Thành viên A** bên trong phòng ảo.
 
-**Actual Result**
+**Actual Result (trước khi sửa)**
 
 - Thành viên A bị xóa khỏi danh sách thành viên ở phía quản lý thành công.
 - **Lỗi:** Thành viên A vẫn ở trong phòng ảo, không bị ngắt kết nối hoặc chuyển hướng.
@@ -45,3 +45,23 @@ Chủ phòng có thể thực hiện thao tác "Kick" Thành viên A thành côn
   - Thành viên A bị đẩy ra khỏi phòng ảo và chuyển hướng về trang Dashboard hoặc danh sách phòng.
   - Hiển thị thông báo: _"Bạn đã bị mời ra khỏi phòng bởi chủ phòng."_
   - Avatar và dữ liệu của Thành viên A phải biến mất khỏi góc nhìn của các người dùng khác trong phòng.
+
+---
+
+### Implementation (đã merge trong code)
+
+Sau `POST /api/rooms/:id/kick` (cập nhật DB), server:
+
+1. Xóa user khỏi bộ nhớ multiplayer (`evictUserFromRoom(roomCode, userId)`).
+2. Gửi `player_left` theo từng socket id tới topic `room-{roomCode}`.
+3. Gửi **`room_member_kicked`** tới cùng topic `room-{roomCode}` (mọi client trong phòng đều subscribe) — người bị kick nhận được và bị redirect; người khác xóa avatar theo `userId`.
+4. Giữ **`kicked_from_room`** trên topic `user-{userId}` như kênh dự phòng.
+
+Client (`useMultiplayer` + `game.tsx`): xử lý `room_member_kicked` / `kicked_from_room`, tắt reconnect WebSocket, `alert` + điều hướng `/home/rooms`.
+
+**Nếu test vẫn “như cũ” sau khi push GitHub**
+
+- **Bắt buộc deploy lại backend (Bun)** — chỉ push code mà server production chưa restart / chưa build mới thì hành vi không đổi.
+- **Build lại frontend** (`npm run build` trong `apps/client`) với biến **`VITE_API_URL`** trỏ đúng API đang chạy (HTTP/HTTPS + WebSocket cùng host hoặc reverse proxy cho `/ws`).
+- Hai trình duyệt test cùng một môi trường (ví dụ cùng `localhost` hoặc cùng URL production), hard refresh (Ctrl+F5) hoặc xóa cache `dist` cũ.
+- Trên GitHub: kiểm tra branch/tag bạn bạn đang pull có commit chứa `room_member_kicked` và `realtime-broadcast.ts`.

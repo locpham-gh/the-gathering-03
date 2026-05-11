@@ -44,6 +44,15 @@ export function broadcastMemberKickedFromRoom(
       JSON.stringify({ type: "player_left", payload: { id: wsId } }),
     );
   }
+  // Room channel: every client in the game is subscribed — reliable force-exit for kicked user.
+  publisher.publish(
+    `room-${roomCode}`,
+    JSON.stringify({
+      type: "room_member_kicked",
+      payload: { userId: uid, message, roomCode },
+    }),
+  );
+  // User channel (backup if client only listened on user-* in future).
   publisher.publish(
     `user-${uid}`,
     JSON.stringify({

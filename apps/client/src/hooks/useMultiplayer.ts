@@ -42,7 +42,11 @@ export function useMultiplayer(roomId?: string) {
 
     const connect = () => {
       if (isClosing) return;
-      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`);
+      const qs = new URLSearchParams({
+        room: effectiveRoomId,
+        userId: user.id,
+      });
+      const ws = new WebSocket(`${protocol}//${host}/ws?${qs.toString()}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -82,6 +86,23 @@ export function useMultiplayer(roomId?: string) {
       ws.onmessage = (event) => {
         if (isClosing) return;
         const { type, payload } = JSON.parse(event.data);
+
+        const forceExitAsKicked = (rawMsg?: string) => {
+          if (kickedFromRoomRef.current) return;
+          kickedFromRoomRef.current = true;
+          const msg =
+            typeof rawMsg === "string" && rawMsg.trim()
+              ? rawMsg.trim()
+              : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
+          window.dispatchEvent(
+            new CustomEvent("room-kicked-by-owner", { detail: { message: msg } }),
+          );
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
+        };
         
         if (type === "player_moved") {
           // Skip if this is the local player
@@ -170,20 +191,21 @@ export function useMultiplayer(roomId?: string) {
           window.dispatchEvent(new CustomEvent("whiteboard-open", { detail: payload }));
         } else if (type === "whiteboard_close") {
           window.dispatchEvent(new CustomEvent("whiteboard-close", { detail: payload }));
-        } else if (type === "kicked_from_room") {
-          kickedFromRoomRef.current = true;
-          const msg =
-            typeof payload?.message === "string"
-              ? payload.message
-              : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
-          window.dispatchEvent(
-            new CustomEvent("room-kicked-by-owner", { detail: { message: msg } }),
-          );
-          try {
-            ws.close();
-          } catch {
-            /* ignore */
+        } else if (type === "room_member_kicked") {
+          const kickedUid = payload?.userId;
+          if (kickedUid && kickedUid === user.id) {
+            forceExitAsKicked(payload?.message);
+          } else if (kickedUid) {
+            setPlayers((prev) => {
+              const next = { ...prev };
+              for (const [wsId, p] of Object.entries(next)) {
+                if (p.userId === kickedUid) delete next[wsId];
+              }
+              return next;
+            });
           }
+        } else if (type === "kicked_from_room") {
+          forceExitAsKicked(payload?.message);
         }
       };
     };

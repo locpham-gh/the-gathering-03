@@ -29,6 +29,9 @@ const jwtConfig = jwt({
 });
 
 const app = new Elysia()
+  .onStart(({ server }: any) => {
+    if (server) setRealtimePublisher(server);
+  })
   .use(rateLimit({ duration: 60000, max: 100 }))
   .use(cors())
   .use(jwtConfig)

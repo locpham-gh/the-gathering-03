@@ -81,8 +81,9 @@ export function RoomManageModal({
     setSaving(false);
   };
 
-  const handleKick = async (userId: string) => {
+  const handleKick = async (memberId: string | { toString?: () => string }) => {
     if (!confirm("Remove this member from the room?")) return;
+    const userId = typeof memberId === "string" ? memberId : String(memberId);
     const res = await apiFetch(`/api/rooms/${room._id}/kick`, {
       method: "POST",
       body: JSON.stringify({ userId }),
@@ -213,7 +214,7 @@ export function RoomManageModal({
                     </div>
                     {member._id !== room.ownerId._id && (
                       <button
-                        onClick={() => handleKick(member._id)}
+                        onClick={() => handleKick(String(member._id))}
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                         title="Kick Member"
                       >

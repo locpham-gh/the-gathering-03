@@ -259,7 +259,16 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
       }
 
       try {
-        const { userId: kickId } = body;
+        let rawKick = body.userId as string | { _id?: string } | undefined;
+        if (rawKick && typeof rawKick === "object" && "_id" in rawKick) {
+          rawKick = (rawKick as { _id?: string })._id;
+        }
+        const kickId = String(rawKick ?? "").trim();
+        if (!kickId || kickId.length !== 24) {
+          set.status = 400;
+          return { success: false, error: "Invalid member userId" };
+        }
+
         const room = await Room.findById(params.id);
         if (!room) {
           set.status = 404;
