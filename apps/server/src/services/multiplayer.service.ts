@@ -30,6 +30,22 @@ export class MultiplayerService {
     }
   }
 
+  /** All socket ids removed for this user in the given room (room id = room code in URL). */
+  evictUserFromRoom(roomId: string, userId: string): string[] {
+    if (roomId === "lobby" || !userId) return [];
+    const room = this.activePlayers.get(roomId);
+    if (!room) return [];
+    const removed: string[] = [];
+    for (const [wsId, data] of [...room.entries()]) {
+      if (data.userId === userId) {
+        removed.push(wsId);
+        room.delete(wsId);
+      }
+    }
+    if (room.size === 0) this.activePlayers.delete(roomId);
+    return removed;
+  }
+
   async loadInitialPosition(roomId: string, userId: string) {
     if (roomId === "lobby" || !userId) return null;
     const dbRoom = await Room.findOne({ code: roomId });

@@ -23,9 +23,11 @@ export function useMultiplayer(roomId?: string) {
   const [localPosition, setLocalPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const wsRef = useRef<WebSocket | null>(null);
   const lastUpdatePayloadRef = useRef<any>(null);
+  const kickedFromRoomRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
+    kickedFromRoomRef.current = false;
 
     const effectiveRoomId = roomId || "lobby";
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -64,6 +66,7 @@ export function useMultiplayer(roomId?: string) {
 
       ws.onclose = (_event) => {
         if (isClosing) return;
+        if (kickedFromRoomRef.current) return;
         console.log(`🔌 WS Connection closed, attempting reconnect...`);
         if (reconnectAttempts < maxReconnectAttempts) {
           const timeout = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000); // Exponential backoff up to 30s
@@ -167,6 +170,20 @@ export function useMultiplayer(roomId?: string) {
           window.dispatchEvent(new CustomEvent("whiteboard-open", { detail: payload }));
         } else if (type === "whiteboard_close") {
           window.dispatchEvent(new CustomEvent("whiteboard-close", { detail: payload }));
+        } else if (type === "kicked_from_room") {
+          kickedFromRoomRef.current = true;
+          const msg =
+            typeof payload?.message === "string"
+              ? payload.message
+              : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
+          window.dispatchEvent(
+            new CustomEvent("room-kicked-by-owner", { detail: { message: msg } }),
+          );
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
         }
       };
     };
