@@ -136,6 +136,20 @@ export default function GamePage() {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const onKicked = (e: Event) => {
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      const text =
+        typeof msg === "string" && msg.trim()
+          ? msg
+          : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
+      alert(text);
+      navigate("/home/rooms", { replace: true });
+    };
+    window.addEventListener("room-kicked-by-owner", onKicked);
+    return () => window.removeEventListener("room-kicked-by-owner", onKicked);
+  }, [navigate]);
+
   if (!user) return null;
 
   if (isLoadingRoom) {

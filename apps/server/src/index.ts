@@ -11,8 +11,14 @@ import { chatRoutes } from "./routes/chat.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 import { rateLimit } from "elysia-rate-limit";
-import { multiplayerService } from "./services/multiplayer.service.js";
 import { multiplayerSocket } from "./sockets/multiplayer.socket.js";
+import {
+  setRealtimePublisher,
+  broadcastForumUpdate,
+  broadcastNotification,
+} from "./realtime-broadcast.js";
+
+export { broadcastForumUpdate, broadcastNotification };
 
 // Boot up MongoDB
 connectDB();
@@ -33,23 +39,6 @@ const app = new Elysia()
   .use(eventRoutes)
   .use(chatRoutes)
   .use(adminRoutes);
-
-// Global Broadcasters
-export const broadcastForumUpdate = () => {
-  if (!app.server) return;
-  app.server.publish("global-forum", JSON.stringify({
-    type: "forum_refresh",
-    payload: { timestamp: Date.now() },
-  }));
-};
-
-export const broadcastNotification = (userId: string) => {
-  if (!app.server) return;
-  app.server.publish(`user-${userId}`, JSON.stringify({
-    type: "new_notification",
-    payload: { timestamp: Date.now() },
-  }));
-};
 
 // HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");
@@ -83,4 +72,5 @@ app.get("/api/livekit/token", async ({ query, jwt, headers, set }: any) => {
 app.use(multiplayerSocket);
 
 app.listen(process.env.PORT || 3000);
+if (app.server) setRealtimePublisher(app.server);
 console.log(`🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`);
