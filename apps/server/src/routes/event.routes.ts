@@ -5,6 +5,7 @@ import { Room } from "../models/Room.js";
 import crypto from "crypto";
 import { sendEventEmail } from "../services/email.service.js";
 import { jwt } from "@elysiajs/jwt";
+import { verifySessionPayload } from "../utils/auth-session.js";
 
 export const eventRoutes: any = new Elysia({ prefix: "/api/events" })
   .use(
@@ -16,8 +17,7 @@ export const eventRoutes: any = new Elysia({ prefix: "/api/events" })
   .derive(async ({ jwt, headers }: any) => {
     const auth = headers["authorization"];
     if (!auth) return { user: null };
-    const token = auth.split(" ")[1];
-    const payload = await jwt.verify(token);
+    const payload = await verifySessionPayload(jwt, auth);
     return { user: payload };
   })
   .get("/", async ({ user }: any) => {

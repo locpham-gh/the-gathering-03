@@ -30,6 +30,20 @@ export function broadcastNotification(userId: string) {
   );
 }
 
+export function broadcastSessionReplaced(userId: string) {
+  if (!publisher) return;
+  publisher.publish(
+    `user-${userId}`,
+    JSON.stringify({
+      type: "session_replaced",
+      payload: {
+        message:
+          "Tai khoan da dang nhap o trinh duyet khac. Phien hien tai bi dang xuat.",
+      },
+    }),
+  );
+}
+
 export function broadcastMemberKickedFromRoom(
   roomCode: string,
   kickedUserId: string,

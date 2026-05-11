@@ -48,6 +48,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       emote={player.emote}
       displayName={player.displayName}
       chatBubble={player.chatBubble?.text || null}
+      isBusy={player.isBusy}
     />
   );
 };

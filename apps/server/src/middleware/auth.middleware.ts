@@ -1,4 +1,5 @@
 import { Elysia } from "elysia";
+import { verifySessionPayload } from "../utils/auth-session.js";
 
 export const authMiddleware = (app: Elysia) =>
   app.derive(async ({ jwt, headers, set }: any) => {
@@ -8,8 +9,7 @@ export const authMiddleware = (app: Elysia) =>
       return { user: null };
     }
 
-    const token = auth.startsWith("Bearer ") ? auth.split(" ")[1] : auth;
-    const decoded = await jwt.verify(token);
+    const decoded = await verifySessionPayload(jwt, auth);
 
     if (!decoded) {
       set.status = 401;

@@ -4,16 +4,19 @@ import {
   ControlBar,
   useTracks,
   useLocalParticipant,
-  useRemoteParticipants
+  useRemoteParticipants,
 } from "@livekit/components-react";
 import { Track, Participant } from "livekit-client";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { Zone } from "../core/zones";
-import { Lock, Music } from "lucide-react";
 import { ChillZoneManager } from "./ChillZoneManager";
 
-// Proximity radius in game pixels — cameras only show within this range
-const CAMERA_PROXIMITY = 300;
+// Keep tile close above character head.
+const VIDEO_GAP = 6;
+const SPRITE_HEAD_OFFSET = 8;
+const CAMERA_CONNECT_DISTANCE = 220;
+const CONNECTED_PAIR_GAP = 220;
+const CONNECTED_PAIR_RAISE = 20;
 
 interface LiveKitModalProps {
   token: string;
@@ -22,7 +25,14 @@ interface LiveKitModalProps {
   players: Record<string, RemotePlayer>;
   localPosition: { x: number; y: number };
   currentZone: Zone | null;
+  localIsBusy: boolean;
+  cameraTransform: { x: number; y: number };
 }
+
+const distance = (
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export const LiveKitModal: React.FC<LiveKitModalProps> = ({
   token,
@@ -31,9 +41,11 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
   players,
   localPosition,
   currentZone,
+  localIsBusy,
+  cameraTransform,
 }) => {
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[100] w-full max-w-6xl px-4 flex justify-center pointer-events-none text-slate-800">
+    <div className="absolute inset-0 z-[100] pointer-events-none text-slate-800">
       <LiveKitRoom
         video={true}
         audio={true}
@@ -41,119 +53,283 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
         token={token}
         serverUrl={serverUrl}
         onDisconnected={onDisconnect}
-        style={{ width: "100%", display: "flex", justifyContent: "center" }}
+        style={{ width: "100%", height: "100%" }}
       >
-        <CustomVideoGrid currentZone={currentZone} players={players} localPosition={localPosition} />
+        <AvatarVideoLayer
+          currentZone={currentZone}
+          players={players}
+          localPosition={localPosition}
+          localIsBusy={localIsBusy}
+          cameraTransform={cameraTransform}
+        />
         <ChillZoneManager currentZone={currentZone} />
-        <SpatialAudioRenderer 
-          players={players} 
-          localPosition={localPosition} 
-          currentZone={currentZone} 
+        <SpatialAudioRenderer
+          players={players}
+          localPosition={localPosition}
+          currentZone={currentZone}
+          localIsBusy={localIsBusy}
         />
       </LiveKitRoom>
     </div>
   );
 };
 
-const CustomVideoGrid: React.FC<{
+const AvatarVideoLayer: React.FC<{
   currentZone: Zone | null;
   players: Record<string, RemotePlayer>;
   localPosition: { x: number; y: number };
-}> = ({ currentZone, players, localPosition }) => {
+  localIsBusy: boolean;
+  cameraTransform: { x: number; y: number };
+}> = ({ currentZone, players, localPosition, localIsBusy, cameraTransform }) => {
+  const lastPairDebugRef = useRef<string>("");
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false },
+      { source: Track.Source.Microphone, withPlaceholder: true },
     ],
     { onlySubscribed: false },
   );
   const { localParticipant } = useLocalParticipant();
 
-  // Filter tracks: own camera always visible, remote cameras only within proximity
-  const visibleTracks = tracks.filter((track) => {
-    // Always show own camera tile (self-view)
-    if (track.participant.identity === localParticipant?.identity) return true;
-    // For screen share, always show
-    if (track.source === Track.Source.ScreenShare) return true;
-    // For remote tiles: only show if they are within proximity range
-    const remotePlayer = Object.values(players).find(
-      (rp) => rp.userId === track.participant.identity || rp.id === track.participant.identity
-    );
-    if (!remotePlayer) return false;
-    const dist = Math.sqrt(
-      Math.pow(remotePlayer.x - localPosition.x, 2) +
-      Math.pow(remotePlayer.y - localPosition.y, 2)
-    );
-    return dist <= CAMERA_PROXIMITY;
+  const readinessByIdentity = new Map<
+    string,
+    { cameraReady: boolean; micReady: boolean }
+  >();
+  tracks.forEach((t) => {
+    const id = t.participant.identity;
+    const prev = readinessByIdentity.get(id) || {
+      cameraReady: false,
+      micReady: false,
+    };
+    if (t.source === Track.Source.Camera) {
+      prev.cameraReady = !t.publication?.isMuted;
+    } else if (t.source === Track.Source.Microphone) {
+      prev.micReady = !t.publication?.isMuted;
+    }
+    readinessByIdentity.set(id, prev);
   });
 
+  const localIdentity = localParticipant?.identity || "";
+  const localReadyFromTracks = localIdentity
+    ? readinessByIdentity.get(localIdentity)
+    : undefined;
+  const localReady = Boolean(
+    localReadyFromTracks?.cameraReady &&
+      !localIsBusy &&
+      currentZone?.id !== "chill",
+  );
+
+  useEffect(() => {
+    if (!localParticipant) return;
+    if ((localIsBusy || currentZone?.id === "chill") && localParticipant.isCameraEnabled) {
+      localParticipant.setCameraEnabled(false);
+    }
+  }, [localParticipant, localIsBusy, currentZone?.id]);
+
+  const localTrack = tracks.find(
+    (t) =>
+      t.participant.identity === localParticipant?.identity &&
+      t.source === Track.Source.Camera,
+  );
+
+  const remoteTracks = tracks.filter((track) => {
+    if (track.source !== Track.Source.Camera) return false;
+    if (track.participant.identity === localParticipant?.identity) return false;
+    const rp = Object.values(players).find(
+      (p) => p.userId === track.participant.identity || p.id === track.participant.identity,
+    );
+    if (!rp || rp.isBusy) return false;
+    const remoteReadyState = readinessByIdentity.get(track.participant.identity);
+    const remoteReady = Boolean(
+      remoteReadyState?.cameraReady,
+    );
+    if (!remoteReady) return false;
+    return true;
+  });
+  const shouldAutoVideo = localReady;
+  const cameraEnabledRemotes = remoteTracks
+    .map((track) => ({
+      track,
+      player: Object.values(players).find(
+        (p) =>
+          p.userId === track.participant.identity || p.id === track.participant.identity,
+      ),
+    }))
+    .filter((item): item is { track: (typeof remoteTracks)[number]; player: RemotePlayer } =>
+      Boolean(item.player),
+    );
+
+  // When a nearby participant is close enough, both cameras are enlarged.
+  const nearestConnectedIdentity = cameraEnabledRemotes
+    .map(({ track, player }) => ({
+      identity: track.participant.identity,
+      dist: distance(localPosition, { x: player.x, y: player.y }),
+    }))
+    .sort((a, b) => a.dist - b.dist)[0];
+  const connectedIdentity =
+    nearestConnectedIdentity && nearestConnectedIdentity.dist <= CAMERA_CONNECT_DISTANCE
+      ? nearestConnectedIdentity.identity
+      : null;
+
+  const toScreen = (wx: number, wy: number) => ({
+    x: wx + cameraTransform.x + 32,
+    y: wy + cameraTransform.y - 64 - SPRITE_HEAD_OFFSET,
+  });
+
+  const connectedRemote = connectedIdentity
+    ? cameraEnabledRemotes.find(
+        ({ track }) => track.participant.identity === connectedIdentity,
+      )
+    : null;
+  const localScreenForPair = toScreen(localPosition.x, localPosition.y);
+  const remoteScreenForPair = connectedRemote
+    ? toScreen(connectedRemote.player.x, connectedRemote.player.y)
+    : null;
+  const connectedPairLayout =
+    connectedRemote && remoteScreenForPair
+      ? {
+          centerX: (localScreenForPair.x + remoteScreenForPair.x) / 2,
+          topY:
+            Math.min(localScreenForPair.y, remoteScreenForPair.y) -
+            VIDEO_GAP -
+            CONNECTED_PAIR_RAISE,
+          localOnLeft: localScreenForPair.x <= remoteScreenForPair.x,
+        }
+      : null;
+
+  useEffect(() => {
+    const debugPairFlag =
+      String(import.meta.env.VITE_DEBUG_CAMERA_PAIR || "").toLowerCase() === "true";
+    if (!import.meta.env.DEV || !debugPairFlag) return;
+    if (!connectedIdentity || !connectedRemote || !connectedPairLayout) return;
+
+    const leftIdentity = connectedPairLayout.localOnLeft
+      ? localParticipant?.identity || "local-unknown"
+      : connectedIdentity;
+    const rightIdentity = connectedPairLayout.localOnLeft
+      ? connectedIdentity
+      : localParticipant?.identity || "local-unknown";
+    const signature = `${leftIdentity}|${rightIdentity}|${Math.round(localScreenForPair.x)}|${Math.round(
+      remoteScreenForPair?.x || 0,
+    )}`;
+    if (signature === lastPairDebugRef.current) return;
+    lastPairDebugRef.current = signature;
+
+    console.debug("[camera-pair-mapping]", {
+      connectedIdentity,
+      localIdentity: localParticipant?.identity,
+      leftIdentity,
+      rightIdentity,
+      localX: Math.round(localScreenForPair.x),
+      remoteX: Math.round(remoteScreenForPair?.x || 0),
+    });
+  }, [
+    connectedIdentity,
+    connectedPairLayout,
+    connectedRemote,
+    localParticipant?.identity,
+    localScreenForPair.x,
+    remoteScreenForPair?.x,
+  ]);
+
   return (
-    <div className="flex flex-col items-center gap-3 pointer-events-auto transition-all">
-      {currentZone?.id === "chill" ? (
-        <div className="flex items-center gap-2 bg-emerald-700/90 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(16,185,129,0.5)] backdrop-blur-md mb-2 animate-pulse">
-          <Music size={14} className="text-emerald-200" />
-          <span>Chill Zone 🌿 — Mic &amp; Cam off</span>
-        </div>
-      ) : currentZone ? (
-        <div className="flex items-center gap-2 bg-indigo-600/90 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-[0_0_15px_rgba(79,70,229,0.5)] backdrop-blur-md mb-2">
-           <Lock size={14} className="text-indigo-200" />
-           <span>Isolated Audio: {currentZone.label}</span>
-        </div>
-      ) : null}
+    <>
+      <div className="absolute inset-0 pointer-events-none">
+        {shouldAutoVideo && localTrack && (
+          (() => {
+            const localScreen = toScreen(localPosition.x, localPosition.y);
+            return (
+          <FloatingVideo
+            key={`local-${localTrack.participant.identity}`}
+            track={localTrack}
+            isMuted={true}
+            label="You"
+            size={connectedIdentity ? "connected" : "normal"}
+            style={{
+              left: `${
+                connectedPairLayout
+                  ? connectedPairLayout.centerX +
+                    (connectedPairLayout.localOnLeft
+                      ? -CONNECTED_PAIR_GAP / 2
+                      : CONNECTED_PAIR_GAP / 2)
+                  : localScreen.x
+              }px`,
+              top: `${connectedPairLayout ? connectedPairLayout.topY : localScreen.y - VIDEO_GAP}px`,
+              transform: "translate(-50%, -100%)",
+            }}
+          />
+            );
+          })()
+        )}
 
-      {/* Camera grid — own tile always visible, remote tiles proximity-gated */}
-      <div className="flex flex-wrap items-center justify-center gap-3 w-full">
-
-        {visibleTracks.map((track) => {
-          const isScreenShare = track.source === Track.Source.ScreenShare;
-          // Find display name from remote players list
-          const remotePlayer = Object.values(players).find(
-            (rp) => rp.userId === track.participant.identity || rp.id === track.participant.identity
+        {remoteTracks.map((track) => {
+          const rp = Object.values(players).find(
+            (p) => p.userId === track.participant.identity || p.id === track.participant.identity,
           );
-          const displayName = remotePlayer?.displayName || track.participant.name || "";
+          if (!rp) return null;
+          const s = toScreen(rp.x, rp.y);
           return (
-            <div
+            <FloatingVideo
               key={`${track.participant.identity}-${track.source}`}
-              className={`${
-                isScreenShare
-                  ? "w-[480px] h-[360px] md:w-[640px] md:h-[480px] border-indigo-500 shadow-indigo-500/20"
-                  : "w-[160px] h-[120px] md:w-[200px] md:h-[150px] border-white"
-              } rounded-2xl overflow-hidden shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] border-2 bg-slate-100 shrink-0 relative transition-all duration-300`}
-            >
-              <VideoTile
-                track={track}
-                isMuted={track.participant.identity === localParticipant?.identity}
-              />
-              {displayName && (
-                <div className="absolute bottom-1 left-0 right-0 text-center">
-                  <span className="text-white text-xs font-medium bg-black/50 px-2 py-0.5 rounded-full">
-                    {displayName}
-                  </span>
-                </div>
-              )}
-            </div>
+              track={track}
+              isMuted={false}
+              label={rp.displayName || track.participant.name || ""}
+              size={
+                connectedIdentity === track.participant.identity
+                  ? "connected"
+                  : "normal"
+              }
+              style={{
+                left: `${
+                  connectedPairLayout && connectedIdentity === track.participant.identity
+                    ? connectedPairLayout.centerX +
+                      (connectedPairLayout.localOnLeft
+                        ? CONNECTED_PAIR_GAP / 2
+                        : -CONNECTED_PAIR_GAP / 2)
+                    : s.x
+                }px`,
+                top: `${
+                  connectedPairLayout && connectedIdentity === track.participant.identity
+                    ? connectedPairLayout.topY
+                    : s.y - VIDEO_GAP
+                }px`,
+                transform: "translate(-50%, -100%)",
+              }}
+            />
           );
         })}
       </div>
 
-      {/* Control Bar - Floating Pill */}
-      <div className="flex justify-center bg-white/95 backdrop-blur-xl px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
-         <ControlBar
-           variation="minimal"
-           controls={{
-             chat: false,
-             leave: false,
-             screenShare: currentZone?.id === "presentation" || currentZone?.id === "conference"
-           }}
-           style={{ background: 'transparent', boxShadow: 'none', padding: 0, minHeight: 'auto' }}
-         />
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-auto">
+        <div className="flex justify-center bg-white/95 backdrop-blur-xl px-4 py-1.5 rounded-full border border-slate-200 shadow-xl text-slate-700">
+          <ControlBar
+            variation="minimal"
+            controls={{
+              chat: false,
+              leave: false,
+              screenShare:
+                currentZone?.id === "presentation" || currentZone?.id === "conference",
+            }}
+            style={{
+              background: "transparent",
+              boxShadow: "none",
+              padding: 0,
+              minHeight: "auto",
+            }}
+          />
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
-/** Dedicated video tile — attaches track via useEffect for instant display */
-const VideoTile: React.FC<{ track: any; isMuted: boolean }> = ({ track, isMuted }) => {
+const FloatingVideo: React.FC<{
+  track: any;
+  isMuted: boolean;
+  label?: string;
+  size?: "normal" | "connected";
+  style: React.CSSProperties;
+}> = ({ track, isMuted, label, size = "normal", style }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -161,101 +337,104 @@ const VideoTile: React.FC<{ track: any; isMuted: boolean }> = ({ track, isMuted 
     const mediaTrack = track.publication?.track;
     if (el && mediaTrack) {
       mediaTrack.attach(el);
-      return () => { mediaTrack.detach(el); };
+      return () => mediaTrack.detach(el);
     }
   }, [track.publication?.track]);
 
   return (
-    <video
-      ref={videoRef}
-      autoPlay
-      muted={isMuted}
-      playsInline
-      className="w-full h-full object-cover"
-    />
+    <div
+      className={`absolute rounded-xl overflow-hidden border-2 border-white bg-slate-100 shadow-lg transition-all duration-200 ${
+        size === "connected"
+          ? "w-[132px] h-[96px] md:w-[200px] md:h-[140px] z-30"
+          : "w-[96px] h-[72px] md:w-[120px] md:h-[90px] z-20"
+      }`}
+      style={style}
+    >
+      <video
+        ref={videoRef}
+        autoPlay
+        muted={isMuted}
+        playsInline
+        className="w-full h-full object-cover"
+      />
+      {label && (
+        <div className="absolute bottom-1 left-0 right-0 text-center">
+          <span className="text-white text-[10px] font-medium bg-black/50 px-2 py-0.5 rounded-full">
+            {label}
+          </span>
+        </div>
+      )}
+    </div>
   );
 };
-
 
 const SpatialAudioRenderer: React.FC<{
   players: Record<string, RemotePlayer>;
   localPosition: { x: number; y: number };
   currentZone: Zone | null;
-}> = ({ players, localPosition, currentZone }) => {
+  localIsBusy: boolean;
+}> = ({ players, localPosition, currentZone, localIsBusy }) => {
   const participants = useRemoteParticipants();
 
   return (
     <div style={{ display: "none" }}>
       {participants.map((p) => {
-        // Find remote player in the game state matching the identity (user.id)
-        const remotePlayer = Object.values(players).find((rp) => rp.userId === p.identity || rp.id === p.identity);
-        
+        const remotePlayer = Object.values(players).find(
+          (rp) => rp.userId === p.identity || rp.id === p.identity,
+        );
+
         let volume = 0;
-        
-        if (remotePlayer) {
-          // Are they in the same private zone?
-          // If we have a robust zone tracking for other players, we could check that.
-          // For now, if we are in a zone, we might want everyone in that zone to hear each other.
-          // Since we don't have remote player zone data directly, we can check their coordinates!
-          
+        if (remotePlayer && !localIsBusy && !remotePlayer.isBusy) {
           let sameZone = false;
           if (currentZone) {
             const rx = remotePlayer.x;
             const ry = remotePlayer.y;
-            if (rx >= currentZone.x && rx <= currentZone.x + currentZone.width &&
-                ry >= currentZone.y && ry <= currentZone.y + currentZone.height) {
-              sameZone = true;
-            }
+            sameZone =
+              rx >= currentZone.x &&
+              rx <= currentZone.x + currentZone.width &&
+              ry >= currentZone.y &&
+              ry <= currentZone.y + currentZone.height;
           }
 
           if (sameZone) {
-            volume = 1.0;
+            volume = 1;
           } else {
-            // Euclidean distance
-            const dist = Math.sqrt(
-              Math.pow(remotePlayer.x - localPosition.x, 2) + 
-              Math.pow(remotePlayer.y - localPosition.y, 2)
-            );
-            
-            // Max hearing distance = 400px
+            const dist = distance(remotePlayer, localPosition);
             const maxDist = 400;
             if (dist < maxDist) {
-              volume = 1 - (dist / maxDist);
+              const normalized = 1 - dist / maxDist;
+              volume = normalized * normalized;
             }
           }
         }
-        
+
         return (
-          <ParticipantAudio 
-            key={p.identity} 
-            participant={p} 
-            volume={volume} 
-          />
+          <ParticipantAudio key={p.identity} participant={p} volume={volume} />
         );
       })}
     </div>
   );
 };
 
-const ParticipantAudio: React.FC<{ participant: Participant; volume: number }> = ({ participant, volume }) => {
+const ParticipantAudio: React.FC<{ participant: Participant; volume: number }> = ({
+  participant,
+  volume,
+}) => {
   const audioTracks = Array.from(participant.audioTrackPublications.values());
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    const audioEl = audioRef.current;
-    if (audioEl) {
-      audioEl.volume = volume;
-    }
+    if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
 
   useEffect(() => {
     const trackPub = audioTracks.find((t) => t.track);
     const audioEl = audioRef.current;
-    if (trackPub && trackPub.track && audioEl) {
+    if (trackPub?.track && audioEl) {
       trackPub.track.attach(audioEl);
     }
     return () => {
-      if (trackPub && trackPub.track && audioEl) {
+      if (trackPub?.track && audioEl) {
         trackPub.track.detach(audioEl);
       }
     };

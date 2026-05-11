@@ -23,6 +23,16 @@ export function useLiveKit(
             },
           },
         );
+        if (res.status === 401) {
+          window.dispatchEvent(
+            new CustomEvent("session-replaced", {
+              detail: {
+                message: "Bạn bị đăng xuất vì đăng nhập ở thiết bị khác.",
+              },
+            }),
+          );
+          return;
+        }
         const data = await res.json();
         if (data.token) {
           setToken(data.token);

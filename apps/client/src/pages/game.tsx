@@ -22,7 +22,7 @@ import { InviteModal } from "../components/game/ui/InviteModal";
 import { NearbyChat } from "../components/game/ui/NearbyChat";
 
 export default function GamePage() {
-  const { user, token: authToken } = useAuth();
+  const { user, token: authToken, logout } = useAuth();
   const navigate = useNavigate();
   const { roomId } = useParams();
 
@@ -30,7 +30,7 @@ export default function GamePage() {
   const { room, initialServerPosition, isLoading: isLoadingRoom, error: roomError } = useGameRoom(roomId);
   
   // 2. Multiplayer Logic
-  const { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage } = useMultiplayer(roomId);
+  const { players, localPosition, localIsBusy, updatePosition, sendChatMessage, sendEmote, sendMessage } = useMultiplayer(roomId);
   
   // 3. UI State
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
@@ -43,6 +43,16 @@ export default function GamePage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
   const [isWhiteboardLeader, setIsWhiteboardLeader] = useState(false);
+  const [cameraTransform, setCameraTransform] = useState({ x: 0, y: 0 });
+  const [isSidebarFullscreenOverlayOpen, setIsSidebarFullscreenOverlayOpen] = useState(false);
+  const joinStateKey = `joined-room:${roomId || "default"}`;
+  const clearSavedJoinState = useCallback(() => {
+    try {
+      sessionStorage.removeItem(joinStateKey);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [joinStateKey]);
 
   // 4. Voice/Video Logic
   const { token: liveKitToken, setToken: setLiveKitToken } = useLiveKit(isJoined, user, roomId, authToken);
@@ -52,6 +62,18 @@ export default function GamePage() {
     setCustomDisplayName(data.displayName);
     setSelectedCharacter(data.characterId);
     setIsJoined(true);
+    try {
+      sessionStorage.setItem(
+        joinStateKey,
+        JSON.stringify({
+          isJoined: true,
+          displayName: data.displayName,
+          characterId: data.characterId,
+        }),
+      );
+    } catch {
+      // Ignore storage errors (private mode/quota).
+    }
   };
   const handleZoneClose = useCallback(() => {
     // If leader closes whiteboard, broadcast to attendees
@@ -61,6 +83,17 @@ export default function GamePage() {
     setIsWhiteboardLeader(false);
     setActiveZone(null);
   }, [isWhiteboardLeader, roomId, sendMessage]);
+
+  const handleResetPreJoin = useCallback(() => {
+    clearSavedJoinState();
+    setActiveZone(null);
+    setIsWhiteboardLeader(false);
+    setIsPhoneOpen(false);
+    setIsJoined(false);
+    setSelectedCharacter(null);
+    setCustomDisplayName(null);
+    setLiveKitToken(null);
+  }, [clearSavedJoinState, setLiveKitToken]);
 
   const handleInteract = useCallback(() => {
     if (!currentZone || currentZone.id === "chill") return;
@@ -136,6 +169,36 @@ export default function GamePage() {
     }
   }, [user, navigate]);
 
+  // Keep pre-join choice across browser refresh in the same tab.
+  useEffect(() => {
+    if (!roomId) return;
+    if (!user) return;
+    const nav = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const isReload = nav?.type === "reload";
+    if (!isReload) {
+      // Fresh entries to room (including rejoin after kick) must show pre-join checks.
+      clearSavedJoinState();
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(joinStateKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        isJoined?: boolean;
+        displayName?: string;
+        characterId?: string;
+      };
+      if (!saved?.isJoined) return;
+      setIsJoined(true);
+      if (saved.displayName) setCustomDisplayName(saved.displayName);
+      if (saved.characterId) setSelectedCharacter(saved.characterId);
+    } catch {
+      // Ignore malformed/blocked storage.
+    }
+  }, [clearSavedJoinState, joinStateKey, roomId, user]);
+
   useEffect(() => {
     const onKicked = (e: Event) => {
       const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
@@ -144,11 +207,28 @@ export default function GamePage() {
           ? msg
           : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
       alert(text);
+      clearSavedJoinState();
       navigate("/home/rooms", { replace: true });
     };
     window.addEventListener("room-kicked-by-owner", onKicked);
     return () => window.removeEventListener("room-kicked-by-owner", onKicked);
-  }, [navigate]);
+  }, [clearSavedJoinState, navigate]);
+
+  useEffect(() => {
+    const onSessionReplaced = (e: Event) => {
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      alert(
+        msg ||
+          "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
+      );
+      clearSavedJoinState();
+      logout();
+      navigate("/", { replace: true });
+    };
+    window.addEventListener("session-replaced", onSessionReplaced);
+    return () =>
+      window.removeEventListener("session-replaced", onSessionReplaced);
+  }, [clearSavedJoinState, logout, navigate]);
 
   if (!user) return null;
 
@@ -186,6 +266,7 @@ export default function GamePage() {
         user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
         players={players}
         onOpenInvite={() => setShowInviteModal(true)}
+        onFullscreenOverlayChange={setIsSidebarFullscreenOverlayOpen}
       />
 
       <div className="flex-1 relative overflow-hidden bg-slate-900">
@@ -205,6 +286,7 @@ export default function GamePage() {
             localPosition={localPosition}
             initialServerPosition={initialServerPosition}
             onPhoneToggle={setIsPhoneOpen}
+            onCameraTransform={(x, y) => setCameraTransform({ x, y })}
           />
         </div>
 
@@ -241,7 +323,7 @@ export default function GamePage() {
           <WhiteboardModal onClose={handleZoneClose} roomId={roomId} sendMessage={sendMessage} isLeader={true} />
         )}
 
-        {liveKitToken && (
+        {liveKitToken && !isSidebarFullscreenOverlayOpen && (
           <LiveKitModal
             token={liveKitToken}
             serverUrl={import.meta.env.VITE_LIVEKIT_URL}
@@ -249,6 +331,8 @@ export default function GamePage() {
             players={players}
             localPosition={localPosition}
             currentZone={currentZone}
+            localIsBusy={localIsBusy}
+            cameraTransform={cameraTransform}
           />
         )}
         
@@ -258,6 +342,17 @@ export default function GamePage() {
           roomName={room?.name}
           roomCode={room?.code || roomId}
         />
+
+        {isJoined && (
+          <button
+            type="button"
+            onClick={handleResetPreJoin}
+            className="absolute top-4 right-4 z-[120] pointer-events-auto rounded-lg border border-white/20 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+            title="Quay lại màn check mic/cam/character"
+          >
+            Reset pre-join
+          </button>
+        )}
       </div>
 
       {!isJoined && <PreJoinScreen user={user} onJoin={handleJoin} />}

@@ -16,6 +16,7 @@ import { useCamera } from "../hooks/useCamera";
 import { usePlayerState } from "../hooks/usePlayerState";
 import { useNearbySystem } from "../hooks/useNearbySystem";
 import { useMapTeleport } from "../hooks/useMapTeleport";
+import { useFacePresence } from "../../../hooks/useFacePresence";
 
 // Components
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
@@ -27,7 +28,7 @@ interface PlayerProps {
   isPaused: boolean;
   onInteract?: () => void;
   onPhoneToggle?: (isOpen: boolean) => void;
-  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
@@ -39,6 +40,7 @@ interface PlayerProps {
   localChatBubble?: string | null;
   roomId?: string;
   initialServerPosition?: { x: number; y: number } | null;
+  onCameraTransform?: (x: number, y: number) => void;
 }
 
 export const Player: React.FC<PlayerProps> = ({
@@ -60,6 +62,7 @@ export const Player: React.FC<PlayerProps> = ({
   roomId,
   initialServerPosition,
   onPhoneToggle,
+  onCameraTransform,
 }) => {
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
   const spawnPoint = useMemo(() => getMapSpawnPoint(mapData), [mapData]);
@@ -71,7 +74,9 @@ export const Player: React.FC<PlayerProps> = ({
 
   const { nearbyChair, setNearbyChair, checkNearbyPlayers } = useNearbySystem();
   const { checkTeleport } = useMapTeleport(mapData, setX, setY);
+  const { presence: facePresence } = useFacePresence();
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
+  const isBusy = facePresence === "absent";
 
   const { checkCollision } = useCollision(mapData);
   const { updateCamera } = useCamera(worldRef, screenW, screenH, 
@@ -81,6 +86,8 @@ export const Player: React.FC<PlayerProps> = ({
 
   const lastSyncSit = useRef(isSitting);
   const lastSyncPhone = useRef(isPhoneOut);
+  const lastSyncBusy = useRef(isBusy);
+  const seatedPhoneOpenRef = useRef(false);
 
   const handleInteraction = () => {
     if (isPaused) return;
@@ -118,6 +125,11 @@ export const Player: React.FC<PlayerProps> = ({
       const isSeatTile = tilesetName.includes("seat") || tilesetName.includes("chair") || (tileInfo.gid >= 1375 && tileInfo.gid <= 1557);
 
       if (isSeatTile) {
+        if (isPhoneOut) {
+          setIsPhoneOut(false);
+        }
+        onPhoneToggle?.(false);
+        seatedPhoneOpenRef.current = false;
         setIsSitting(true);
         sitOriginRef.current = { x, y };
         setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
@@ -183,7 +195,13 @@ export const Player: React.FC<PlayerProps> = ({
 
   const handlePhoneToggle = () => {
     if (isPaused) return;
-    setIsPhoneOut(prev => {
+    // While sitting, open/close Nearby Chat UI only, but keep avatar pose stable.
+    if (isSitting) {
+      seatedPhoneOpenRef.current = !seatedPhoneOpenRef.current;
+      onPhoneToggle?.(seatedPhoneOpenRef.current);
+      return;
+    }
+    setIsPhoneOut((prev) => {
       const newState = !prev;
       onPhoneToggle?.(newState);
       return newState;
@@ -200,6 +218,7 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Always update camera and detect zones/proximity, even when sitting
     updateCamera(x, y, delta);
+    onCameraTransform?.(worldRef.current?.x || 0, worldRef.current?.y || 0);
     const zone = checkZoneCollision(x, y, zones);
     checkNearbyPlayers(x, y, players, onNearbyPlayer);
     
@@ -234,13 +253,31 @@ export const Player: React.FC<PlayerProps> = ({
     }
 
     if (isSitting) {
-      if (isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
-        updatePosition(x, y, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
+      if (
+        isSitting !== lastSyncSit.current ||
+        isPhoneOut !== lastSyncPhone.current ||
+        isBusy !== lastSyncBusy.current
+      ) {
+        updatePosition(
+          x,
+          y,
+          direction,
+          isSitting,
+          selectedCharacter,
+          customDisplayName || undefined,
+          isPhoneOut,
+          isBusy,
+        );
         lastSyncSit.current = isSitting;
         lastSyncPhone.current = isPhoneOut;
+        lastSyncBusy.current = isBusy;
       }
       const isPressingMove = keys.has("w") || keys.has("a") || keys.has("s") || keys.has("d") || keys.has("arrowup") || keys.has("arrowdown") || keys.has("arrowleft") || keys.has("arrowright");
-      if (isPressingMove) setIsSitting(false);
+      if (isPressingMove) {
+        setIsSitting(false);
+        seatedPhoneOpenRef.current = false;
+        onPhoneToggle?.(false);
+      }
       return;
     }
 
@@ -267,9 +304,26 @@ export const Player: React.FC<PlayerProps> = ({
       setIsMoving(false);
     }
 
-    if (finalX !== x || finalY !== y || isSitting !== lastSyncSit.current || isPhoneOut !== lastSyncPhone.current) {
-      updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
-      lastSyncSit.current = isSitting; lastSyncPhone.current = isPhoneOut;
+    if (
+      finalX !== x ||
+      finalY !== y ||
+      isSitting !== lastSyncSit.current ||
+      isPhoneOut !== lastSyncPhone.current ||
+      isBusy !== lastSyncBusy.current
+    ) {
+      updatePosition(
+        finalX,
+        finalY,
+        direction,
+        isSitting,
+        selectedCharacter,
+        customDisplayName || undefined,
+        isPhoneOut,
+        isBusy,
+      );
+      lastSyncSit.current = isSitting;
+      lastSyncPhone.current = isPhoneOut;
+      lastSyncBusy.current = isBusy;
     }
   });
 
@@ -277,7 +331,10 @@ export const Player: React.FC<PlayerProps> = ({
     <AnimatedPlayerSprite
       x={x} y={y} direction={direction} isMoving={isMoving}
       isSitting={isSitting} isPhoneOut={isPhoneOut} character={selectedCharacter}
-      emote={localEmote} displayName={customDisplayName} chatBubble={localChatBubble || null}
+      emote={localEmote}
+      displayName={customDisplayName}
+      chatBubble={localChatBubble || null}
+      isBusy={isBusy}
     />
   );
 };

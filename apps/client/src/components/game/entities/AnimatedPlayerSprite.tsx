@@ -16,6 +16,7 @@ interface AnimatedPlayerSpriteProps {
   emote?: { id: string; timestamp: number } | null;
   displayName?: string;
   chatBubble?: string | null;
+  isBusy?: boolean;
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -30,6 +31,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   emote = null,
   displayName,
   chatBubble = null,
+  isBusy = false,
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
@@ -51,9 +53,10 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
 
   useEffect(() => {
     // Reset frame when phone state changes to start from "pull out" animation
+    if (isSitting) return;
     Promise.resolve().then(() => setFrame(0));
     timeAcc.current = 0;
-  }, [isPhoneOut]);
+  }, [isPhoneOut, isSitting]);
 
   // Animation logic loop
   useTick((delta) => {
@@ -118,7 +121,8 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
     baseCol = 0; 
   }
 
-  const col = Math.min(baseCol + frame, 23);
+  const effectiveFrame = isSitting ? 0 : frame;
+  const col = Math.min(baseCol + effectiveFrame, 23);
   const texture = getCharacterTexture(row, col, character);
 
   // Chat bubble background draw callback
@@ -168,6 +172,27 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
               stroke: "#000000",
               strokeThickness: 3,
               fontWeight: "600",
+              align: "center",
+            })
+          }
+        />
+      )}
+
+      {/* Busy/Away status badge */}
+      {isBusy && (
+        <PixiText
+          text={"● Away"}
+          x={32}
+          y={-20}
+          anchor={0.5}
+          style={
+            new PIXI.TextStyle({
+              fontSize: 10,
+              fontFamily: "Arial, sans-serif",
+              fill: "#fbbf24",
+              stroke: "#111827",
+              strokeThickness: 3,
+              fontWeight: "700",
               align: "center",
             })
           }

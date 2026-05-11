@@ -15,12 +15,14 @@ export interface RemotePlayer {
   emote?: { id: string; timestamp: number };
   chatBubble?: { text: string; timestamp: number };
   isPhoneOut?: boolean;
+  isBusy?: boolean;
 }
 
 export function useMultiplayer(roomId?: string) {
   const { user } = useAuth();
   const [players, setPlayers] = useState<Record<string, RemotePlayer>>({});
   const [localPosition, setLocalPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [localIsBusy, setLocalIsBusy] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const lastUpdatePayloadRef = useRef<any>(null);
   const kickedFromRoomRef = useRef(false);
@@ -119,6 +121,7 @@ export function useMultiplayer(roomId?: string) {
               direction: payload.direction,
               isSitting: payload.isSitting,
               isPhoneOut: payload.isPhoneOut, // Sync phone state
+              isBusy: payload.isBusy,
               character: payload.character,
               lastUpdate: Date.now(),
               displayName: payload.displayName,
@@ -133,7 +136,8 @@ export function useMultiplayer(roomId?: string) {
               if (p.userId !== user.id) {
                 next[id] = {
                   ...p,
-                  isPhoneOut: p.isPhoneOut // Ensure initial state has phone info
+                  isPhoneOut: p.isPhoneOut, // Ensure initial state has phone info
+                  isBusy: p.isBusy,
                 };
               }
             });
@@ -206,6 +210,21 @@ export function useMultiplayer(roomId?: string) {
           }
         } else if (type === "kicked_from_room") {
           forceExitAsKicked(payload?.message);
+        } else if (type === "session_replaced") {
+          window.dispatchEvent(
+            new CustomEvent("session-replaced", {
+              detail: {
+                message:
+                  payload?.message ||
+                  "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
+              },
+            }),
+          );
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
         }
       };
     };
@@ -234,12 +253,13 @@ export function useMultiplayer(roomId?: string) {
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => {
+  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => {
     const now = Date.now();
     const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
     if (!stateChanged && now - lastSent.current < 50) return;
     
     setLocalPosition({ x, y });
+    setLocalIsBusy(Boolean(isBusy));
 
     if (wsRef.current?.readyState === WebSocket.OPEN && user) {
       try {
@@ -249,6 +269,7 @@ export function useMultiplayer(roomId?: string) {
           direction,
           isSitting,
           isPhoneOut,
+          isBusy,
           character,
           userId: user.id,
           displayName: customName || user.displayName,
@@ -310,5 +331,5 @@ export function useMultiplayer(roomId?: string) {
     return () => window.removeEventListener("send-chat-message", handleSendChat as EventListener);
   }, [sendChatMessage]);
 
-  return { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage };
+  return { players, localPosition, localIsBusy, updatePosition, sendChatMessage, sendEmote, sendMessage };
 }

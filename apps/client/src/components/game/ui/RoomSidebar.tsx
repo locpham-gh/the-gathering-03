@@ -5,6 +5,7 @@ import {
   CalendarDays,
   LogOut,
   Link2,
+  UserX,
   X,
   Wifi,
   Sun,
@@ -27,6 +28,7 @@ interface RoomSidebarProps {
   user: { id: string; avatarUrl: string; displayName: string };
   players: Record<string, RemotePlayer>;
   onOpenInvite?: () => void;
+  onFullscreenOverlayChange?: (isOpen: boolean) => void;
 }
 
 const TABS = [
@@ -40,16 +42,23 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   user,
   players,
   onOpenInvite,
+  onFullscreenOverlayChange,
 }) => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [ownerId, setOwnerId] = useState<string>("");
+  const [roomDbId, setRoomDbId] = useState<string>("");
   const [isDark, setIsDark] = useState(false);
   const navigate = useNavigate();
 
   const fetchMembers = useCallback(() => {
     if (roomId) {
       apiFetch(`/api/rooms/${roomId}/members`).then((res) => {
-        if (res.success) setMembers(res.members);
+        if (res.success) {
+          setMembers(res.members);
+          setOwnerId(String(res.ownerId || ""));
+          setRoomDbId(String(res.roomId || ""));
+        }
       });
     }
   }, [roomId]);
@@ -61,6 +70,26 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
 
   const onlineCount = Object.keys(players).length + 1;
   const isFullScreen = activeTab === "chat" || activeTab === "events";
+  const isOwner = ownerId === user.id;
+
+  useEffect(() => {
+    onFullscreenOverlayChange?.(isFullScreen);
+  }, [isFullScreen, onFullscreenOverlayChange]);
+
+  const handleKick = async (memberId: string) => {
+    if (!isOwner || !roomDbId) return;
+    if (memberId === user.id) return;
+    if (!confirm("Kick this member out of the room?")) return;
+    const res = await apiFetch(`/api/rooms/${roomDbId}/kick`, {
+      method: "POST",
+      body: JSON.stringify({ userId: String(memberId) }),
+    });
+    if (!res.success) {
+      alert(res.error || "Failed to kick member.");
+      return;
+    }
+    fetchMembers();
+  };
 
   // Theme Colors
   const colors = {
@@ -319,6 +348,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                   const isOnline =
                     member._id === user.id ||
                     Object.values(players).some((p) => p.userId === member._id);
+                  const canKick = isOwner && member._id !== user.id;
                   return (
                     <div
                       key={member._id}
@@ -343,7 +373,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                           }}
                         />
                       </div>
-                      <div className="overflow-hidden">
+                      <div className="overflow-hidden flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate leading-tight" style={{ color: colors.textPrimary }}>
                           {member.displayName}
                         </p>
@@ -351,6 +381,16 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                           {isOnline ? "● Online" : "○ Offline"}
                         </p>
                       </div>
+                      {canKick && (
+                        <button
+                          onClick={() => handleKick(member._id)}
+                          className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-red-500/10"
+                          style={{ color: "#ef4444" }}
+                          title="Kick member"
+                        >
+                          <UserX size={14} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

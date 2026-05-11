@@ -1,7 +1,9 @@
 import { OAuth2Client } from "google-auth-library";
+import crypto from "crypto";
 import { User } from "../models/User.js";
 import { Whitelist } from "../models/Whitelist.js";
 import { sendOtpEmail } from "../services/email.service.js";
+import { broadcastSessionReplaced } from "../realtime-broadcast.js";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -55,12 +57,22 @@ export const authController = {
 
       if (changed) await user.save();
 
+      const previousSessionId = user.activeSessionId;
+      const nextSessionId = crypto.randomUUID();
+      user.activeSessionId = nextSessionId;
+      await user.save();
+
+      if (previousSessionId && previousSessionId !== nextSessionId) {
+        broadcastSessionReplaced(user._id.toString());
+      }
+
       const token = await jwt.sign({
         userId: user._id.toString(),
         email: user.email,
         displayName: user.displayName,
         role: user.role,
         status: user.status,
+        sessionId: nextSessionId,
       });
 
       return {
@@ -152,12 +164,22 @@ export const authController = {
       
       await user.save();
 
+      const previousSessionId = user.activeSessionId;
+      const nextSessionId = crypto.randomUUID();
+      user.activeSessionId = nextSessionId;
+      await user.save();
+
+      if (previousSessionId && previousSessionId !== nextSessionId) {
+        broadcastSessionReplaced(user._id.toString());
+      }
+
       const token = await jwt.sign({
         userId: user._id.toString(),
         email: user.email,
         displayName: user.displayName,
         role: user.role,
         status: user.status,
+        sessionId: nextSessionId,
       });
 
       return {

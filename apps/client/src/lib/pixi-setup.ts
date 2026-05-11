@@ -17,7 +17,12 @@ export const setupPixi = () => {
   PIXI.BaseTexture.defaultOptions.mipmap = PIXI.MIPMAP_MODES.OFF;
   
   // High precision for fragment shaders to prevent pixel drift
-  PIXI.settings.PRECISION_FRAGMENT = PIXI.PRECISION.HIGH;
+  const program = PIXI.Program as unknown as {
+    defaultFragmentPrecision?: string;
+  };
+  if (program && "defaultFragmentPrecision" in program) {
+    program.defaultFragmentPrecision = "highp";
+  }
 
   // Silence common but harmless/unfixable console warnings
   const originalWarn = console.warn;

@@ -29,7 +29,7 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => void;
   selectedCharacter: string;
   customDisplayName?: string;
   mapType?: string;
@@ -39,6 +39,7 @@ interface GameCanvasProps {
   localPosition: LocalPosition;
   initialServerPosition?: { x: number; y: number } | null;
   onPhoneToggle?: (isOpen: boolean) => void;
+  onCameraTransform?: (x: number, y: number) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -57,6 +58,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   localPosition,
   initialServerPosition,
   onPhoneToggle,
+  onCameraTransform,
 }) => {
   const { mapData, loading: mapLoading } = useMapLoader(mapType);
   const { w: screenW, h: screenH } = useWindowDimensions();
@@ -120,6 +122,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             localChatBubble={localChatBubble}
             initialServerPosition={initialServerPosition}
             onPhoneToggle={onPhoneToggle}
+            onCameraTransform={onCameraTransform}
           />
 
           {Object.values(players).map((player) => (
