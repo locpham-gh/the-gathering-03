@@ -21,12 +21,11 @@ import { WhiteboardModal } from "../components/game/ui/WhiteboardModal";
 import { NearbyChat } from "../components/game/ui/NearbyChat";
 import { HostControls } from "../components/game/ui/HostControls";
 import { MegaphoneBanner } from "../components/game/ui/MegaphoneBanner";
-import { CalendarModal } from "../components/game/ui/CalendarModal";
 import { IframeModal } from "../components/game/ui/IframeModal";
 import { VirtualJoystick } from "../components/game/ui/VirtualJoystick";
 import { MobileControls } from "../components/game/ui/MobileControls";
 import { InviteModal } from "../components/game/ui/InviteModal";
-import { apiFetch } from "../lib/api";
+
 
 export default function GamePage() {
   const { user, token: authToken, logout } = useAuth();
@@ -48,14 +47,12 @@ export default function GamePage() {
   const [localEmote, setLocalEmote] = useState<{ id: string; timestamp: number } | null>(null);
   const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [sharedIframeUrl, setSharedIframeUrl] = useState<string | null>(null);
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
   const [isWhiteboardLeader, setIsWhiteboardLeader] = useState(false);
   const [cameraTransform, setCameraTransform] = useState({ x: 0, y: 0 });
   const [isSidebarFullscreenOverlayOpen, setIsSidebarFullscreenOverlayOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  const [isRecording, setIsRecording] = useState(false);
   const joinStateKey = `joined-room:${roomId || "default"}`;
   const clearSavedJoinState = useCallback(() => {
     try {
@@ -292,7 +289,6 @@ export default function GamePage() {
           user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
           players={players}
           onOpenInvite={() => setShowInviteModal(true)}
-          onOpenCalendar={() => setShowCalendarModal(true)}
           onFullscreenOverlayChange={setIsSidebarFullscreenOverlayOpen}
         />
       </div>
@@ -371,11 +367,6 @@ export default function GamePage() {
           roomCode={room?.code || roomId}
         />
         
-        <CalendarModal 
-          isOpen={showCalendarModal}
-          onClose={() => setShowCalendarModal(false)}
-        />
-        
         <IframeModal 
           url={sharedIframeUrl}
           onClose={() => setSharedIframeUrl(null)}
@@ -385,29 +376,10 @@ export default function GamePage() {
           <>
             <HostControls 
               isHost={(room as any)?.ownerId === user.id}
-              isRecording={isRecording}
               onMuteAll={() => sendMessage("mute_all", { roomId })}
               onSummonAll={() => sendMessage("summon_all", { x: localPosition.x, y: localPosition.y, roomId })}
               onMegaphone={(message) => sendMessage("megaphone", { message, roomId })}
               onShareIframe={(url) => sendMessage("share_iframe", { url, roomId })}
-              onRecordToggle={async () => {
-                if (!roomId) return;
-                try {
-                  const endpoint = isRecording ? `/api/livekit/record/stop` : `/api/livekit/record/start`;
-                  const res = await apiFetch(endpoint, {
-                    method: "POST",
-                    body: JSON.stringify({ roomId }),
-                  });
-                  if (res.success) {
-                    setIsRecording(!isRecording);
-                    alert(`Recording ${isRecording ? "stopped" : "started"}.`);
-                  } else {
-                    alert(`Action failed: ${res.error}`);
-                  }
-                } catch (err) {
-                  alert(`Error: ${String(err)}`);
-                }
-              }}
             />
             <MegaphoneBanner />
             <button

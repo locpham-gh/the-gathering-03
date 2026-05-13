@@ -1,9 +1,0 @@
-@startuml
-skinparam actorStyle stickman
-
-actor "Admin" as A
-usecase "Manage Platform (Admin Panel)" as UC
-
-A -- UC
-
-@enduml

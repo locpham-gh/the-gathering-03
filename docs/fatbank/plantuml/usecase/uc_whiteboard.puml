@@ -1,9 +1,0 @@
-@startuml
-skinparam actorStyle stickman
-
-actor "User" as U
-usecase "Use Collaborative Whiteboard" as UC
-
-U -- UC
-
-@enduml

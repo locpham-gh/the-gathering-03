@@ -1,24 +1,20 @@
 import React, { useState } from "react";
-import { MicOff, Users, Megaphone, Shield, Link2, Video } from "lucide-react";
+import { MicOff, Users, Megaphone, Shield, Link2 } from "lucide-react";
 
 interface HostControlsProps {
   isHost: boolean;
-  isRecording?: boolean;
   onMuteAll: () => void;
   onSummonAll: () => void;
   onMegaphone: (message: string) => void;
   onShareIframe: (url: string) => void;
-  onRecordToggle: () => void;
 }
 
 export const HostControls: React.FC<HostControlsProps> = ({
   isHost,
-  isRecording = false,
   onMuteAll,
   onSummonAll,
   onMegaphone,
   onShareIframe,
-  onRecordToggle,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -92,17 +88,6 @@ export const HostControls: React.FC<HostControlsProps> = ({
           >
             <Link2 size={16} className="group-hover:text-blue-400 transition-colors" />
             <span className="text-xs font-medium">Share Link</span>
-          </button>
-
-          <button
-            onClick={onRecordToggle}
-            className={`flex items-center gap-2 px-3 py-2 hover:bg-slate-800 rounded-xl transition-colors group ${
-              isRecording ? "text-rose-400" : "text-slate-200 hover:text-white"
-            }`}
-            title="Toggle Meeting Recording"
-          >
-            <Video size={16} className={`${isRecording ? "animate-pulse" : "group-hover:text-rose-400"} transition-colors`} />
-            <span className="text-xs font-medium">{isRecording ? "Recording..." : "Record"}</span>
           </button>
 
           <div className="h-6 w-px bg-slate-700 mx-1" />

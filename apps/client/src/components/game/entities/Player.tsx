@@ -121,19 +121,21 @@ export const Player: React.FC<PlayerProps> = ({
       return;
     }
 
-    let focusX = x, focusY = y;
+    const centerX = x + 32;
+    const centerY = y + 52; // Use actual collision center (bottom half) instead of y+32
+    let focusX = centerX, focusY = centerY;
     const interactRange = WORLD_CONFIG.INTERACTION_RANGE;
     if (direction === "up") focusY -= interactRange;
     else if (direction === "down") focusY += interactRange;
     else if (direction === "left") focusX -= interactRange;
     else if (direction === "right") focusX += interactRange;
 
-    const focusCol = Math.floor((focusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-    const focusRow = Math.floor((focusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const focusCol = Math.floor(focusX / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const focusRow = Math.floor(focusY / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const tileInfo = getTileAt(mapData.layers, focusCol, focusRow, mapData.width);
 
-    const playerCol = Math.floor((x + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-    const playerRow = Math.floor((y + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const playerCol = Math.floor(centerX / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const playerRow = Math.floor(centerY / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const playerTileInfo = getTileAt(mapData.layers, playerCol, playerRow, mapData.width);
 
     const isSeatTile = (info: any) => {
@@ -293,18 +295,32 @@ export const Player: React.FC<PlayerProps> = ({
     // Teleportation Check
     if (!isSitting && checkTeleport(x, y)) return;
 
-    // Chair proximity detection — check tile player is facing
+    // Chair proximity detection — check tile player is on OR facing
+    const centerX = x + 32;
+    const centerY = y + 52;
     const interactRange = WORLD_CONFIG.INTERACTION_RANGE;
-    let chairFocusX = x, chairFocusY = y;
+    let chairFocusX = centerX, chairFocusY = centerY;
     if (direction === "up") chairFocusY -= interactRange;
     else if (direction === "down") chairFocusY += interactRange;
     else if (direction === "left") chairFocusX -= interactRange;
     else if (direction === "right") chairFocusX += interactRange;
-    const fCol = Math.floor((chairFocusX + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-    const fRow = Math.floor((chairFocusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    
+    const fCol = Math.floor(chairFocusX / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const fRow = Math.floor(chairFocusY / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const facingTile = getTileAt(mapData.layers, fCol, fRow, mapData.width);
+
+    const pCol = Math.floor(centerX / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const pRow = Math.floor(centerY / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const playerTile = getTileAt(mapData.layers, pCol, pRow, mapData.width);
+
     let chairDetected = false;
-    if (facingTile) {
+    
+    if (playerTile) {
+      const td = getTileDataForGid(playerTile.gid, mapData);
+      const tsName = td?.tilesetName?.toLowerCase() || "";
+      chairDetected = tsName.includes("seat") || tsName.includes("chair") || (playerTile.gid >= 1375 && playerTile.gid <= 1557);
+    }
+    if (!chairDetected && facingTile) {
       const td = getTileDataForGid(facingTile.gid, mapData);
       const tsName = td?.tilesetName?.toLowerCase() || "";
       chairDetected = tsName.includes("seat") || tsName.includes("chair") || (facingTile.gid >= 1375 && facingTile.gid <= 1557);
