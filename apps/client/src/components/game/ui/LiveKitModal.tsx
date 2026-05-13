@@ -10,6 +10,7 @@ import { Track, Participant } from "livekit-client";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 import type { Zone } from "../core/zones";
 import { ChillZoneManager } from "./ChillZoneManager";
+import { Maximize2, Minimize2 } from "lucide-react";
 
 // Keep tile close above character head.
 const VIDEO_GAP = 6;
@@ -62,6 +63,7 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
           localIsBusy={localIsBusy}
           cameraTransform={cameraTransform}
         />
+        <ScreenShareLayer />
         <ChillZoneManager currentZone={currentZone} />
         <SpatialAudioRenderer
           players={players}
@@ -126,6 +128,18 @@ const AvatarVideoLayer: React.FC<{
     }
   }, [localParticipant, localIsBusy, currentZone?.id]);
 
+  useEffect(() => {
+    const handleHostMute = () => {
+      if (localParticipant && localParticipant.isMicrophoneEnabled) {
+        localParticipant.setMicrophoneEnabled(false);
+        // Optional: Dispatch a toast or alert
+        alert("Chủ phòng đã tắt mic của bạn (Mute All).");
+      }
+    };
+    window.addEventListener("host-mute-all", handleHostMute);
+    return () => window.removeEventListener("host-mute-all", handleHostMute);
+  }, [localParticipant]);
+
   const localTrack = tracks.find(
     (t) =>
       t.participant.identity === localParticipant?.identity &&
@@ -172,8 +186,8 @@ const AvatarVideoLayer: React.FC<{
       : null;
 
   const toScreen = (wx: number, wy: number) => ({
-    x: wx + cameraTransform.x + 32,
-    y: wy + cameraTransform.y - 64 - SPRITE_HEAD_OFFSET,
+    x: Math.round(wx + cameraTransform.x + 32),
+    y: Math.round(wy + cameraTransform.y - 64 - SPRITE_HEAD_OFFSET),
   });
 
   const connectedRemote = connectedIdentity
@@ -188,11 +202,12 @@ const AvatarVideoLayer: React.FC<{
   const connectedPairLayout =
     connectedRemote && remoteScreenForPair
       ? {
-          centerX: (localScreenForPair.x + remoteScreenForPair.x) / 2,
-          topY:
+          centerX: Math.round((localScreenForPair.x + remoteScreenForPair.x) / 2),
+          topY: Math.round(
             Math.min(localScreenForPair.y, remoteScreenForPair.y) -
             VIDEO_GAP -
-            CONNECTED_PAIR_RAISE,
+            CONNECTED_PAIR_RAISE
+          ),
           localOnLeft: localScreenForPair.x <= remoteScreenForPair.x,
         }
       : null;
@@ -237,7 +252,6 @@ const AvatarVideoLayer: React.FC<{
       <div className="absolute inset-0 pointer-events-none">
         {shouldAutoVideo && localTrack && (
           (() => {
-            const localScreen = toScreen(localPosition.x, localPosition.y);
             return (
           <FloatingVideo
             key={`local-${localTrack.participant.identity}`}
@@ -246,16 +260,12 @@ const AvatarVideoLayer: React.FC<{
             label="You"
             size={connectedIdentity ? "connected" : "normal"}
             style={{
-              left: `${
-                connectedPairLayout
-                  ? connectedPairLayout.centerX +
-                    (connectedPairLayout.localOnLeft
-                      ? -CONNECTED_PAIR_GAP / 2
-                      : CONNECTED_PAIR_GAP / 2)
-                  : localScreen.x
-              }px`,
-              top: `${connectedPairLayout ? connectedPairLayout.topY : localScreen.y - VIDEO_GAP}px`,
-              transform: "translate(-50%, -100%)",
+              left: 0,
+              top: 0,
+              willChange: "transform",
+              transform: connectedPairLayout
+                ? `translate3d(calc(${connectedPairLayout.centerX + (connectedPairLayout.localOnLeft ? -CONNECTED_PAIR_GAP / 2 : CONNECTED_PAIR_GAP / 2)}px - 50%), calc(${connectedPairLayout.topY}px - 100%), 0)`
+                : `translate3d(calc(var(--local-x, ${localPosition.x}px) + var(--cam-x, ${cameraTransform.x}px) + 32px - 50%), calc(var(--local-y, ${localPosition.y}px) + var(--cam-y, ${cameraTransform.y}px) - 64px - ${SPRITE_HEAD_OFFSET}px - 100%), 0)`,
             }}
           />
             );
@@ -280,20 +290,21 @@ const AvatarVideoLayer: React.FC<{
                   : "normal"
               }
               style={{
-                left: `${
+                left: 0,
+                top: 0,
+                willChange: "transform",
+                transform: `translate3d(calc(${
                   connectedPairLayout && connectedIdentity === track.participant.identity
                     ? connectedPairLayout.centerX +
                       (connectedPairLayout.localOnLeft
                         ? CONNECTED_PAIR_GAP / 2
                         : -CONNECTED_PAIR_GAP / 2)
                     : s.x
-                }px`,
-                top: `${
+                }px - 50%), calc(${
                   connectedPairLayout && connectedIdentity === track.participant.identity
                     ? connectedPairLayout.topY
                     : s.y - VIDEO_GAP
-                }px`,
-                transform: "translate(-50%, -100%)",
+                }px - 100%), 0)`,
               }}
             />
           );
@@ -328,8 +339,9 @@ const FloatingVideo: React.FC<{
   isMuted: boolean;
   label?: string;
   size?: "normal" | "connected";
-  style: React.CSSProperties;
-}> = ({ track, isMuted, label, size = "normal", style }) => {
+  style?: React.CSSProperties;
+  objectFit?: "cover" | "contain";
+}> = ({ track, isMuted, label, size = "normal", style, objectFit = "cover" }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -343,7 +355,7 @@ const FloatingVideo: React.FC<{
 
   return (
     <div
-      className={`absolute rounded-xl overflow-hidden border-2 border-white bg-slate-100 shadow-lg transition-all duration-200 ${
+      className={`absolute rounded-xl overflow-hidden border-2 border-white bg-slate-100 shadow-lg transition-[width,height] duration-200 ${
         size === "connected"
           ? "w-[132px] h-[96px] md:w-[200px] md:h-[140px] z-30"
           : "w-[96px] h-[72px] md:w-[120px] md:h-[90px] z-20"
@@ -355,7 +367,8 @@ const FloatingVideo: React.FC<{
         autoPlay
         muted={isMuted}
         playsInline
-        className="w-full h-full object-cover"
+        className="w-full h-full"
+        style={{ objectFit }}
       />
       {label && (
         <div className="absolute bottom-1 left-0 right-0 text-center">
@@ -441,4 +454,68 @@ const ParticipantAudio: React.FC<{ participant: Participant; volume: number }> =
   }, [audioTracks]);
 
   return <audio ref={audioRef} autoPlay />;
+};
+
+const ScreenShareLayer: React.FC = () => {
+  const [isMinimized, setIsMinimized] = React.useState(false);
+  const screenTracks = useTracks(
+    [{ source: Track.Source.ScreenShare, withPlaceholder: false }],
+    { onlySubscribed: false },
+  );
+
+  const activeTrack = screenTracks.find((t) => t.publication?.track);
+
+  // Auto-maximize when a new screen share starts
+  useEffect(() => {
+    if (activeTrack) {
+      setIsMinimized(false);
+    }
+  }, [activeTrack?.participant.identity]);
+
+  if (!activeTrack) return null;
+
+  if (isMinimized) {
+    return (
+      <div className="absolute top-4 right-4 z-[200] pointer-events-auto">
+        <button
+          onClick={() => setIsMinimized(false)}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl shadow-xl transition-all"
+        >
+          <Maximize2 size={18} />
+          <span className="font-medium text-sm">View Screen Share</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 z-[150] pointer-events-auto flex items-center justify-center p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="relative w-full h-full max-w-7xl max-h-[85vh] bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-700 flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 bg-slate-800/80 border-b border-slate-700 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-white font-medium text-sm">
+              {activeTrack.participant.identity} is sharing screen
+            </span>
+          </div>
+          <button
+            onClick={() => setIsMinimized(true)}
+            className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            title="Minimize to view map"
+          >
+            <Minimize2 size={18} />
+          </button>
+        </div>
+        <div className="flex-1 relative bg-black p-2">
+          <FloatingVideo
+            track={activeTrack}
+            isMuted={true}
+            size="normal"
+            style={{ width: "100%", height: "100%", position: "relative", borderRadius: "8px", border: "none" }}
+            objectFit="contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
 };

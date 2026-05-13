@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 // @ts-ignore - Excalidraw types can be complex to resolve in some environments
 import { Excalidraw } from "@excalidraw/excalidraw";
 import "@excalidraw/excalidraw/index.css";
-import { X, Save, Share2, Crown, Eye } from "lucide-react";
+import { X, Save, Share2, Crown, Eye, Loader2 } from "lucide-react";
 
 interface WhiteboardModalProps {
   onClose: () => void;
@@ -11,6 +11,8 @@ interface WhiteboardModalProps {
   isLeader?: boolean;
 }
 
+const API_BASE_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:3000";
+
 export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
   onClose,
   roomId,
@@ -18,8 +20,32 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
   isLeader = true,
 }) => {
   const [excalidrawAPI, setExcalidrawAPI] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const isRemoteUpdate = useRef(false);
   const lastSentTime = useRef(0);
+
+  // Load initial state from server
+  useEffect(() => {
+    if (!excalidrawAPI || !roomId) return;
+
+    const fetchWhiteboard = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/whiteboard/${roomId}`);
+        const result = await res.json();
+        if (result.data && result.data.elements?.length > 0) {
+          excalidrawAPI.updateScene({
+            elements: result.data.elements,
+            appState: result.data.appState,
+            files: result.data.files
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load whiteboard state:", err);
+      }
+    };
+
+    fetchWhiteboard();
+  }, [excalidrawAPI, roomId]);
 
   // Listen for remote updates
   useEffect(() => {
@@ -84,6 +110,32 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
     [roomId, sendMessage, isLeader],
   );
 
+  const handleSave = async () => {
+    if (!excalidrawAPI || !roomId || !isLeader) return;
+    setIsSaving(true);
+    
+    try {
+      const elements = excalidrawAPI.getSceneElements();
+      const appState = excalidrawAPI.getAppState();
+      const files = excalidrawAPI.getFiles();
+
+      const cleanAppState = { ...appState };
+      delete (cleanAppState as any).collaborators;
+      delete (cleanAppState as any).draggingElement;
+      delete (cleanAppState as any).toast;
+
+      await fetch(`${API_BASE_URL}/api/whiteboard/${roomId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elements, appState: cleanAppState, files })
+      });
+    } catch (err) {
+      console.error("Failed to save whiteboard:", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[85vh] overflow-hidden border border-slate-200 animate-in zoom-in duration-300 flex flex-col">
@@ -112,8 +164,13 @@ export const WhiteboardModal: React.FC<WhiteboardModalProps> = ({
           <div className="flex items-center gap-3">
             {isLeader && (
               <>
-                <button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                  <Save size={16} /> Save
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} 
+                  {isSaving ? "Saving..." : "Save"}
                 </button>
                 <button className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-teal-600/20">
                   <Share2 size={16} /> Share

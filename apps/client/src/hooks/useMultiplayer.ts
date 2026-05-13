@@ -195,6 +195,14 @@ export function useMultiplayer(roomId?: string) {
           window.dispatchEvent(new CustomEvent("whiteboard-open", { detail: payload }));
         } else if (type === "whiteboard_close") {
           window.dispatchEvent(new CustomEvent("whiteboard-close", { detail: payload }));
+        } else if (type === "mute_all") {
+          window.dispatchEvent(new CustomEvent("host-mute-all", { detail: payload }));
+        } else if (type === "summon_all") {
+          window.dispatchEvent(new CustomEvent("host-summon-all", { detail: payload }));
+        } else if (type === "megaphone") {
+          window.dispatchEvent(new CustomEvent("megaphone-event", { detail: payload }));
+        } else if (type === "share_iframe") {
+          window.dispatchEvent(new CustomEvent("share-iframe-event", { detail: payload }));
         } else if (type === "room_member_kicked") {
           const kickedUid = payload?.userId;
           if (kickedUid && kickedUid === user.id) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Hash, Send, Plus, X, Trash2 } from "lucide-react";
+import { Hash, Send, Plus, X, Trash2, Paperclip, File as FileIcon, Download, XCircle } from "lucide-react";
 import { apiFetch } from "../../../lib/api";
 
 interface Message {
@@ -12,6 +12,10 @@ interface Message {
     avatarUrl: string;
   };
   content: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  fileSize?: number;
   createdAt: string;
 }
 
@@ -43,8 +47,12 @@ export const DiscordChat: React.FC<DiscordChatProps> = ({ user, roomId = "lobby"
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [createError, setCreateError] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const newChannelInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Persist channels to localStorage when they change
   useEffect(() => {
@@ -93,17 +101,55 @@ export const DiscordChat: React.FC<DiscordChatProps> = ({ user, roomId = "lobby"
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() && !selectedFile) return;
 
     try {
+      setIsUploading(true);
+      let fileData = null;
+
+      // 1. Upload file if exists
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        
+        // Use native fetch for FormData
+        const token = localStorage.getItem("token") || "";
+        const uploadRes = await fetch(`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}/api/upload`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          fileData = {
+            fileUrl: uploadData.fileUrl,
+            fileName: uploadData.fileName,
+            fileType: uploadData.fileType,
+            fileSize: uploadData.fileSize
+          };
+        }
+      }
+
+      // 2. Send message
+      const payload: any = {
+        roomCode: roomId,
+        channelName: activeChannel,
+        content: inputValue,
+        authorId: user.id,
+      };
+      if (fileData) {
+        payload.fileUrl = fileData.fileUrl;
+        payload.fileName = fileData.fileName;
+        payload.fileType = fileData.fileType;
+        payload.fileSize = fileData.fileSize;
+      }
+
       const res = await apiFetch("/api/chat", {
         method: "POST",
-        body: JSON.stringify({
-          roomCode: roomId,
-          channelName: activeChannel,
-          content: inputValue,
-          authorId: user.id,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.success) {
@@ -112,12 +158,27 @@ export const DiscordChat: React.FC<DiscordChatProps> = ({ user, roomId = "lobby"
           return [...prev, res.message];
         });
         setInputValue("");
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         
         // Broadcast to others
         window.dispatchEvent(new CustomEvent("send-chat-message", { detail: res.message }));
       }
     } catch (err) {
       console.error("Failed to send message", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      // 10MB limit
+      if (e.target.files[0].size > 10 * 1024 * 1024) {
+        alert("File size exceeds 10MB limit.");
+        return;
+      }
+      setSelectedFile(e.target.files[0]);
     }
   };
 
@@ -279,19 +340,52 @@ export const DiscordChat: React.FC<DiscordChatProps> = ({ user, roomId = "lobby"
                     </div>
                   )}
                   
-                  <div className="flex-1 min-w-0 flex flex-col justify-center">
-                    {!isConsecutive && (
-                      <div className="flex items-baseline gap-2 mb-0.5">
-                        <span className="font-medium hover:underline cursor-pointer leading-tight" style={{ color: chatColors.textPrimary }}>
-                          {msg.authorId.displayName}
-                        </span>
-                        <span className="text-xs font-medium" style={{ color: chatColors.textSecondary }}>
-                          {timeAgo(msg.createdAt)}
-                        </span>
-                      </div>
-                    )}
-                    <p className="leading-relaxed break-words text-[15px]" style={{ color: isDark ? "#dbdee1" : "#2e3338" }}>{msg.content}</p>
-                  </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      {!isConsecutive && (
+                        <div className="flex items-baseline gap-2 mb-0.5">
+                          <span className="font-medium hover:underline cursor-pointer leading-tight" style={{ color: chatColors.textPrimary }}>
+                            {msg.authorId.displayName}
+                          </span>
+                          <span className="text-xs font-medium" style={{ color: chatColors.textSecondary }}>
+                            {timeAgo(msg.createdAt)}
+                          </span>
+                        </div>
+                      )}
+                      {msg.content && <p className="leading-relaxed break-words text-[15px]" style={{ color: isDark ? "#dbdee1" : "#2e3338" }}>{msg.content}</p>}
+                      
+                      {msg.fileUrl && (
+                        <div className="mt-2 mb-1 max-w-sm">
+                          {msg.fileType?.startsWith("image/") ? (
+                            <a href={`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}${msg.fileUrl}`} target="_blank" rel="noopener noreferrer">
+                              <img 
+                                src={`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}${msg.fileUrl}`} 
+                                alt={msg.fileName || "attachment"} 
+                                className="max-h-64 rounded border object-contain bg-black/10"
+                                style={{ borderColor: chatColors.border }}
+                              />
+                            </a>
+                          ) : (
+                            <a 
+                              href={`${import.meta.env.VITE_SERVER_URL || "http://localhost:3000"}${msg.fileUrl}`}
+                              target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-3 p-3 rounded-lg border hover:bg-black/5 transition-colors"
+                              style={{ borderColor: chatColors.border, background: isDark ? "#2b2d31" : "#f2f3f5" }}
+                            >
+                              <div className="p-2 rounded bg-indigo-500/10 text-indigo-500 shrink-0">
+                                <FileIcon size={24} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate" style={{ color: chatColors.textPrimary }}>{msg.fileName}</p>
+                                <p className="text-xs" style={{ color: chatColors.textSecondary }}>
+                                  {msg.fileSize ? (msg.fileSize / 1024 / 1024).toFixed(2) + " MB" : "Unknown size"}
+                                </p>
+                              </div>
+                              <Download size={18} style={{ color: chatColors.textSecondary }} className="shrink-0" />
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
                 </div>
               );
             })
@@ -303,25 +397,52 @@ export const DiscordChat: React.FC<DiscordChatProps> = ({ user, roomId = "lobby"
         <div className="p-4 shrink-0">
           <form 
             onSubmit={handleSend} 
-            className="rounded-lg flex items-center pr-2"
+            className="rounded-lg flex flex-col p-1 relative"
             style={{ background: chatColors.inputBg }}
           >
-            <input 
-              type="text" 
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={`Message #${activeChannel}`}
-              className="flex-1 bg-transparent border-none px-4 py-3 focus:outline-none focus:ring-0 transition-colors"
-              style={{ color: chatColors.textPrimary }}
-            />
-            <button 
-              type="submit" 
-              disabled={!inputValue.trim()}
-              className="p-1.5 transition-colors disabled:opacity-50"
-              style={{ color: chatColors.textSecondary }}
-            >
-              <Send size={20} />
-            </button>
+            {selectedFile && (
+              <div className="flex items-center gap-2 p-2 m-2 mb-0 rounded bg-black/10 w-max" style={{ border: `1px solid ${chatColors.border}` }}>
+                <FileIcon size={16} style={{ color: chatColors.textSecondary }} />
+                <span className="text-sm truncate max-w-[200px]" style={{ color: chatColors.textPrimary }}>{selectedFile.name}</span>
+                <button type="button" onClick={() => setSelectedFile(null)} className="p-0.5 hover:text-red-500 text-slate-400 transition-colors">
+                  <XCircle size={16} />
+                </button>
+              </div>
+            )}
+            <div className="flex items-center pr-2 w-full">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt"
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 ml-2 transition-colors rounded-full hover:bg-black/5"
+                style={{ color: chatColors.textSecondary }}
+                title="Attach file"
+              >
+                <Paperclip size={20} />
+              </button>
+              <input 
+                type="text" 
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={`Message #${activeChannel}`}
+                className="flex-1 bg-transparent border-none px-3 py-3 focus:outline-none focus:ring-0 transition-colors"
+                style={{ color: chatColors.textPrimary }}
+              />
+              <button 
+                type="submit" 
+                disabled={(!inputValue.trim() && !selectedFile) || isUploading}
+                className="p-1.5 transition-colors disabled:opacity-50"
+                style={{ color: isUploading ? chatColors.accent : chatColors.textSecondary }}
+              >
+                <Send size={20} className={isUploading ? "animate-pulse" : ""} />
+              </button>
+            </div>
           </form>
         </div>
       </div>

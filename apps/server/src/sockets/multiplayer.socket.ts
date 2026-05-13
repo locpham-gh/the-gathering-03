@@ -96,6 +96,17 @@ export const multiplayerSocket = (app: Elysia) =>
         ws.publish(`room-${roomId}`, { type: "whiteboard_open", payload });
       } else if (type === "whiteboard_close") {
         ws.publish(`room-${roomId}`, { type: "whiteboard_close", payload });
+      } else if (type === "mute_all") {
+        ws.publish(`room-${roomId}`, { type: "mute_all", payload });
+        ws.send({ type: "mute_all", payload });
+      } else if (type === "summon_all") {
+        ws.publish(`room-${roomId}`, { type: "summon_all", payload });
+      } else if (type === "megaphone") {
+        ws.publish(`room-${roomId}`, { type: "megaphone", payload });
+        ws.send({ type: "megaphone", payload });
+      } else if (type === "share_iframe") {
+        ws.publish(`room-${roomId}`, { type: "share_iframe", payload });
+        ws.send({ type: "share_iframe", payload });
       }
     },
     async close(ws: any) {

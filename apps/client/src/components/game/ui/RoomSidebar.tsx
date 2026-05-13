@@ -3,6 +3,7 @@ import {
   Users,
   MessageSquare,
   CalendarDays,
+  CalendarCheck,
   LogOut,
   Link2,
   UserX,
@@ -28,6 +29,7 @@ interface RoomSidebarProps {
   user: { id: string; avatarUrl: string; displayName: string };
   players: Record<string, RemotePlayer>;
   onOpenInvite?: () => void;
+  onOpenCalendar?: () => void;
   onFullscreenOverlayChange?: (isOpen: boolean) => void;
 }
 
@@ -42,6 +44,7 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   user,
   players,
   onOpenInvite,
+  onOpenCalendar,
   onFullscreenOverlayChange,
 }) => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -163,6 +166,16 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
             );
           })}
         </div>
+
+        {/* Google Calendar Button */}
+        <button
+          onClick={onOpenCalendar}
+          title="Google Calendar"
+          className="w-9 h-9 flex items-center justify-center rounded-xl transition-all mt-1"
+          style={{ color: colors.textMuted, background: "rgba(128,128,128,0.05)" }}
+        >
+          <CalendarCheck size={18} />
+        </button>
 
         {/* Spacer */}
         <div className="flex-1" />

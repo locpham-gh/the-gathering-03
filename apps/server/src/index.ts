@@ -9,6 +9,9 @@ import { roomRoutes } from "./routes/room.routes.js";
 import { eventRoutes } from "./routes/event.routes.js";
 import { chatRoutes } from "./routes/chat.routes.js";
 import { adminRoutes } from "./routes/admin.routes.js";
+import { whiteboardRoutes } from "./routes/whiteboard.routes.js";
+import { uploadRoutes } from "./routes/upload.routes.js";
+import { livekitRoutes } from "./routes/livekit.routes.js";
 import { AccessToken } from "livekit-server-sdk";
 import { rateLimit } from "elysia-rate-limit";
 import { multiplayerSocket } from "./sockets/multiplayer.socket.js";
@@ -41,7 +44,10 @@ const app = new Elysia()
   .use(roomRoutes)
   .use(eventRoutes)
   .use(chatRoutes)
-  .use(adminRoutes);
+  .use(adminRoutes)
+  .use(whiteboardRoutes)
+  .use(uploadRoutes)
+  .use(livekitRoutes);
 
 // HTTP Handlers
 app.get("/", () => "Hello from The Gathering Backend");

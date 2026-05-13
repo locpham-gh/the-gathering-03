@@ -89,6 +89,19 @@ export const Player: React.FC<PlayerProps> = ({
   const lastSyncBusy = useRef(isBusy);
   const seatedPhoneOpenRef = useRef(false);
 
+  React.useEffect(() => {
+    const handleSummon = (e: CustomEvent) => {
+      const { x: targetX, y: targetY } = e.detail;
+      setX(targetX);
+      setY(targetY + 40); // slightly offset so they don't land exactly on the host
+      setIsSitting(false);
+      onZoneChange?.(null);
+      setCurrentZone(null);
+    };
+    window.addEventListener("host-summon-all", handleSummon as EventListener);
+    return () => window.removeEventListener("host-summon-all", handleSummon as EventListener);
+  }, [setX, setY, setIsSitting, onZoneChange]);
+
   const handleInteraction = () => {
     if (isPaused) return;
     
@@ -119,76 +132,125 @@ export const Player: React.FC<PlayerProps> = ({
     const focusRow = Math.floor((focusY + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
     const tileInfo = getTileAt(mapData.layers, focusCol, focusRow, mapData.width);
 
-    if (tileInfo) {
-      const tileData = getTileDataForGid(tileInfo.gid, mapData);
-      const tilesetName = tileData?.tilesetName?.toLowerCase() || "";
-      const isSeatTile = tilesetName.includes("seat") || tilesetName.includes("chair") || (tileInfo.gid >= 1375 && tileInfo.gid <= 1557);
+    const playerCol = Math.floor((x + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const playerRow = Math.floor((y + 32) / WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+    const playerTileInfo = getTileAt(mapData.layers, playerCol, playerRow, mapData.width);
 
-      if (isSeatTile) {
-        if (isPhoneOut) {
-          setIsPhoneOut(false);
+    const isSeatTile = (info: any) => {
+      if (!info) return false;
+      const td = getTileDataForGid(info.gid, mapData);
+      const name = td?.tilesetName?.toLowerCase() || "";
+      return name.includes("seat") || name.includes("chair") || (info.gid >= 1375 && info.gid <= 1557);
+    };
+
+    let targetCol = -1;
+    let targetRow = -1;
+    let foundSeat = false;
+
+    // Prioritize the tile the player is currently standing on
+    if (isSeatTile(playerTileInfo)) {
+      targetCol = playerCol;
+      targetRow = playerRow;
+      foundSeat = true;
+    } else if (isSeatTile(tileInfo)) {
+      // Fallback to the tile the player is facing
+      targetCol = focusCol;
+      targetRow = focusRow;
+      foundSeat = true;
+    }
+
+    if (foundSeat) {
+      if (isPhoneOut) {
+        setIsPhoneOut(false);
+      }
+      onPhoneToggle?.(false);
+      seatedPhoneOpenRef.current = false;
+      setIsSitting(true);
+      sitOriginRef.current = { x, y };
+      setX(targetCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
+      setY(targetRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL + 8);
+      setNearbyChair(false);
+
+      // Clear zone overlay so "Press E to sit" popup disappears
+      setCurrentZone(null);
+      onZoneChange?.(null);
+
+      // --- SMART AUTO-FACE LOGIC ---
+      const getAllDataLayers = (layers: any[]): any[] => {
+        let result: any[] = [];
+        for (const l of layers) {
+          if (l.layers) result = result.concat(getAllDataLayers(l.layers));
+          else if (l.data) result.push(l);
         }
-        onPhoneToggle?.(false);
-        seatedPhoneOpenRef.current = false;
-        setIsSitting(true);
-        sitOriginRef.current = { x, y };
-        setX(focusCol * WORLD_CONFIG.TILE_SIZE_VIRTUAL);
-        setY(focusRow * WORLD_CONFIG.TILE_SIZE_VIRTUAL + 8);
-        setNearbyChair(false);
+        return result;
+      };
+      
+      const allLayers = getAllDataLayers(mapData.layers);
+      const solidLayers = allLayers.filter((l: any) => {
+        const n = l.name?.toLowerCase() || "";
+        return n.includes("collision") || (!n.includes("floor") && !n.includes("ground") && !n.includes("above") && n !== "tile layer 1" && n !== "start");
+      });
 
-        // Clear zone overlay so "Press E to sit" popup disappears
-        setCurrentZone(null);
-        onZoneChange?.(null);
-
-        // Auto-face desk direction: check 4 neighbors for solid (non-walkable) tiles
-        // Desks/tables are collision objects, so we detect them via collision layers
-        const getAllDataLayers = (layers: any[]): any[] => {
-          let result: any[] = [];
-          for (const l of layers) {
-            if (l.layers) result = result.concat(getAllDataLayers(l.layers));
-            else if (l.data) result.push(l);
-          }
-          return result;
-        };
-        const allLayers = getAllDataLayers(mapData.layers);
-        const solidLayers = allLayers.filter((l: any) => {
-          const n = l.name?.toLowerCase() || "";
-          return n.includes("collision") || (!n.includes("floor") && !n.includes("ground") && !n.includes("above") && n !== "tile layer 1" && n !== "start");
-        });
-
-        const isSolidAt = (col: number, row: number): boolean => {
-          for (const layer of solidLayers) {
-            if (!layer.data) continue;
-            const idx = row * mapData.width + col;
-            if (idx >= 0 && idx < layer.data.length) {
-              const gid = layer.data[idx] & 0x1fffffff;
-              if (gid !== 0) {
-                // Make sure it's not another chair
-                const td = getTileDataForGid(gid, mapData);
-                const tsn = td?.tilesetName?.toLowerCase() || "";
-                const isChair = tsn.includes("seat") || tsn.includes("chair") || (gid >= 1375 && gid <= 1557);
-                if (!isChair) return true;
-              }
+      const isSolidAt = (col: number, row: number): boolean => {
+        for (const layer of solidLayers) {
+          if (!layer.data) continue;
+          const idx = row * mapData.width + col;
+          if (idx >= 0 && idx < layer.data.length) {
+            const gid = layer.data[idx] & 0x1fffffff;
+            if (gid !== 0) {
+              const td = getTileDataForGid(gid, mapData);
+              const tsn = td?.tilesetName?.toLowerCase() || "";
+              const isChair = tsn.includes("seat") || tsn.includes("chair") || tsn.includes("sofa") || tsn.includes("couch") || (gid >= 1375 && gid <= 1557);
+              if (!isChair) return true;
             }
           }
-          return false;
-        };
-
-        const dirs: { dir: string; col: number; row: number }[] = [
-          { dir: "up", col: focusCol, row: focusRow - 1 },
-          { dir: "down", col: focusCol, row: focusRow + 1 },
-          { dir: "left", col: focusCol - 1, row: focusRow },
-          { dir: "right", col: focusCol + 1, row: focusRow },
-        ];
-        for (const d of dirs) {
-          if (isSolidAt(d.col, d.row)) {
-            setDirection(d.dir as any);
-            break;
-          }
         }
-        return;
+        return false;
+      };
 
+      // Determine if the seat is a sofa/couch (they face empty space instead of solid tables)
+      let isSofa = false;
+      const seatInfo = playerTileInfo || tileInfo;
+      if (seatInfo) {
+        const td = getTileDataForGid(seatInfo.gid, mapData);
+        const tsn = td?.tilesetName?.toLowerCase() || "";
+        if (tsn.includes("sofa") || tsn.includes("couch")) isSofa = true;
       }
+
+      const dirs: { dir: string; col: number; row: number }[] = [
+        { dir: "up", col: targetCol, row: targetRow - 1 },
+        { dir: "down", col: targetCol, row: targetRow + 1 },
+        { dir: "left", col: targetCol - 1, row: targetRow },
+        { dir: "right", col: targetCol + 1, row: targetRow },
+      ];
+
+      const solidDirs = dirs.filter(d => isSolidAt(d.col, d.row));
+      const emptyDirs = dirs.filter(d => !isSolidAt(d.col, d.row));
+
+      if (isSofa) {
+        // Sofas face the open room (empty space)
+        if (emptyDirs.some(d => d.dir === direction)) {
+          // Keep current direction if it points to empty space
+        } else if (emptyDirs.length > 0) {
+          // Prefer down/right for couches usually, or just the first empty
+          const pref = emptyDirs.find(d => d.dir === "down") || emptyDirs[0];
+          setDirection(pref.dir as any);
+        }
+      } else {
+        // Desk chairs face the desk (solid space)
+        if (solidDirs.some(d => d.dir === direction)) {
+          // Keep current direction if it points to a desk
+        } else if (solidDirs.length === 1) {
+          // Only one solid neighbor, must be the desk
+          setDirection(solidDirs[0].dir as any);
+        } else if (solidDirs.length > 1) {
+          // Multiple solids (corner). Prefer up/left for tables usually.
+          const pref = solidDirs.find(d => d.dir === "up") || solidDirs[0];
+          setDirection(pref.dir as any);
+        }
+      }
+
+      return;
     }
     if (currentZone) onInteract?.();
   };
@@ -218,7 +280,13 @@ export const Player: React.FC<PlayerProps> = ({
 
     // Always update camera and detect zones/proximity, even when sitting
     updateCamera(x, y, delta);
-    onCameraTransform?.(worldRef.current?.x || 0, worldRef.current?.y || 0);
+    const cx = worldRef.current?.x || 0;
+    const cy = worldRef.current?.y || 0;
+    onCameraTransform?.(cx, cy);
+    document.documentElement.style.setProperty('--cam-x', `${cx}px`);
+    document.documentElement.style.setProperty('--cam-y', `${cy}px`);
+    document.documentElement.style.setProperty('--local-x', `${x}px`);
+    document.documentElement.style.setProperty('--local-y', `${y}px`);
     const zone = checkZoneCollision(x, y, zones);
     checkNearbyPlayers(x, y, players, onNearbyPlayer);
     

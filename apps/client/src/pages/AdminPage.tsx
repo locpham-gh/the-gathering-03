@@ -118,9 +118,29 @@ export default function AdminPage() {
 
   return (
     <DashboardLayout fullWidth>
-      <div className="flex h-full bg-slate-50/30 font-sans">
-        {/* SLIM SECONDARY SIDEBAR */}
-        <aside className="w-20 lg:w-24 bg-white/80 backdrop-blur-xl border-r border-slate-200/60 flex flex-col h-[calc(100vh-64px)] sticky top-0">
+      <div className="flex h-full bg-slate-50/30 font-sans relative">
+        {/* MOBILE BOTTOM NAV */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-[100] flex justify-around items-center h-16 px-2 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+            {[
+                { id: "dashboard", icon: LayoutDashboard },
+                { id: "users", icon: Users },
+                { id: "rooms", icon: Map },
+                { id: "forum", icon: MessageSquare },
+                { id: "library", icon: BookOpen },
+                { id: "whitelist", icon: UserPlus },
+            ].map((item) => (
+                <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id as TabType)}
+                    className={`flex items-center justify-center w-12 h-12 rounded-xl transition-all ${activeTab === item.id ? "bg-slate-900 text-white shadow-lg shadow-slate-300" : "text-slate-400 hover:bg-slate-50 hover:text-slate-900"}`}
+                >
+                    <item.icon size={20} />
+                </button>
+            ))}
+        </nav>
+
+        {/* DESKTOP SLIM SIDEBAR */}
+        <aside className="hidden md:flex w-20 lg:w-24 bg-white/80 backdrop-blur-xl border-r border-slate-200/60 flex-col h-[calc(100vh-64px)] sticky top-0 shrink-0">
           <div className="flex-1 flex flex-col items-center py-10 gap-8">
               <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-xl shadow-slate-200 mb-4">A</div>
 
@@ -159,11 +179,11 @@ export default function AdminPage() {
         </aside>
 
         {/* MINIMALIST CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto h-[calc(100vh-64px)] custom-scrollbar">
+        <div className="flex-1 overflow-y-auto h-[calc(100vh-64px)] pb-20 md:pb-0 custom-scrollbar w-full">
           {/* HEADER */}
-          <div className="bg-white/40 backdrop-blur-md border-b border-slate-200/60 h-20 flex items-center justify-between px-10 sticky top-0 z-10">
-              <div className="flex items-center gap-4">
-                  <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">{activeTab}</h2>
+          <div className="bg-white/40 backdrop-blur-md border-b border-slate-200/60 h-16 md:h-20 flex items-center justify-between px-4 md:px-10 sticky top-0 z-10 shrink-0">
+              <div className="flex items-center gap-3 md:gap-4">
+                  <h2 className="text-xl md:text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">{activeTab}</h2>
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               </div>
 
@@ -173,10 +193,10 @@ export default function AdminPage() {
           </div>
 
           {/* PAGE CONTENT */}
-          <div className="p-10 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="p-4 md:p-10 space-y-8 md:space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
               {activeTab === "dashboard" && stats ? (
-              <div className="space-y-12">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+              <div className="space-y-8 md:space-y-12">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
                       <StatCard label="Total Users" value={stats.totalUsers} icon={Users} color="bg-indigo-600" />
                       <StatCard label="Active Rooms" value={stats.totalRooms} icon={Map} color="bg-emerald-600" />
                       <StatCard label="Forum Topics" value={stats.totalTopics} icon={MessageSquare} color="bg-orange-600" />
@@ -184,13 +204,13 @@ export default function AdminPage() {
                   </div>
 
                   {/* Visual Chart Area */}
-                  <div className="bg-white rounded-[3rem] border border-slate-200/60 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.08)] overflow-hidden">
-                      <div className="p-10 flex justify-between items-center">
-                          <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Throughput Metrics</h3>
-                          <div className="h-1 w-20 bg-indigo-500 rounded-full" />
+                  <div className="bg-white rounded-[2rem] md:rounded-[3rem] border border-slate-200/60 shadow-[0_30px_60px_-30px_rgba(0,0,0,0.08)] overflow-hidden">
+                      <div className="p-6 md:p-10 flex justify-between items-center">
+                          <h3 className="text-xs md:text-sm font-black text-slate-800 uppercase tracking-widest">Throughput Metrics</h3>
+                          <div className="h-1 w-12 md:w-20 bg-indigo-500 rounded-full" />
                       </div>
 
-                      <div className="px-10 pb-10 relative">
+                      <div className="px-4 md:px-10 pb-6 md:pb-10 relative">
                           <svg className="w-full h-72 overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 400">
                               <defs>
                                   <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
@@ -212,15 +232,15 @@ export default function AdminPage() {
                           </svg>
                       </div>
 
-                      <div className="grid grid-cols-3 border-t border-slate-100">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 border-t border-slate-100">
                           {[
                             { label: "Stability", value: "99.9%" },
                             { label: "Efficiency", value: "42.4%" },
                             { label: "Latency", value: "24ms" }
                           ].map((item, i) => (
-                            <div key={i} className="p-10 text-center border-r last:border-0 border-slate-100 hover:bg-slate-50 transition-colors">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{item.label}</p>
-                              <p className="text-3xl font-black text-slate-900">{item.value}</p>
+                            <div key={i} className="p-6 md:p-10 text-center border-b sm:border-b-0 sm:border-r last:border-0 border-slate-100 hover:bg-slate-50 transition-colors">
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">{item.label}</p>
+                              <p className="text-2xl md:text-3xl font-black text-slate-900">{item.value}</p>
                             </div>
                           ))}
                       </div>
@@ -239,13 +259,13 @@ export default function AdminPage() {
               {activeTab === "library" && <LibraryManager />}
 
               {activeTab !== "dashboard" && activeTab !== "whitelist" && activeTab !== "library" && (
-              <div className="space-y-8">
-                  <div className="flex flex-col md:flex-row justify-between items-center gap-8 bg-white p-6 rounded-[2.5rem] border border-slate-200/60 shadow-sm">
-                      <div className="flex items-center gap-4">
-                          <div className="p-4 bg-slate-900 rounded-2xl text-white">
+              <div className="space-y-6 md:space-y-8">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-4 md:gap-8 bg-white p-4 md:p-6 rounded-3xl md:rounded-[2.5rem] border border-slate-200/60 shadow-sm">
+                      <div className="flex items-center gap-3 md:gap-4 w-full md:w-auto justify-center md:justify-start">
+                          <div className="p-3 md:p-4 bg-slate-900 rounded-xl md:rounded-2xl text-white">
                               {activeTab === "users" ? <Users size={20} /> : activeTab === "rooms" ? <Map size={20} /> : <MessageSquare size={20} />}
                           </div>
-                          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{activeTab} Registry</h2>
+                          <h2 className="text-lg md:text-xl font-black text-slate-900 uppercase tracking-tight">{activeTab} Registry</h2>
                       </div>
 
                       <div className="flex items-center gap-4 w-full md:w-auto">
@@ -272,7 +292,7 @@ export default function AdminPage() {
                       </div>
                   </div>
 
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200/60 shadow-xl overflow-hidden">
+                  <div className="bg-white rounded-3xl md:rounded-[2.5rem] border border-slate-200/60 shadow-xl overflow-hidden overflow-x-auto">
                     <AdminDataTable 
                         activeTab={activeTab as TabType}
                         data={data}

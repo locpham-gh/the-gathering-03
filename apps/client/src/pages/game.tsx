@@ -18,8 +18,15 @@ import { RoomSidebar } from "../components/game/ui/RoomSidebar";
 import { LiveKitModal } from "../components/game/ui/LiveKitModal";
 import { PreJoinScreen } from "../components/game/ui/PreJoinScreen";
 import { WhiteboardModal } from "../components/game/ui/WhiteboardModal";
-import { InviteModal } from "../components/game/ui/InviteModal";
 import { NearbyChat } from "../components/game/ui/NearbyChat";
+import { HostControls } from "../components/game/ui/HostControls";
+import { MegaphoneBanner } from "../components/game/ui/MegaphoneBanner";
+import { CalendarModal } from "../components/game/ui/CalendarModal";
+import { IframeModal } from "../components/game/ui/IframeModal";
+import { VirtualJoystick } from "../components/game/ui/VirtualJoystick";
+import { MobileControls } from "../components/game/ui/MobileControls";
+import { InviteModal } from "../components/game/ui/InviteModal";
+import { apiFetch } from "../lib/api";
 
 export default function GamePage() {
   const { user, token: authToken, logout } = useAuth();
@@ -41,10 +48,14 @@ export default function GamePage() {
   const [localEmote, setLocalEmote] = useState<{ id: string; timestamp: number } | null>(null);
   const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [sharedIframeUrl, setSharedIframeUrl] = useState<string | null>(null);
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
   const [isWhiteboardLeader, setIsWhiteboardLeader] = useState(false);
   const [cameraTransform, setCameraTransform] = useState({ x: 0, y: 0 });
   const [isSidebarFullscreenOverlayOpen, setIsSidebarFullscreenOverlayOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [isRecording, setIsRecording] = useState(false);
   const joinStateKey = `joined-room:${roomId || "default"}`;
   const clearSavedJoinState = useCallback(() => {
     try {
@@ -136,6 +147,11 @@ export default function GamePage() {
     };
   }, [currentZone, isWhiteboardLeader]);
 
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // 6. Global Events
   useGameEvents({
@@ -149,7 +165,7 @@ export default function GamePage() {
     activeZone
   });
 
-  // 7. Chat Bubbles
+  // 7. Global Chat Bubbles and Iframe Events
   useEffect(() => {
     const handleLocalChat = (e: CustomEvent) => {
       const content = e.detail?.content;
@@ -158,8 +174,17 @@ export default function GamePage() {
         setTimeout(() => setLocalChatBubble(null), 4000);
       }
     };
+    const handleShareIframe = (e: CustomEvent) => {
+      if (e.detail?.url) {
+        setSharedIframeUrl(e.detail.url);
+      }
+    };
     window.addEventListener("send-chat-message", handleLocalChat as EventListener);
-    return () => window.removeEventListener("send-chat-message", handleLocalChat as EventListener);
+    window.addEventListener("share-iframe-event", handleShareIframe as EventListener);
+    return () => {
+      window.removeEventListener("send-chat-message", handleLocalChat as EventListener);
+      window.removeEventListener("share-iframe-event", handleShareIframe as EventListener);
+    };
   }, []);
 
   // 8. Auth Redirect
@@ -261,13 +286,16 @@ export default function GamePage() {
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
-      <RoomSidebar
-        roomId={roomId}
-        user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
-        players={players}
-        onOpenInvite={() => setShowInviteModal(true)}
-        onFullscreenOverlayChange={setIsSidebarFullscreenOverlayOpen}
-      />
+      <div className={`transition-all duration-300 ${isMobile && isJoined ? "-ml-[60px]" : ""}`}>
+        <RoomSidebar
+          roomId={roomId}
+          user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
+          players={players}
+          onOpenInvite={() => setShowInviteModal(true)}
+          onOpenCalendar={() => setShowCalendarModal(true)}
+          onFullscreenOverlayChange={setIsSidebarFullscreenOverlayOpen}
+        />
+      </div>
 
       <div className="flex-1 relative overflow-hidden bg-slate-900">
         <div className="absolute inset-0 pointer-events-auto">
@@ -342,16 +370,67 @@ export default function GamePage() {
           roomName={room?.name}
           roomCode={room?.code || roomId}
         />
+        
+        <CalendarModal 
+          isOpen={showCalendarModal}
+          onClose={() => setShowCalendarModal(false)}
+        />
+        
+        <IframeModal 
+          url={sharedIframeUrl}
+          onClose={() => setSharedIframeUrl(null)}
+        />
 
         {isJoined && (
-          <button
-            type="button"
-            onClick={handleResetPreJoin}
-            className="absolute top-4 right-4 z-[120] pointer-events-auto rounded-lg border border-white/20 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
-            title="Quay lại màn check mic/cam/character"
-          >
-            Reset pre-join
-          </button>
+          <>
+            <HostControls 
+              isHost={(room as any)?.ownerId === user.id}
+              isRecording={isRecording}
+              onMuteAll={() => sendMessage("mute_all", { roomId })}
+              onSummonAll={() => sendMessage("summon_all", { x: localPosition.x, y: localPosition.y, roomId })}
+              onMegaphone={(message) => sendMessage("megaphone", { message, roomId })}
+              onShareIframe={(url) => sendMessage("share_iframe", { url, roomId })}
+              onRecordToggle={async () => {
+                if (!roomId) return;
+                try {
+                  const endpoint = isRecording ? `/api/livekit/record/stop` : `/api/livekit/record/start`;
+                  const res = await apiFetch(endpoint, {
+                    method: "POST",
+                    body: JSON.stringify({ roomId }),
+                  });
+                  if (res.success) {
+                    setIsRecording(!isRecording);
+                    alert(`Recording ${isRecording ? "stopped" : "started"}.`);
+                  } else {
+                    alert(`Action failed: ${res.error}`);
+                  }
+                } catch (err) {
+                  alert(`Error: ${String(err)}`);
+                }
+              }}
+            />
+            <MegaphoneBanner />
+            <button
+              type="button"
+              onClick={handleResetPreJoin}
+              className="absolute top-4 right-4 z-[120] pointer-events-auto rounded-lg border border-white/20 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+              title="Quay lại màn check mic/cam/character"
+            >
+              Reset pre-join
+            </button>
+            
+            {/* Mobile Controls */}
+            {isMobile && (
+              <>
+                <div className="absolute bottom-8 left-8 z-[150]">
+                  <VirtualJoystick />
+                </div>
+                <div className="absolute bottom-8 right-8 z-[150]">
+                  <MobileControls />
+                </div>
+              </>
+            )}
+          </>
         )}
       </div>
 

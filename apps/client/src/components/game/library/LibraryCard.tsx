@@ -8,12 +8,13 @@ interface LibraryCardProps {
   onClick: (resource: Resource) => void;
 }
 
-export const LibraryCard: React.FC<LibraryCardProps> = ({
+export const LibraryCard = React.forwardRef<HTMLDivElement, LibraryCardProps>(({
   resource,
   onClick,
-}) => {
+}, ref) => {
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -71,4 +72,6 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
       </div>
     </motion.div>
   );
-};
+});
+
+LibraryCard.displayName = "LibraryCard";
