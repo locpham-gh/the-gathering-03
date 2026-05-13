@@ -9,7 +9,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-export const uploadRoutes = new Elysia({ prefix: "/api/upload" })
+export const uploadRoutes: any = new Elysia({ prefix: "/api/upload" })
   .use(
     jwt({
       name: "jwt",

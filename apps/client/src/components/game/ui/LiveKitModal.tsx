@@ -318,8 +318,7 @@ const AvatarVideoLayer: React.FC<{
             controls={{
               chat: false,
               leave: false,
-              screenShare:
-                currentZone?.id === "presentation" || currentZone?.id === "conference",
+              screenShare: true,
             }}
             style={{
               background: "transparent",
@@ -463,16 +462,16 @@ const ScreenShareLayer: React.FC = () => {
     { onlySubscribed: false },
   );
 
-  const activeTrack = screenTracks.find((t) => t.publication?.track);
+  const activeTracks = screenTracks.filter((t) => t.publication?.track);
 
-  // Auto-maximize when a new screen share starts
+  // Auto-maximize when new screen shares are added
   useEffect(() => {
-    if (activeTrack) {
+    if (activeTracks.length > 0) {
       setIsMinimized(false);
     }
-  }, [activeTrack?.participant.identity]);
+  }, [activeTracks.length]);
 
-  if (!activeTrack) return null;
+  if (activeTracks.length === 0) return null;
 
   if (isMinimized) {
     return (
@@ -482,20 +481,28 @@ const ScreenShareLayer: React.FC = () => {
           className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl shadow-xl transition-all"
         >
           <Maximize2 size={18} />
-          <span className="font-medium text-sm">View Screen Share</span>
+          <span className="font-medium text-sm">View Screen Shares ({activeTracks.length})</span>
         </button>
       </div>
     );
   }
 
+  // Responsive grid logic based on number of active screen shares
+  const getGridClass = (count: number) => {
+    if (count === 1) return "grid-cols-1";
+    if (count === 2) return "grid-cols-1 md:grid-cols-2";
+    if (count <= 4) return "grid-cols-2";
+    return "grid-cols-2 md:grid-cols-3";
+  };
+
   return (
-    <div className="absolute inset-0 z-[150] pointer-events-auto flex items-center justify-center p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
+    <div className="absolute inset-0 z-[150] pointer-events-auto flex items-center justify-center p-4 md:p-8 bg-black/80 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="relative w-full h-full max-w-7xl max-h-[85vh] bg-slate-900 rounded-2xl shadow-2xl overflow-hidden border border-slate-700 flex flex-col">
         <div className="flex items-center justify-between px-4 py-3 bg-slate-800/80 border-b border-slate-700 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
             <span className="text-white font-medium text-sm">
-              {activeTrack.participant.identity} is sharing screen
+              {activeTracks.length} {activeTracks.length > 1 ? "screens" : "screen"} being shared
             </span>
           </div>
           <button
@@ -506,14 +513,22 @@ const ScreenShareLayer: React.FC = () => {
             <Minimize2 size={18} />
           </button>
         </div>
-        <div className="flex-1 relative bg-black p-2">
-          <FloatingVideo
-            track={activeTrack}
-            isMuted={true}
-            size="normal"
-            style={{ width: "100%", height: "100%", position: "relative", borderRadius: "8px", border: "none" }}
-            objectFit="contain"
-          />
+        
+        <div className={`flex-1 relative bg-black p-4 grid gap-4 overflow-y-auto ${getGridClass(activeTracks.length)}`}>
+          {activeTracks.map((track) => (
+            <div key={track.participant.identity} className="relative w-full h-full min-h-[300px] bg-slate-800 rounded-xl overflow-hidden border border-slate-700">
+              <FloatingVideo
+                track={track}
+                isMuted={true}
+                size="normal"
+                style={{ width: "100%", height: "100%", position: "absolute", borderRadius: "0", border: "none" }}
+                objectFit="contain"
+              />
+              <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-xs font-bold shadow-lg border border-white/10">
+                {track.participant.identity}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>
