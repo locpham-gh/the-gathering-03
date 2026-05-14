@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from "react";
+import React, { useMemo } from "react";
 import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
@@ -29,7 +29,14 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string) => void;
+  updatePosition: (
+    x: number,
+    y: number,
+    direction: string,
+    isSitting?: boolean,
+    character?: string,
+    customName?: string,
+  ) => void;
   selectedCharacter: string;
   customDisplayName?: string;
   mapType?: string;
@@ -67,13 +74,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   if (mapLoading || !mapData) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-slate-900 border-none">
-         <div className="text-white animate-pulse font-medium">Entering The Metaverse...</div>
+        <div className="text-white animate-pulse font-medium">
+          Entering The Metaverse...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-full relative" style={{ isolation: "isolate", transform: "translateZ(0)" }}>
+    <div
+      className="w-full h-full relative"
+      style={{ isolation: "isolate", transform: "translateZ(0)" }}
+    >
       <Stage
         key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
         width={screenW}
@@ -88,20 +100,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           clearBeforeRender: true,
           preserveDrawingBuffer: false,
         }}
-        style={{ 
-          imageRendering: "pixelated", 
-          outline: "none", 
-          border: "none", 
-          position: "absolute", 
-          inset: 0, 
-          zIndex: 0, 
+        style={{
+          imageRendering: "pixelated",
+          outline: "none",
+          border: "none",
+          position: "absolute",
+          inset: 0,
+          zIndex: 0,
           transform: "translateZ(0)",
-          willChange: "transform"
+          willChange: "transform",
         }}
       >
         <Container ref={worldRef}>
           <MapRender mapData={mapData} />
-          
+
           <Player
             roomId={roomId}
             mapData={mapData}
@@ -127,9 +139,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <OtherPlayer key={player.id} player={player} worldRef={worldRef} />
           ))}
 
-          <DayNightOverlay 
-            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
-            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+          <DayNightOverlay
+            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
           />
 
           <ZoneDebugRenderer zones={zones} />

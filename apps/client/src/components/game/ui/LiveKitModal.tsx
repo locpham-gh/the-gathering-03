@@ -12,6 +12,24 @@ import type { Zone } from "../core/zones";
 import { Lock, Music } from "lucide-react";
 import { ChillZoneManager } from "./ChillZoneManager";
 
+interface WorldContainer {
+  position: { x: number; y: number };
+  pivot: { x: number; y: number };
+  scale: { x: number; y: number };
+  playerPositions?: Record<string, { x: number; y: number }>;
+}
+
+type TrackRef = {
+  participant: Participant;
+  publication?: {
+    track?: {
+      attach: (el: HTMLVideoElement) => void;
+      detach: (el: HTMLVideoElement) => void;
+    };
+  };
+  source?: Track.Source;
+};
+
 // Proximity radius in game pixels — cameras only show within this range
 const CAMERA_PROXIMITY = 300;
 
@@ -22,7 +40,7 @@ interface LiveKitModalProps {
   players: Record<string, RemotePlayer>;
   localPosition: { x: number; y: number };
   currentZone: Zone | null;
-  worldRef: React.RefObject<any>;
+  worldRef: React.RefObject<WorldContainer>;
 }
 
 export const LiveKitModal: React.FC<LiveKitModalProps> = ({
@@ -61,7 +79,7 @@ const FloatingVideoGrid: React.FC<{
   currentZone: Zone | null;
   players: Record<string, RemotePlayer>;
   localPosition: { x: number; y: number };
-  worldRef: React.RefObject<any>;
+  worldRef: React.RefObject<WorldContainer>;
 }> = ({ currentZone, players, localPosition, worldRef }) => {
   const tracks = useTracks(
     [
@@ -156,11 +174,11 @@ const FloatingVideoGrid: React.FC<{
 };
 
 const FloatingVideoNode: React.FC<{
-  track: any;
+  track: TrackRef;
   isMuted: boolean;
   displayName: string;
   playerKey: string;
-  worldRef: React.RefObject<any>;
+  worldRef: React.RefObject<WorldContainer>;
 }> = ({ track, isMuted, displayName, playerKey, worldRef }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoWrapRef = useRef<HTMLDivElement>(null);
@@ -173,7 +191,7 @@ const FloatingVideoNode: React.FC<{
     const updatePosition = () => {
       // 1. Update Spatial Position
       if (containerRef.current && worldRef.current) {
-        const container = worldRef.current as any;
+        const container = worldRef.current;
         const pos = container.playerPositions?.[playerKey];
         
         if (pos) {
@@ -259,7 +277,7 @@ const FloatingVideoNode: React.FC<{
 };
 
 /** Dedicated video tile — attaches track via useEffect for instant display */
-const VideoTile: React.FC<{ track: any; isMuted: boolean }> = ({ track, isMuted }) => {
+const VideoTile: React.FC<{ track: TrackRef; isMuted: boolean }> = ({ track, isMuted }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -354,7 +372,7 @@ const ParticipantAudio: React.FC<{ participant: Participant; volume: number; pan
 
   // 1. Initialize Web Audio API graph
   useEffect(() => {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass || !audioRef.current) return;
 
     // Create the audio context
