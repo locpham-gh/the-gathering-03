@@ -25,6 +25,7 @@ import { IframeModal } from "../components/game/ui/IframeModal";
 import { VirtualJoystick } from "../components/game/ui/VirtualJoystick";
 import { MobileControls } from "../components/game/ui/MobileControls";
 import { InviteModal } from "../components/game/ui/InviteModal";
+import { LandscapePrompt } from "../components/game/ui/LandscapePrompt";
 
 
 export default function GamePage() {
@@ -283,6 +284,7 @@ export default function GamePage() {
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
+      <LandscapePrompt />
       <div className={`transition-all duration-300 ${isMobile && isJoined ? "-ml-[60px]" : ""}`}>
         <RoomSidebar
           roomId={roomId}

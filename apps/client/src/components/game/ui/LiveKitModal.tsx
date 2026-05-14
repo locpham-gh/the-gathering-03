@@ -123,8 +123,9 @@ const AvatarVideoLayer: React.FC<{
 
   useEffect(() => {
     if (!localParticipant) return;
-    if ((localIsBusy || currentZone?.id === "chill") && localParticipant.isCameraEnabled) {
-      localParticipant.setCameraEnabled(false);
+    if ((localIsBusy || currentZone?.id === "chill")) {
+      if (localParticipant.isCameraEnabled) localParticipant.setCameraEnabled(false);
+      if (localParticipant.isMicrophoneEnabled) localParticipant.setMicrophoneEnabled(false);
     }
   }, [localParticipant, localIsBusy, currentZone?.id]);
 

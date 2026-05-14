@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 export type FacePresenceState = "present" | "absent" | "unknown";
 
 const CHECK_INTERVAL_MS = 1000;
-const DEFAULT_ABSENT_THRESHOLD_MS = 8000;
+const DEFAULT_ABSENT_THRESHOLD_MS = 20000;
 const PRESENT_THRESHOLD_MS = 1500;
 
 function getAbsentThresholdMs() {

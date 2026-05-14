@@ -16,6 +16,7 @@ export interface RemotePlayer {
   chatBubble?: { text: string; timestamp: number };
   isPhoneOut?: boolean;
   isBusy?: boolean;
+  status?: "active" | "busy";
 }
 
 export function useMultiplayer(roomId?: string) {
@@ -122,6 +123,7 @@ export function useMultiplayer(roomId?: string) {
               isSitting: payload.isSitting,
               isPhoneOut: payload.isPhoneOut, // Sync phone state
               isBusy: payload.isBusy,
+              status: payload.status,
               character: payload.character,
               lastUpdate: Date.now(),
               displayName: payload.displayName,
@@ -138,6 +140,7 @@ export function useMultiplayer(roomId?: string) {
                   ...p,
                   isPhoneOut: p.isPhoneOut, // Ensure initial state has phone info
                   isBusy: p.isBusy,
+                  status: p.status,
                 };
               }
             });
@@ -261,7 +264,7 @@ export function useMultiplayer(roomId?: string) {
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => {
+  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean, status?: "active" | "busy") => {
     const now = Date.now();
     const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
     if (!stateChanged && now - lastSent.current < 50) return;
@@ -278,6 +281,7 @@ export function useMultiplayer(roomId?: string) {
           isSitting,
           isPhoneOut,
           isBusy,
+          status,
           character,
           userId: user.id,
           displayName: customName || user.displayName,

@@ -43,8 +43,28 @@ export function usePlayerInput(onInteract?: () => void, onPhoneToggle?: () => vo
       );
     };
 
+    const getNormalizedKey = (e: KeyboardEvent): string => {
+      // Use e.code for physical key mapping to avoid IME/keyboard layout issues (e.g. Vietnamese Telex)
+      // which can change e.key during composition and cause mismatched keydown/keyup events.
+      if (e.code) {
+        if (e.code === "KeyW") return "w";
+        if (e.code === "KeyA") return "a";
+        if (e.code === "KeyS") return "s";
+        if (e.code === "KeyD") return "d";
+        if (e.code === "KeyE") return "e";
+        if (e.code === "KeyQ") return "q";
+        if (e.code === "ArrowUp") return "arrowup";
+        if (e.code === "ArrowDown") return "arrowdown";
+        if (e.code === "ArrowLeft") return "arrowleft";
+        if (e.code === "ArrowRight") return "arrowright";
+      }
+      // Fallback for programmatically dispatched events (like VirtualJoystick)
+      return e.key ? e.key.toLowerCase() : "";
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
+      const key = getNormalizedKey(e);
+      if (!key) return;
 
       // Do not control player while typing in chat/forms.
       if (isTypingTarget(e.target)) {
@@ -65,7 +85,17 @@ export function usePlayerInput(onInteract?: () => void, onPhoneToggle?: () => vo
         onPhoneToggle?.();
       }
     };
-    const onKeyUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
+    const onKeyUp = (e: KeyboardEvent) => {
+      const key = getNormalizedKey(e);
+      if (key) keys.delete(key);
+
+      // Defensively clear movement keys when a modifier is released.
+      // MacOS often swallows keyup events for regular keys if a modifier was held.
+      if (e.key === "Meta" || e.key === "Alt" || e.key === "Control") {
+        debugClear("modifier-released");
+        clearMovementKeys();
+      }
+    };
     const onBlur = () => {
       debugClear("window-blur");
       keys.clear();
@@ -85,12 +115,17 @@ export function usePlayerInput(onInteract?: () => void, onPhoneToggle?: () => vo
       debugClear("pagehide");
       keys.clear();
     };
+    const onContextMenu = () => {
+      debugClear("contextmenu");
+      keys.clear();
+    };
 
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onWindowFocus);
     window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("contextmenu", onContextMenu);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
@@ -98,6 +133,7 @@ export function usePlayerInput(onInteract?: () => void, onPhoneToggle?: () => vo
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("focus", onWindowFocus);
       window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("contextmenu", onContextMenu);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [keys, onInteract, onPhoneToggle]);

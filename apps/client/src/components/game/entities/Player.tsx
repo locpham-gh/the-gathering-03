@@ -28,7 +28,7 @@ interface PlayerProps {
   isPaused: boolean;
   onInteract?: () => void;
   onPhoneToggle?: (isOpen: boolean) => void;
-  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean, status?: "active" | "busy") => void;
   players: Record<string, RemotePlayer>;
   onNearbyPlayer?: (playerId: string | null) => void;
   worldRef: React.RefObject<PIXI.Container>;
@@ -75,8 +75,21 @@ export const Player: React.FC<PlayerProps> = ({
   const { nearbyChair, setNearbyChair, checkNearbyPlayers } = useNearbySystem();
   const { checkTeleport } = useMapTeleport(mapData, setX, setY);
   const { presence: facePresence } = useFacePresence();
+  const [manualStatus, setManualStatus] = useState<"active" | "busy">("active");
+  
+  React.useEffect(() => {
+    const handler = (e: any) => setManualStatus(e.detail);
+    window.addEventListener("manual-status-change", handler);
+    return () => window.removeEventListener("manual-status-change", handler);
+  }, []);
+
   const [currentZone, setCurrentZone] = useState<Zone | null>(null);
-  const isBusy = facePresence === "absent";
+  
+  // If the user is 'active', but camera detects 'absent', they become 'busy' automatically
+  const effectiveStatus = manualStatus === "active" 
+    ? (facePresence === "absent" ? "busy" : "active") 
+    : manualStatus;
+  const isBusy = effectiveStatus === "busy";
 
   const { checkCollision } = useCollision(mapData);
   const { updateCamera } = useCamera(worldRef, screenW, screenH, 
@@ -351,6 +364,7 @@ export const Player: React.FC<PlayerProps> = ({
           customDisplayName || undefined,
           isPhoneOut,
           isBusy,
+          effectiveStatus
         );
         lastSyncSit.current = isSitting;
         lastSyncPhone.current = isPhoneOut;
@@ -404,6 +418,7 @@ export const Player: React.FC<PlayerProps> = ({
         customDisplayName || undefined,
         isPhoneOut,
         isBusy,
+        effectiveStatus
       );
       lastSyncSit.current = isSitting;
       lastSyncPhone.current = isPhoneOut;
@@ -418,7 +433,7 @@ export const Player: React.FC<PlayerProps> = ({
       emote={localEmote}
       displayName={customDisplayName}
       chatBubble={localChatBubble || null}
-      isBusy={isBusy}
+      status={effectiveStatus}
     />
   );
 };

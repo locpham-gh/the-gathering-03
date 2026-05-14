@@ -16,7 +16,7 @@ interface AnimatedPlayerSpriteProps {
   emote?: { id: string; timestamp: number } | null;
   displayName?: string;
   chatBubble?: string | null;
-  isBusy?: boolean;
+  status?: "active" | "busy";
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -31,7 +31,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   emote = null,
   displayName,
   chatBubble = null,
-  isBusy = false,
+  status = "active",
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
@@ -160,7 +160,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
       {/* Display Name Label */}
       {displayName && (
         <PixiText
-          text={displayName}
+          text={`${status === "active" ? "🟢" : "🟡"} ${displayName}`}
           x={32}
           y={132}
           anchor={0.5}
@@ -172,27 +172,6 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
               stroke: "#000000",
               strokeThickness: 3,
               fontWeight: "600",
-              align: "center",
-            })
-          }
-        />
-      )}
-
-      {/* Busy/Away status badge */}
-      {isBusy && (
-        <PixiText
-          text={"● Away"}
-          x={32}
-          y={-20}
-          anchor={0.5}
-          style={
-            new PIXI.TextStyle({
-              fontSize: 10,
-              fontFamily: "Arial, sans-serif",
-              fill: "#fbbf24",
-              stroke: "#111827",
-              strokeThickness: 3,
-              fontWeight: "700",
               align: "center",
             })
           }
