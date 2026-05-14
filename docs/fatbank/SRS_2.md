@@ -189,6 +189,9 @@ Success criteria provide measurable outcomes to evaluate whether The Gathering m
 | UC_21  | Periodic State Snapshots   | Automated persistence of player data every 30s to ensure reliability.                                  | 1            | 3                        |
 | UC_22  | API Rate Limiting          | Security layer to prevent abuse of API endpoints and WebSocket connections.                            | 1            | 4                        |
 | UC_23  | Spatial Chat Filtering     | Chat messages are only visible to players within a 250px radius of the sender.                         | 1            | 2                        |
+| UC_24  | Directional Seat Snapping  | Players snap to chairs with correct orientation (Up/Down/Left/Right) based on map configuration.        | 1            | 2                        |
+| UC_25  | Glassmorphic UI Design     | High-end aesthetic for the bottom control bar and overlays using glassmorphism effects.                  | 2            | 3                        |
+| UC_26  | Web Audio Spatial Engine   | Custom Web Audio API implementation with exponential decay and stereo panning for proximity audio.      | 1            | 2                        |
 
 Table 2: Functional Requirement List
 
@@ -219,33 +222,154 @@ Table 4: Complexity table
 ### **_2.2. System Overview_**
 The system is divided into two main domains: the Dashboard (CRUD operations) and the Game Space (Real-time operations).
 
+```mermaid
+graph TD
+    %% Actors
+    User((User))
+    Owner((Room Owner))
+    Host((Event Host))
+    Admin((Admin))
+    System((System))
+
+    subgraph "The Gathering System"
+        UC1([UC-01/02 Login])
+        UC3([UC-03 Update Profile])
+        UC4([UC-04 Create Room])
+        UC5([UC-05 Join Room])
+        UC6([UC-06 Manage Members])
+        UC7([UC-07 Enter 2D Room])
+        UC8([UC-08 Sync Position])
+        UC9([UC-09 Proximity Call])
+        UC10([UC-10/11 Events])
+        UC12([UC-12/13 Forum])
+        UC14([UC-14 Digital Library])
+        UC15([UC-19 Phone Animation])
+        UC16([UC-14 Toggle Theme])
+        UC17([UC-15 Fullscreen UI])
+        UC18([UC-16 Whiteboard])
+        UC19([UC-17 Admin Panel])
+        UC20([UC-20 Mini-map])
+        UC21([UC-21 State Snapshot])
+        UC22([UC-22 Rate Limit])
+        UC23([UC-20 Spatial Chat])
+        UC24([UC-21 Seat Snapping])
+        UC25([UC-25 Glassmorphic UI])
+        UC26([UC-26 Spatial Audio])
+    end
+
+    User --- UC1
+    User --- UC3
+    User --- UC5
+    User --- UC7
+    User --- UC8
+    User --- UC9
+    User --- UC12
+    User --- UC14
+    User --- UC15
+    User --- UC16
+    User --- UC17
+    User --- UC18
+    User --- UC20
+    User --- UC23
+    User --- UC24
+    User --- UC25
+    User --- UC26
+
+    User <|-- Owner
+    Owner --- UC4
+    Owner --- UC6
+    
+    User <|-- Host
+    Host --- UC10
+
+    User <|-- Admin
+    Admin --- UC19
+
+    System --- UC21
+    System --- UC22
+```
+
 ### **_2.3 Use case Authentication_**
 
 #### 2.3.1. Use Case Detail
-Authentication is the entry point for all system features.
+Authentication is the entry point for all system features. It allows users to securely access their dashboard and virtual rooms using Google One Tap or Email OTP.
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    
+    package "Authentication Module" {
+        usecase "Register Account" as UC_Reg
+        usecase "Login Account" as UC_Log
+        usecase "Google Authentication" as UC_G
+        usecase "OTP Authentication" as UC_OTP
+    }
+    
+    User --> UC_Reg
+    User --> UC_Log
+    UC_Reg ..> UC_G : <<include>>
+    UC_Reg ..> UC_OTP : <<include>>
+    UC_Log ..> UC_G : <<include>>
+    UC_Log ..> UC_OTP : <<include>>
+```
+A diagram of a user authentication
 
 #### 2.3.2. Use Case Description
 
-##### _a) Use case Register/Login via Google_
+##### _a) Use case Register account_
 
-| **_Use Case ID:_**       | **UC_01**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **_Use Case Name:_**     | Register/Login via Google                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| **_Brief Description:_** | The user uses Google One Tap to quickly authenticate and access the system.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| **_Actor:_**             | Guest / User                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| **_Pre-conditions:_**    | The user has a valid Google account and is on the landing page.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **_Post-conditions:_**   | The user is authenticated, a JWT is issued, and the user is redirected to the dashboard.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| **_Main Success Flow:_** | 1\. The user navigates to the landing page.<br><br>2\. The system displays the Google One Tap prompt.<br><br>3\. The user selects their Google account.<br><br>4\. The frontend sends the credential (ID Token) to the backend `/api/auth/google`.<br><br>5\. The backend verifies the token with Google API.<br><br>6\. The backend checks if the user exists; if not, it creates a new user profile.<br><br>7\. The backend generates a JWT and returns it with user data.<br><br>8\. The frontend stores the JWT and redirects to `/home`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| **_Alternative Flows:_** | **A1: Manual Login**<br><br>In step 3, if the user ignores the prompt, they can click the "Login with Google" button manually.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **_Exception Flows:_**   | **E1: Invalid Token**<br><br>In step 5, if the token is forged or expired, the backend returns an error, and the system prompts the user to try again.<br><br>**E2: Network Error**<br><br>If the system cannot reach Google's servers, it displays a "Connection Error" message.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Register account" as UC
+    User --> UC
+```
 
-Table 5: Use case Description - Google Login
+| **_Use Case ID:_**       | **UC_01_A**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Register account                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **_Brief Description:_** | A new user creates an account in the system for the first time using Google or Email OTP.                                                                                                                                                                                                                                                                                                                                      |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | The user does not have an existing account in The Gathering.                                                                                                                                                                                                                                                                                                                                                                   |
+| **_Post-conditions:_**   | A new user profile is created in MongoDB, and the user is logged in with a JWT.                                                                                                                                                                                                                                                                                                                                               |
+| **_Main Success Flow:_** | 1\. User chooses Google Login or OTP Login.<br><br>2\. System verifies credentials with external provider (Google) or internal service (OTP).<br><br>3\. System detects that the email does not exist in the database.<br><br>4\. System creates a new user record with default profile data.<br><br>5\. System issues a JWT and redirects user to `/home`.                                                                    |
+| **_Exception Flows:_**   | **E1: Verification Failed**<br><br>If the external token or OTP is invalid, the account is not created and an error message is shown.                                                                                                                                                                                                                                                                                         |
 
-##### _b) Use case Join Room_
+Table 5: Use case Description - Register account
+
+##### _b) Use case Login account_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Login account" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_01_B**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Login account                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **_Brief Description:_** | An existing user authenticates to access their saved rooms and data.                                                                                                                                                                                                                                                                                                                                                          |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | The user already has an account associated with their email.                                                                                                                                                                                                                                                                                                                                                                   |
+| **_Post-conditions:_**   | User session is established; JWT is stored in local storage.                                                                                                                                                                                                                                                                                                                                                                   |
+| **_Main Success Flow:_** | 1\. User provides credentials via Google One Tap or Email OTP.<br><br>2\. System verifies the token/OTP.<br><br>3\. System finds the existing user record in MongoDB.<br><br>4\. System updates the last login timestamp (if applicable).<br><br>5\. System returns user profile and JWT; Frontend redirects to dashboard.                                                                                                     |
+| **_Exception Flows:_**   | **E1: Account Banned**<br><br>If the user account status is set to "banned" by an admin, the login fails even with valid credentials.                                                                                                                                                                                                                                                                                         |
+
+Table 6: Use case Description - Login account
+
+##### _c) Use case Join Room_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Join Room" as UC
+    User --> UC
+```
 
 <div class="joplin-table-wrapper"><table><tbody><tr><th><p><strong><em>Use Case ID:</em></strong></p></th><th><p><strong>UC_05</strong></p></th></tr><tr><td><p><strong><em>Use Case Name:</em></strong></p></td><td><p>Join Room</p></td></tr><tr><td><p><strong><em>Brief Description:</em></strong></p></td><td><p>The user enters a room code to access a specific 2D workspace.</p></td></tr><tr><td><p><strong><em>Actor:</em></strong></p></td><td><p>Authenticated User</p></td></tr><tr><td><p><strong><em>Pre-conditions:</em></strong></p></td><td><p>1. The user is logged in.</p><p>2. The user has a valid 6-character room code.</p></td></tr><tr><td><p><strong><em>Post-conditions:</em></strong></p></td><td><p>The user is added to the room membership and redirected to the game canvas.</p></td></tr><tr><td><p><strong><em>Main Success Flow:</em></strong></p></td><td><ol><li>The user enters the room code in the "Join Room" field.</li><li>The user clicks "Join".</li><li>The frontend calls <code>POST /api/rooms/join/:code</code>.</li><li>The backend validates the code and adds the user to the <code>members</code> list.</li><li>The backend returns success.</li><li>The frontend redirects the user to <code>/room/:roomCode</code>.</li></ol></td></tr><tr><td><p><strong><em>Alternative Flows:</em></strong></p></td><td><p>None</p></td></tr><tr><td><p><strong><em>Exception Flows:</em></strong></p></td><td><p><strong>E1: Invalid Code</strong></p><p>In step 4, if the code does not exist, the system displays "Room not found".</p><p><strong>E2: Already a Member</strong></p><p>If the user is already a member, the system simply redirects them without adding them again.</p></td></tr></tbody></table></div>
 
-Table 6: Use case Description - Join Room
+Table 7: Use case Description - Join Room
 
 ### **_2.4. Use case Multiplayer Interaction_**
 
@@ -253,6 +377,13 @@ Table 6: Use case Description - Join Room
 This covers movement and proximity logic.
 
 ##### _a) Real-time Position Sync_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Sync Positions" as UC
+    User --> UC
+```
 
 | **_Use Case ID:_**       | **UC_08**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -265,7 +396,185 @@ This covers movement and proximity logic.
 | **_Alternative Flows:_** | **A1: Sitting Mode**<br><br>In Step 1, if the user presses 'E' near a chair, the `isSitting` flag is sent, changing the avatar animation for everyone.                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **_Exception Flows:_**   | **E1: Disconnection**<br><br>If the WebSocket closes, the backend detects the drop and broadcasts a `player_left` event to others.                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-Table 7: Use case Description - Sync Positions
+Table 8: Use case Description - Sync Positions
+
+##### _b) Use case Update Profile_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Update Profile" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_03**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Update Profile                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **_Brief Description:_** | The user changes their display name or avatar URL.                                                                                                                                                                                                                                                                                                                                                                            |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | User is logged in.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **_Post-conditions:_**   | User data is updated in MongoDB and reflected in the UI.                                                                                                                                                                                                                                                                                                                                                                      |
+| **_Main Success Flow:_** | 1\. User opens Profile modal.<br><br>2\. User edits fields.<br><br>3\. User clicks "Save".<br><br>4\. Frontend calls `PUT /api/auth/profile`.<br><br>5\. Backend updates record and returns success.                                                                                                                                                                                                                          |
+
+Table 9: Use case Description - Update Profile
+
+##### _c) Use case Create Room_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Create Room" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_04**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Create Room                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **_Brief Description:_** | The user creates a new virtual workspace.                                                                                                                                                                                                                                                                                                                                                                                     |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | User is logged in.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **_Post-conditions:_**   | A new room is created; user is the owner.                                                                                                                                                                                                                                                                                                                                                                                     |
+| **_Main Success Flow:_** | 1\. User clicks "Create Room".<br><br>2\. User selects map type (Office/Cafe).<br><br>3\. Frontend calls `POST /api/rooms`.<br><br>4\. Backend generates unique code and saves room.<br><br>5\. User is redirected to the new room.                                                                                                                                                                                           |
+
+Table 10: Use case Description - Create Room
+
+##### _d) Use case Collaborative Whiteboard_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Use Whiteboard" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_18**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Collaborative Whiteboard                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **_Brief Description:_** | Multiple users draw on a shared canvas in real-time.                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | User is in the whiteboard zone (E key).                                                                                                                                                                                                                                                                                                                                                                                       |
+| **_Post-conditions:_**   | Drawing state is synced and saved.                                                                                                                                                                                                                                                                                                                                                                                            |
+| **_Main Success Flow:_** | 1\. User opens whiteboard.<br><br>2\. User draws elements.<br><br>3\. Frontend sends updates via WebSocket.<br><br>4\. Backend broadcasts to others.<br><br>5\. Backend saves state to MongoDB.                                                                                                                                                                                                                                |
+
+Table 11: Use case Description - Whiteboard Interaction
+
+### **_2.5. Advanced Features (v2.4)_**
+
+##### _a) Use case Directional Seat Snapping_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Seat Snapping" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_24**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Directional Seat Snapping                                                                                                                                                                                                                                                                                                                                                                                                     |
+| **_Brief Description:_** | Player snaps to a chair with correct orientation.                                                                                                                                                                                                                                                                                                                                                                             |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | User is near a chair entity.                                                                                                                                                                                                                                                                                                                                                                                                  |
+| **_Main Success Flow:_** | 1\. User presses 'E'.<br><br>2\. System identifies chair orientation from map config.<br><br>3\. Character snaps to (x, y) and sets direction.<br><br>4\. State is broadcasted to others.                                                                                                                                                                                                                                     |
+
+Table 12: Use case Description - Seat Snapping
+
+##### _b) Use case Proximity Audio/Video Call_
+
+```mermaid
+usecaseDiagram
+    actor "User" as User
+    usecase "Proximity Call" as UC
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_09**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Proximity Call                                                                                                                                                                                                                                                                                                                                                                                                                |
+| **_Brief Description:_** | Automatic video/audio connection when players are near each other.                                                                                                                                                                                                                                                                                                                                                            |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Pre-conditions:_**    | Players are within 100 units distance.                                                                                                                                                                                                                                                                                                                                                                                        |
+| **_Main Success Flow:_** | 1\. System detects distance < 100.<br><br>2\. Frontend requests LiveKit token.<br><br>3\. User joins LiveKit room.<br><br>4\. Video overlay appears above avatar.                                                                                                                                                                                                                                                             |
+
+Table 13: Use case Description - Proximity Call
+
+##### _c) Use case Community Forum_
+
+```mermaid
+graph TD
+    User["User"]
+    UC["Forum Interaction"]
+    User --> UC
+```
+
+| **_Use Case ID:_**       | **UC_12/13**                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Community Forum                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **_Brief Description:_** | User creates topics or replies to discussions.                                                                                                                                                                                                                                                                                                                                                                                |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Main Success Flow:_** | 1\. User opens Forum.<br><br>2\. User clicks "New Topic" or "Reply".<br><br>3\. Frontend calls `POST /api/forum`.<br><br>4\. Backend saves and refreshes feed.                                                                                                                                                                                                                                                                |
+
+Table 14: Use case Description - Community Forum
+
+##### _d) Use case Admin Panel_
+
+```mermaid
+flowchart TD
+    Admin["Admin"]
+    UC["Manage Platform"]
+    Admin --> UC
+```
+
+| **_Use Case ID:_**       | **UC_19**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Admin Management                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **_Main Success Flow:_** | 1\. Admin logs in.<br><br>2\. Admin accesses `/admin`.<br><br>3\. Admin views stats or moderates content.<br><br>4\. Backend validates `isAdmin` flag for all requests.                                                                                                                                                                                                                                                      |
+
+Table 15: Use case Description - Admin Panel
+
+##### _e) Use case Schedule Event (UC_10/11)_
+
+| **_Use Case ID:_**       | **UC_10/11**                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Schedule & Manage Events                                                                                                                                                                                                                                                                                                                                                                                                      |
+| **_Brief Description:_** | User schedules an event and sends automated invitations via email.                                                                                                                                                                                                                                                                                                                                                             |
+| **_Actor:_**             | Event Host                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **_Main Success Flow:_** | 1\. Host fills event form (Time, Room, Guests).<br><br>2\. System saves event and sends SMTP invitations.<br><br>3\. Event appears in the dashboard calendar for all guests.                                                                                                                                                                                                                                                  |
+
+Table 16: Use case Description - Schedule Event
+
+##### _f) Use case Digital Library & Resources (UC_14)_
+
+| **_Use Case ID:_**       | **UC_14**                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Digital Library Access                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **_Brief Description:_** | User searches and accesses documents within the 2D workspace.                                                                                                                                                                                                                                                                                                                                                                  |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Main Success Flow:_** | 1\. User approaches library zone.<br><br>2\. System opens resource explorer.<br><br>3\. User filters by type (PDF/Link/Video) and opens resource.                                                                                                                                                                                                                                                                             |
+
+Table 17: Use case Description - Digital Library
+
+##### _g) Use case Spatial Media Experience (UC_23/26)_
+
+| **_Use Case ID:_**       | **UC_23/26**                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | Spatial Video & Audio                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **_Brief Description:_** | Real-time media that adjusts based on player proximity and position.                                                                                                                                                                                                                                                                                                                                                          |
+| **_Actor:_**             | User                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **_Main Success Flow:_** | 1\. Users move close to each other.<br><br>2\. System renders video overlay above avatars.<br><br>3\. Web Audio Engine calculates stereo panning and volume decay based on distance.                                                                                                                                                                                                                                            |
+
+Table 18: Use case Description - Spatial Media
+
+##### _h) Use case System Integrity (UC_21/22)_
+
+| **_Use Case ID:_**       | **UC_21/22**                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **_Use Case Name:_**     | State Snapshots & Rate Limiting                                                                                                                                                                                                                                                                                                                                                                                               |
+| **_Brief Description:_** | Background tasks to ensure data persistence and server security.                                                                                                                                                                                                                                                                                                                                                               |
+| **_Actor:_**             | System                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **_Main Success Flow:_** | 1\. System performs 30s snapshots of in-memory movement data to MongoDB.<br><br>2\. Rate-limit middleware monitors and blocks abusive IP addresses.                                                                                                                                                                                                                                                                            |
+
+Table 19: Use case Description - System Integrity
 
 # **V. SYSTEM & SOFTWARE REQUIREMENT**
 

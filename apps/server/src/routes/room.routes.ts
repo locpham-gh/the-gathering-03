@@ -3,6 +3,7 @@ import { Room } from "../models/Room.js";
 import { jwt } from "@elysiajs/jwt";
 import mongoose from "mongoose";
 import { sendInviteEmail } from "../services/email.service.js";
+import { broadcastMemberKickedFromRoom } from "../realtime-broadcast.js";
 
 /**
  * Using 'any' for the export to resolve the TypeScript error:
@@ -272,6 +273,8 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
 
         room.members = room.members.filter((m) => m.toString() !== kickId);
         await room.save();
+
+        broadcastMemberKickedFromRoom(room.code, kickId);
 
         return { success: true, message: "Member kicked successfully" };
       } catch (err: any) {

@@ -1,0 +1,9 @@
+@startuml
+skinparam actorStyle stickman
+
+actor "User" as U
+usecase "Community Forum Interaction" as UC
+
+U -- UC
+
+@enduml

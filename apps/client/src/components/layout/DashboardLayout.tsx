@@ -17,9 +17,10 @@ import { QuickCreateRoomModal } from "../dashboard/rooms/QuickCreateRoomModal";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  fullWidth?: boolean;
 }
 
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, fullWidth }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
 
@@ -32,7 +33,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   ];
 
   if (user?.role === "admin") {
-    menuItems.push({ name: "Admin", path: "/admin", icon: <Shield size={20} /> });
+    menuItems.push({ name: "Admin Panel", path: "/admin", icon: <Shield size={20} /> });
   }
 
   const [isQuickCreateOpen, setIsQuickCreateOpen] = React.useState(false);
@@ -46,6 +47,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
         onClose={() => setIsQuickCreateOpen(false)} 
         userDisplayName={user.displayName}
       />
+
       
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm">
@@ -76,6 +78,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 </Link>
               );
             })}
+
           </nav>
         </div>
 
@@ -126,11 +129,11 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
            </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 relative">
+        <div className={`flex-1 relative ${fullWidth ? "overflow-hidden" : "overflow-y-auto p-8"}`}>
            {/* Background Decorations */}
-           <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 pointer-events-none -z-10"></div>
+           {!fullWidth && <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/4 pointer-events-none -z-10"></div>}
            
-           <div className="relative z-0 max-w-5xl mx-auto">
+           <div className={`relative z-0 ${fullWidth ? "w-full h-full" : "max-w-5xl mx-auto"}`}>
               {children}
            </div>
         </div>

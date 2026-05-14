@@ -1,0 +1,11 @@
+@startuml
+
+actor Admin
+
+rectangle "Administration Module" {
+    usecase "UC-17 Manage Platform" as UC17
+}
+
+Admin -- UC17
+
+@enduml

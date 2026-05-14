@@ -1,0 +1,16 @@
+@startuml
+skinparam actorStyle stickman
+
+actor "User" as U
+
+rectangle "User Authentication" {
+    usecase "Login account" as UC_Log
+    usecase "Register account" as UC_Reg
+    usecase "Recover password" as UC_Rec
+    
+    U -- UC_Log
+    UC_Reg ..> UC_Log : <<extend>>
+    UC_Rec ..> UC_Log : <<extend>>
+}
+
+@enduml

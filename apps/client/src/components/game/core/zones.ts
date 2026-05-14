@@ -1,4 +1,4 @@
-export type ZoneType = "library" | "whiteboard" | "conference" | "presentation" | "seat";
+export type ZoneType = "library" | "whiteboard" | "conference" | "presentation" | "seat" | "chill" | "whiteboard_leader";
 
 export interface Zone {
   id: ZoneType;
@@ -35,20 +35,29 @@ const OFFICE_ZONES: Zone[] = [
   {
     id: "library",
     label: "Library",
-    x: 2000,
-    y: 350,
-    width: 600,
-    height: 600,
+    x: 64,
+    y: 64,
+    width: 448,
+    height: 448,
     description: "Knowledge resources and documentation",
   },
   {
+    id: "whiteboard_leader",
+    label: "Whiteboard",
+    x: 1696,
+    y: 128,
+    width: 192,
+    height: 128,
+    description: "Stand here to present to the meeting room",
+  },
+  {
     id: "conference",
-    label: "Conference Room",
-    x: 64,
-    y: 6592,
-    width: 440,
-    height: 640,
-    description: "Virtual meeting space",
+    label: "Meeting Room",
+    x: 1536,
+    y: 448,
+    width: 384,
+    height: 448,
+    description: "Sit here to join the meeting and view the whiteboard",
   },
   {
     id: "whiteboard",
@@ -58,6 +67,15 @@ const OFFICE_ZONES: Zone[] = [
     width: 500,
     height: 500,
     description: "Collaborative drawing and brainstorming",
+  },
+  {
+    id: "chill",
+    label: "Chill Zone 🌿",
+    x: 1280,
+    y: 1088,
+    width: 448,
+    height: 256,
+    description: "Relax, mic & cam off, chill music on",
   },
 ];
 

@@ -130,13 +130,19 @@ graph LR
 ```
 
 ### Các tính năng Media & UI nổi bật:
-3. **Spatial Chat (Nearby Chat):** Hệ thống tích hợp thuật toán lọc tin nhắn dựa trên vị trí thực tế. Client chỉ hiển thị tin nhắn từ những người chơi trong bán kính 250 pixels, giúp giả lập môi trường trò chuyện thực tế và bảo mật không gian riêng tư.
-4. **Phone Interaction (Q Key):** Tích hợp animation hai giai đoạn (Rút máy & Giữ máy) được đồng bộ hóa tức thì qua WebSocket. Khi thay đổi trạng thái điện thoại, hệ thống sẽ bỏ qua bộ lọc Throttle để phát tín hiệu broadcast ngay lập tức cho các người chơi khác.
-5. **Atomic Room Joining:** Sử dụng lệnh `$addToSet` của MongoDB để xử lý việc tham gia phòng, giúp ngăn chặn lỗi xung đột phiên bản (Version Conflict) và đảm bảo tính toàn vẹn dữ liệu khi nhiều người cùng tham gia hoặc hệ thống đang lưu Snapshot.
-6. **Theme Persistence:** Hệ thống hỗ trợ Light/Dark mode với khả năng ghi nhớ lựa chọn của người dùng thông qua LocalStorage và đồng bộ màu sắc cho toàn bộ UI (Sidebar, Chat, Modals).
-7. **Fullscreen Immersive Views:** Các module như Chat và Calendar được thiết kế dưới dạng lớp phủ toàn màn hình (Overlay) với kiến trúc Sidebar riêng, giúp tối ưu diện tích tương tác mà không cần rời khỏi không gian 2D.
-8. **Image-Based Backgrounds:** Hỗ trợ render ảnh tĩnh (PNG/JPG) chất lượng cao làm nền bản đồ thay vì tileset truyền thống, giúp tối ưu hiệu năng và đạt tính thẩm mỹ tối đa (ví dụ: Café Lounge).
-9. **Collaborative Whiteboard:** Tích hợp Excalidraw với cơ chế đồng bộ real-time qua WebSocket và lưu trữ trạng thái vào MongoDB, cho phép làm việc nhóm hiệu quả.
-10. **Admin Dashboard:** Hệ thống quản trị tập trung cho phép kiểm soát người dùng (Set Admin via CLI/UI), quản lý phòng họp và diễn đàn một cách trực quan.
-11. **マルチプレイヤー Reliability:** Cơ chế Snapshot định kỳ mỗi 30 giây giúp bảo toàn dữ liệu vị trí người chơi ngay cả khi server gặp sự cố, thay thế hoàn toàn nhu cầu sử dụng Redis.
-12. **Google One Tap & OTP:** Hệ thống xác thực đa phương thức tích hợp Google One Tap (không gây nhiễu UI) và đăng nhập qua mã OTP gửi tới Email.
+1. **Web Audio API Spatial Audio:** Thay vì sử dụng âm thanh mặc định, hệ thống tích hợp Web Audio API để xử lý Spatial Audio. Điều này bao gồm:
+    - **Exponential Volume Decay:** Âm lượng giảm dần theo hàm mũ khi người chơi di chuyển xa nguồn phát.
+    - **Stereo Panning:** Điều hướng âm thanh trái/phải dựa trên vị trí tương đối (X coordinate) của người chơi so với nguồn phát.
+2. **Directional Seat Snapping:** Tính năng ngồi (phím E) không chỉ dừng lại ở việc cố định vị trí mà còn tự động điều chỉnh hướng nhìn của nhân vật (Orientation) dựa trên cấu hình ghế trong bản đồ, tạo cảm giác tự nhiên khi làm việc nhóm.
+3. **Spatial Video Overlay:** Hệ thống tự động tính toán tọa độ màn hình (Screen Coordinates) từ tọa độ thế giới (World Coordinates) để hiển thị video track của người chơi ngay trên đầu avatar của họ, giúp nhận diện người đang nói một cách trực quan nhất.
+4. **Spatial Chat (Nearby Chat):** Hệ thống tích hợp thuật toán lọc tin nhắn dựa trên vị trí thực tế. Client chỉ hiển thị tin nhắn từ những người chơi trong bán kính 250 pixels, giúp giả lập môi trường trò chuyện thực tế và bảo mật không gian riêng tư.
+5. **Phone Interaction (Q Key):** Tích hợp animation hai giai đoạn (Rút máy & Giữ máy) được đồng bộ hóa tức thì qua WebSocket. Khi thay đổi trạng thái điện thoại, hệ thống sẽ bỏ qua bộ lọc Throttle để phát tín hiệu broadcast ngay lập tức cho các người chơi khác.
+6. **Atomic Room Joining:** Sử dụng lệnh `$addToSet` của MongoDB để xử lý việc tham gia phòng, giúp ngăn chặn lỗi xung đột phiên bản (Version Conflict) và đảm bảo tính toàn vẹn dữ liệu khi nhiều người cùng tham gia hoặc hệ thống đang lưu Snapshot.
+7. **Theme Persistence:** Hệ thống hỗ trợ Light/Dark mode với khả năng ghi nhớ lựa chọn của người dùng thông qua LocalStorage và đồng bộ màu sắc cho toàn bộ UI (Sidebar, Chat, Modals).
+8. **Fullscreen Immersive Views:** Các module như Chat và Calendar được thiết kế dưới dạng lớp phủ toàn màn hình (Overlay) với kiến trúc Sidebar riêng, giúp tối ưu diện tích tương tác mà không cần rời khỏi không gian 2D.
+9. **Image-Based Backgrounds:** Hỗ trợ render ảnh tĩnh (PNG/JPG) chất lượng cao làm nền bản đồ thay vì tileset truyền thống, giúp tối ưu hiệu năng và đạt tính thẩm mỹ tối đa (ví dụ: Café Lounge).
+10. **Collaborative Whiteboard:** Tích hợp Excalidraw với cơ chế đồng bộ real-time qua WebSocket và lưu trữ trạng thái vào MongoDB, cho phép làm việc nhóm hiệu quả.
+11. **Admin Dashboard:** Hệ thống quản trị tập trung cho phép kiểm soát người dùng (Set Admin via CLI/UI), quản lý phòng họp và diễn đàn một cách trực quan.
+12. **マルチプレイヤー Reliability:** Cơ chế Snapshot định kỳ mỗi 30 giây giúp bảo toàn dữ liệu vị trí người chơi ngay cả khi server gặp sự cố, thay thế hoàn toàn nhu cầu sử dụng Redis.
+13. **Google One Tap & OTP:** Hệ thống xác thực đa phương thức tích hợp Google One Tap (không gây nhiễu UI) và đăng nhập qua mã OTP gửi tới Email.
+14. **Glassmorphic UI Design:** Thanh điều khiển (Bottom Bar) và các cửa sổ Overlay được thiết kế với phong cách Glassmorphism (Backdrop blur, border mờ) giúp giao diện trở nên sang trọng và hiện đại, đồng nhất với trải nghiệm "Premium co-working space".

@@ -11,7 +11,7 @@ interface MiniMapProps {
 
 const MINIMAP_W = 180;
 const MINIMAP_H = 130;
-const PADDING = 6;
+const PAD = 6;
 
 export const MiniMap: React.FC<MiniMapProps> = ({
   mapWidthPx,
@@ -21,6 +21,11 @@ export const MiniMap: React.FC<MiniMapProps> = ({
   players,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
+  const dataRef = useRef({ localX, localY, players, mapWidthPx, mapHeightPx });
+
+  // Keep ref in sync without re-running effect
+  dataRef.current = { localX, localY, players, mapWidthPx, mapHeightPx };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -33,58 +38,65 @@ export const MiniMap: React.FC<MiniMapProps> = ({
     canvas.height = MINIMAP_H * dpr;
     ctx.scale(dpr, dpr);
 
-    // Scale factors
-    const scaleX = (MINIMAP_W - PADDING * 2) / mapWidthPx;
-    const scaleY = (MINIMAP_H - PADDING * 2) / mapHeightPx;
+    const draw = () => {
+      const { localX: lx, localY: ly, players: pl, mapWidthPx: mw, mapHeightPx: mh } = dataRef.current;
 
-    // Clear
-    ctx.clearRect(0, 0, MINIMAP_W, MINIMAP_H);
+      const innerW = MINIMAP_W - PAD * 2;
+      const innerH = MINIMAP_H - PAD * 2;
+      const scaleX = innerW / mw;
+      const scaleY = innerH / mh;
 
-    // Background
-    ctx.fillStyle = "rgba(15, 23, 42, 0.85)";
-    ctx.beginPath();
-    ctx.roundRect(0, 0, MINIMAP_W, MINIMAP_H, 10);
-    ctx.fill();
+      ctx.clearRect(0, 0, MINIMAP_W, MINIMAP_H);
 
-    // Map area outline
-    ctx.strokeStyle = "rgba(148, 163, 184, 0.3)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.roundRect(PADDING, PADDING, MINIMAP_W - PADDING * 2, MINIMAP_H - PADDING * 2, 4);
-    ctx.stroke();
-
-    // Remote players (white dots)
-    ctx.fillStyle = "rgba(226, 232, 240, 0.8)";
-    Object.values(players).forEach((p) => {
-      const px = PADDING + p.x * scaleX;
-      const py = PADDING + p.y * scaleY;
+      // BG
+      ctx.fillStyle = "rgba(15, 23, 42, 0.88)";
       ctx.beginPath();
-      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.roundRect(0, 0, MINIMAP_W, MINIMAP_H, 10);
       ctx.fill();
-    });
 
-    // Local player (bright cyan dot)
-    const lx = PADDING + localX * scaleX;
-    const ly = PADDING + localY * scaleY;
+      // Border
+      ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(PAD, PAD, innerW, innerH, 4);
+      ctx.stroke();
 
-    // Glow
-    ctx.fillStyle = "rgba(34, 211, 238, 0.3)";
-    ctx.beginPath();
-    ctx.arc(lx, ly, 6, 0, Math.PI * 2);
-    ctx.fill();
+      // Remote players
+      Object.values(pl).forEach((p) => {
+        const px = PAD + p.x * scaleX;
+        const py = PAD + p.y * scaleY;
+        ctx.fillStyle = "rgba(226, 232, 240, 0.7)";
+        ctx.beginPath();
+        ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
 
-    // Core dot
-    ctx.fillStyle = "#22d3ee";
-    ctx.beginPath();
-    ctx.arc(lx, ly, 3.5, 0, Math.PI * 2);
-    ctx.fill();
+      // Local player glow
+      const mx = PAD + lx * scaleX;
+      const my = PAD + ly * scaleY;
+      ctx.fillStyle = "rgba(34, 211, 238, 0.25)";
+      ctx.beginPath();
+      ctx.arc(mx, my, 6, 0, Math.PI * 2);
+      ctx.fill();
 
-    // Label
-    ctx.fillStyle = "rgba(148, 163, 184, 0.6)";
-    ctx.font = "bold 8px Arial";
-    ctx.textAlign = "left";
-    ctx.fillText("MAP", PADDING + 3, MINIMAP_H - PADDING - 2);
-  }, [mapWidthPx, mapHeightPx, localX, localY, players]);
+      // Local player dot
+      ctx.fillStyle = "#22d3ee";
+      ctx.beginPath();
+      ctx.arc(mx, my, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label
+      ctx.fillStyle = "rgba(148, 163, 184, 0.5)";
+      ctx.font = "bold 8px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText("MAP", PAD + 3, MINIMAP_H - PAD - 2);
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, []);
 
   return (
     <canvas

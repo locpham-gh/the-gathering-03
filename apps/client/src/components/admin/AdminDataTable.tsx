@@ -12,6 +12,7 @@ import {
   Hash,
   Calendar,
   MoreHorizontal,
+  RefreshCw,
 } from "lucide-react";
 import type { AdminDataItem, TabType, PaginationInfo } from "../../types/admin";
 
@@ -41,82 +42,92 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
   currentUserWhitelistedBy,
 }) => {
   return (
-    <div className="bg-white rounded-[2.5rem] shadow-2xl shadow-slate-200/40 border border-slate-200 overflow-hidden animate-in fade-in duration-500">
+    <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-white/60 overflow-hidden animate-in fade-in zoom-in-95 duration-700">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="bg-slate-50/50 border-b border-slate-100">
+            <tr className="bg-slate-900/5 border-b border-slate-200/50">
               {activeTab === "users" ? (
                 <>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Digital Identity
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Identity Matrix
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Authorization
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Access Tier
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Network Status
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Connectivity
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
-                    Operations
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">
+                    Command
                   </th>
                 </>
               ) : activeTab === "rooms" ? (
                 <>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Room Matrix
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Environment
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Administrative Owner
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Registry Owner
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Encryption Key
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Secure Hash
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">
                     Protocol
                   </th>
                 </>
               ) : (
                 <>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Content Thread
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Data Stream
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Intel Author
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Originator
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                    Timestamp
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                    Chronology
                   </th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">
+                  <th className="px-10 py-6 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">
                     Moderation
                   </th>
                 </>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-100/50">
             {loading ? (
               <tr>
-                <td colSpan={4} className="px-8 py-32 text-center">
-                  <div className="flex flex-col items-center gap-6">
-                    <div className="w-16 h-16 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
-                    <span className="text-slate-400 font-black uppercase tracking-widest text-xs">
-                      Syncing with Mainframe...
-                    </span>
+                <td colSpan={4} className="px-10 py-40 text-center">
+                  <div className="flex flex-col items-center gap-8">
+                    <div className="relative">
+                        <div className="w-20 h-20 border-[6px] border-indigo-50 border-t-indigo-600 rounded-full animate-spin shadow-inner"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <RefreshCw size={24} className="text-indigo-600/30" />
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <span className="text-slate-900 font-black uppercase tracking-[0.3em] text-sm">
+                            Synchronizing
+                        </span>
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Fetching data from main terminal...</p>
+                    </div>
                   </div>
                 </td>
               </tr>
             ) : data.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-8 py-32 text-center">
-                  <div className="flex flex-col items-center gap-4 opacity-30">
-                    <AlertCircle size={64} className="text-slate-300" />
+                <td colSpan={4} className="px-10 py-40 text-center">
+                  <div className="flex flex-col items-center gap-6 opacity-40">
+                    <div className="w-24 h-24 bg-slate-100 rounded-[2rem] flex items-center justify-center border-2 border-dashed border-slate-200">
+                        <AlertCircle size={48} className="text-slate-300" />
+                    </div>
                     <div className="flex flex-col items-center">
-                      <span className="text-sm font-black text-slate-500 uppercase tracking-widest">
-                        No Intelligence Data
+                      <span className="text-lg font-black text-slate-800 uppercase tracking-tight">
+                        Null Data Response
                       </span>
-                      <p className="text-xs text-slate-400 font-bold mt-1">
-                        No entries found matching your security clearance.
+                      <p className="text-xs text-slate-400 font-bold mt-2 uppercase tracking-widest">
+                        No active entries detected in current segment.
                       </p>
                     </div>
                   </div>
@@ -126,7 +137,7 @@ export const AdminDataTable: React.FC<AdminDataTableProps> = ({
               data.map((item) => (
                 <tr
                   key={item._id}
-                  className="group hover:bg-slate-50/50 transition-all duration-200"
+                  className="group hover:bg-white/60 transition-all duration-300 cursor-default"
                 >
                   {activeTab === "users" ? (
                     <>
