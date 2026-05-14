@@ -28,6 +28,7 @@ interface LiveKitModalProps {
   currentZone: Zone | null;
   localIsBusy: boolean;
   cameraTransform: { x: number; y: number };
+  mediaState?: { videoEnabled: boolean; audioEnabled: boolean };
 }
 
 const distance = (
@@ -44,12 +45,13 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
   currentZone,
   localIsBusy,
   cameraTransform,
+  mediaState = { videoEnabled: true, audioEnabled: true },
 }) => {
   return (
     <div className="absolute inset-0 z-[100] pointer-events-none text-slate-800">
       <LiveKitRoom
-        video={true}
-        audio={true}
+        video={mediaState?.videoEnabled ?? true}
+        audio={mediaState?.audioEnabled ?? true}
         connect={true}
         token={token}
         serverUrl={serverUrl}
@@ -62,6 +64,7 @@ export const LiveKitModal: React.FC<LiveKitModalProps> = ({
           localPosition={localPosition}
           localIsBusy={localIsBusy}
           cameraTransform={cameraTransform}
+          mediaState={mediaState}
         />
         <ScreenShareLayer />
         <ChillZoneManager currentZone={currentZone} />
@@ -82,12 +85,13 @@ const AvatarVideoLayer: React.FC<{
   localPosition: { x: number; y: number };
   localIsBusy: boolean;
   cameraTransform: { x: number; y: number };
-}> = ({ currentZone, players, localPosition, localIsBusy, cameraTransform }) => {
+  mediaState?: { videoEnabled: boolean; audioEnabled: boolean };
+}> = ({ currentZone, players, localPosition, localIsBusy, cameraTransform, mediaState }) => {
   const lastPairDebugRef = useRef<string>("");
   const tracks = useTracks(
     [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.Microphone, withPlaceholder: true },
+      { source: Track.Source.Camera, withPlaceholder: false },
+      { source: Track.Source.Microphone, withPlaceholder: false },
     ],
     { onlySubscribed: false },
   );
@@ -118,7 +122,8 @@ const AvatarVideoLayer: React.FC<{
   const localReady = Boolean(
     localReadyFromTracks?.cameraReady &&
       !localIsBusy &&
-      currentZone?.id !== "chill",
+      currentZone?.id !== "chill" &&
+      (mediaState?.videoEnabled ?? true)
   );
 
   useEffect(() => {
@@ -129,17 +134,12 @@ const AvatarVideoLayer: React.FC<{
     }
   }, [localParticipant, localIsBusy, currentZone?.id]);
 
+  // Disable mic if initial media state says audio disabled
   useEffect(() => {
-    const handleHostMute = () => {
-      if (localParticipant && localParticipant.isMicrophoneEnabled) {
-        localParticipant.setMicrophoneEnabled(false);
-        // Optional: Dispatch a toast or alert
-        alert("Chủ phòng đã tắt mic của bạn (Mute All).");
-      }
-    };
-    window.addEventListener("host-mute-all", handleHostMute);
-    return () => window.removeEventListener("host-mute-all", handleHostMute);
-  }, [localParticipant]);
+    if (!mediaState?.audioEnabled && localParticipant?.isMicrophoneEnabled) {
+      localParticipant.setMicrophoneEnabled(false);
+    }
+  }, [localParticipant, mediaState?.audioEnabled]);
 
   const localTrack = tracks.find(
     (t) =>

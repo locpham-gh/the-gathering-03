@@ -42,12 +42,14 @@ export function useMultiplayer(roomId?: string) {
     let reconnectTimeoutId: ReturnType<typeof setTimeout>;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 10;
+    const sessionId = Math.random().toString(36).substring(2, 15);
 
     const connect = () => {
       if (isClosing) return;
       const qs = new URLSearchParams({
         room: effectiveRoomId,
         userId: user.id,
+        sessionId: sessionId,
       });
       const ws = new WebSocket(`${protocol}//${host}/ws?${qs.toString()}`);
       wsRef.current = ws;
@@ -222,19 +224,22 @@ export function useMultiplayer(roomId?: string) {
         } else if (type === "kicked_from_room") {
           forceExitAsKicked(payload?.message);
         } else if (type === "session_replaced") {
-          window.dispatchEvent(
-            new CustomEvent("session-replaced", {
-              detail: {
-                message:
-                  payload?.message ||
-                  "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
-              },
-            }),
-          );
-          try {
-            ws.close();
-          } catch {
-            /* ignore */
+          // If the server tells us a new session started, and it's not us, disconnect
+          if (payload?.activeSessionId && payload.activeSessionId !== sessionId) {
+            window.dispatchEvent(
+              new CustomEvent("session-replaced", {
+                detail: {
+                  message:
+                    payload?.message ||
+                    "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
+                },
+              }),
+            );
+            try {
+              ws.close();
+            } catch {
+              /* ignore */
+            }
           }
         }
       };

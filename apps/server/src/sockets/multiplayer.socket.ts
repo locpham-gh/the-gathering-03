@@ -6,6 +6,7 @@ export const multiplayerSocket = (app: Elysia) =>
     query: t.Object({
       room: t.Optional(t.String()),
       userId: t.Optional(t.String()),
+      sessionId: t.Optional(t.String()),
     }),
     body: t.Object({
       type: t.String(),
@@ -14,6 +15,7 @@ export const multiplayerSocket = (app: Elysia) =>
     async open(ws: any) {
       const roomId = ws.data.query.room || "lobby";
       const userId = ws.data.query.userId;
+      const sessionId = ws.data.query.sessionId;
 
       if (roomId !== "lobby") ws.subscribe(`room-${roomId}`);
       ws.subscribe("global-forum");
@@ -32,6 +34,14 @@ export const multiplayerSocket = (app: Elysia) =>
                   type: "player_left",
                   payload: { id: oldWsId },
                 });
+                
+                // Notify the old connection to logout
+                if (sessionId) {
+                  ws.publish(`user-${userId}`, {
+                    type: "session_replaced",
+                    payload: { activeSessionId: sessionId },
+                  });
+                }
               }
             }
           } catch (e) {

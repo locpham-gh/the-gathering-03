@@ -54,6 +54,7 @@ export default function GamePage() {
   const [cameraTransform, setCameraTransform] = useState({ x: 0, y: 0 });
   const [isSidebarFullscreenOverlayOpen, setIsSidebarFullscreenOverlayOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [initialMediaState, setInitialMediaState] = useState({ videoEnabled: true, audioEnabled: true });
   const joinStateKey = `joined-room:${roomId || "default"}`;
   const clearSavedJoinState = useCallback(() => {
     try {
@@ -67,9 +68,13 @@ export default function GamePage() {
   const { token: liveKitToken, setToken: setLiveKitToken } = useLiveKit(isJoined, user, roomId, authToken);
 
   // 5. Actions
-  const handleJoin = (data: { displayName: string; characterId: string }) => {
+  const handleJoin = (data: { displayName: string; characterId: string; videoEnabled?: boolean; audioEnabled?: boolean }) => {
     setCustomDisplayName(data.displayName);
     setSelectedCharacter(data.characterId);
+    setInitialMediaState({ 
+      videoEnabled: data.videoEnabled ?? true, 
+      audioEnabled: data.audioEnabled ?? true 
+    });
     setIsJoined(true);
     try {
       sessionStorage.setItem(
@@ -78,6 +83,8 @@ export default function GamePage() {
           isJoined: true,
           displayName: data.displayName,
           characterId: data.characterId,
+          videoEnabled: data.videoEnabled ?? true,
+          audioEnabled: data.audioEnabled ?? true,
         }),
       );
     } catch {
@@ -212,11 +219,17 @@ export default function GamePage() {
         isJoined?: boolean;
         displayName?: string;
         characterId?: string;
+        videoEnabled?: boolean;
+        audioEnabled?: boolean;
       };
       if (!saved?.isJoined) return;
       setIsJoined(true);
       if (saved.displayName) setCustomDisplayName(saved.displayName);
       if (saved.characterId) setSelectedCharacter(saved.characterId);
+      setInitialMediaState({ 
+        videoEnabled: saved.videoEnabled ?? true, 
+        audioEnabled: saved.audioEnabled ?? true 
+      });
     } catch {
       // Ignore malformed/blocked storage.
     }
@@ -359,6 +372,7 @@ export default function GamePage() {
             currentZone={currentZone}
             localIsBusy={localIsBusy}
             cameraTransform={cameraTransform}
+            mediaState={initialMediaState}
           />
         )}
         
