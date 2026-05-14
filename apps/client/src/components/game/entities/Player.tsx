@@ -271,6 +271,12 @@ export const Player: React.FC<PlayerProps> = ({
       updatePosition(finalX, finalY, direction, isSitting, selectedCharacter, customDisplayName || undefined, isPhoneOut);
       lastSyncSit.current = isSitting; lastSyncPhone.current = isPhoneOut;
     }
+
+    if (worldRef.current) {
+      const container = worldRef.current as any;
+      if (!container.playerPositions) container.playerPositions = {};
+      container.playerPositions["local"] = { x: finalX, y: finalY };
+    }
   });
 
   return (

@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
+import * as PIXI from "pixi.js";
 
 // Contexts & Hooks
 import { useAuth } from "../contexts/AuthContext";
@@ -25,6 +26,9 @@ export default function GamePage() {
   const { user, token: authToken } = useAuth();
   const navigate = useNavigate();
   const { roomId } = useParams();
+
+  // 0. Pixi World Reference
+  const worldRef = useRef<PIXI.Container>(null);
 
   // 1. Room Logic
   const { room, initialServerPosition, isLoading: isLoadingRoom, error: roomError } = useGameRoom(roomId);
@@ -191,6 +195,7 @@ export default function GamePage() {
       <div className="flex-1 relative overflow-hidden bg-slate-900">
         <div className="absolute inset-0 pointer-events-auto">
           <GameCanvas
+            worldRef={worldRef}
             roomId={roomId}
             onZoneChange={setCurrentZone}
             onInteract={handleInteract}
@@ -243,6 +248,7 @@ export default function GamePage() {
 
         {liveKitToken && (
           <LiveKitModal
+            worldRef={worldRef}
             token={liveKitToken}
             serverUrl={import.meta.env.VITE_LIVEKIT_URL}
             onDisconnect={() => setLiveKitToken(null)}

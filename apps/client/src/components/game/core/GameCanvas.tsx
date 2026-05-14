@@ -39,6 +39,7 @@ interface GameCanvasProps {
   localPosition: LocalPosition;
   initialServerPosition?: { x: number; y: number } | null;
   onPhoneToggle?: (isOpen: boolean) => void;
+  worldRef: React.RefObject<PIXI.Container>;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -57,11 +58,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   localPosition,
   initialServerPosition,
   onPhoneToggle,
+  worldRef,
 }) => {
   const { mapData, loading: mapLoading } = useMapLoader(mapType);
   const { w: screenW, h: screenH } = useWindowDimensions();
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
-  const worldRef = useRef<PIXI.Container>(null);
 
   if (mapLoading || !mapData) {
     return (
@@ -123,7 +124,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           />
 
           {Object.values(players).map((player) => (
-            <OtherPlayer key={player.id} player={player} />
+            <OtherPlayer key={player.id} player={player} worldRef={worldRef} />
           ))}
 
           <DayNightOverlay 
