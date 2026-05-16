@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import LandingPage from "./pages/index";
 import HomePage from "./pages/home";
@@ -8,7 +9,22 @@ import AuthSuccess from "./pages/auth/success";
 import AuthFailed from "./pages/auth/failed";
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
+  const sessionHandledRef = useRef(false);
+
+  useEffect(() => {
+    const onSessionReplaced = (e: Event) => {
+      if (sessionHandledRef.current) return;
+      sessionHandledRef.current = true;
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      alert(msg || "Bạn bị đăng xuất vì đăng nhập ở thiết bị khác.");
+      logout();
+      window.location.replace("/");
+    };
+    window.addEventListener("session-replaced", onSessionReplaced);
+    return () =>
+      window.removeEventListener("session-replaced", onSessionReplaced);
+  }, [logout]);
 
   if (loading) {
     return (

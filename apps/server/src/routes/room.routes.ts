@@ -4,6 +4,7 @@ import { jwt } from "@elysiajs/jwt";
 import mongoose from "mongoose";
 import { sendInviteEmail } from "../services/email.service.js";
 import { broadcastMemberKickedFromRoom } from "../realtime-broadcast.js";
+import { verifySessionPayload } from "../utils/auth-session.js";
 
 /**
  * Using 'any' for the export to resolve the TypeScript error:
@@ -20,9 +21,7 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
   .derive(async ({ jwt, headers }: any) => {
     const auth = headers["authorization"];
     if (!auth) return { user: null };
-
-    const token = auth.split(" ")[1];
-    const user = await jwt.verify(token);
+    const user = await verifySessionPayload(jwt, auth);
     return { user };
   })
   .get("/", async ({ user, set }: any) => {
@@ -243,7 +242,12 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
       });
       const uniqueMembers = Array.from(uniqueMembersMap.values());
 
-      return { success: true, members: uniqueMembers };
+      return {
+        success: true,
+        members: uniqueMembers,
+        ownerId: room.ownerId?.toString?.() || "",
+        roomId: room._id?.toString?.() || "",
+      };
     } catch (err: any) {
       set.status = 500;
       return { success: false, error: err.message };
@@ -259,7 +263,16 @@ export const roomRoutes: any = new Elysia({ prefix: "/api/rooms" })
       }
 
       try {
-        const { userId: kickId } = body;
+        let rawKick = body.userId as string | { _id?: string } | undefined;
+        if (rawKick && typeof rawKick === "object" && "_id" in rawKick) {
+          rawKick = (rawKick as { _id?: string })._id;
+        }
+        const kickId = String(rawKick ?? "").trim();
+        if (!kickId || kickId.length !== 24) {
+          set.status = 400;
+          return { success: false, error: "Invalid member userId" };
+        }
+
         const room = await Room.findById(params.id);
         if (!room) {
           set.status = 404;

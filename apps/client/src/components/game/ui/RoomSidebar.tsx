@@ -5,10 +5,13 @@ import {
   CalendarDays,
   LogOut,
   Link2,
+  UserX,
   X,
   Wifi,
   Sun,
   Moon,
+  CircleDot,
+  MinusCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../../../lib/api";
@@ -27,6 +30,7 @@ interface RoomSidebarProps {
   user: { id: string; avatarUrl: string; displayName: string };
   players: Record<string, RemotePlayer>;
   onOpenInvite?: () => void;
+  onFullscreenOverlayChange?: (isOpen: boolean) => void;
 }
 
 const TABS = [
@@ -40,16 +44,35 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
   user,
   players,
   onOpenInvite,
+  onFullscreenOverlayChange,
 }) => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
+  const [ownerId, setOwnerId] = useState<string>("");
+  const [roomDbId, setRoomDbId] = useState<string>("");
   const [isDark, setIsDark] = useState(false);
+  const [userStatus, setUserStatus] = useState<"active" | "busy">("active");
   const navigate = useNavigate();
+
+  const cycleStatus = () => {
+    const nextStatus = userStatus === "active" ? "busy" : "active";
+    setUserStatus(nextStatus);
+    window.dispatchEvent(new CustomEvent("manual-status-change", { detail: nextStatus }));
+  };
+
+  const getStatusIcon = () => {
+    if (userStatus === "active") return <CircleDot size={17} className="text-green-500" />;
+    return <MinusCircle size={17} className="text-yellow-500" />;
+  };
 
   const fetchMembers = useCallback(() => {
     if (roomId) {
       apiFetch(`/api/rooms/${roomId}/members`).then((res) => {
-        if (res.success) setMembers(res.members);
+        if (res.success) {
+          setMembers(res.members);
+          setOwnerId(String(res.ownerId || ""));
+          setRoomDbId(String(res.roomId || ""));
+        }
       });
     }
   }, [roomId]);
@@ -61,6 +84,26 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
 
   const onlineCount = Object.keys(players).length + 1;
   const isFullScreen = activeTab === "chat" || activeTab === "events";
+  const isOwner = ownerId === user.id;
+
+  useEffect(() => {
+    onFullscreenOverlayChange?.(isFullScreen);
+  }, [isFullScreen, onFullscreenOverlayChange]);
+
+  const handleKick = async (memberId: string) => {
+    if (!isOwner || !roomDbId) return;
+    if (memberId === user.id) return;
+    if (!confirm("Kick this member out of the room?")) return;
+    const res = await apiFetch(`/api/rooms/${roomDbId}/kick`, {
+      method: "POST",
+      body: JSON.stringify({ userId: String(memberId) }),
+    });
+    if (!res.success) {
+      alert(res.error || "Failed to kick member.");
+      return;
+    }
+    fetchMembers();
+  };
 
   // Theme Colors
   const colors = {
@@ -135,8 +178,20 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
           })}
         </div>
 
+
+
         {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Status Toggle */}
+        <button
+          onClick={cycleStatus}
+          className="w-9 h-9 flex items-center justify-center rounded-xl mb-3 transition-all"
+          style={{ background: "rgba(128,128,128,0.05)", border: `1px solid ${colors.border}` }}
+          title={`Trạng thái: ${userStatus.charAt(0).toUpperCase() + userStatus.slice(1)}`}
+        >
+          {getStatusIcon()}
+        </button>
 
         {/* Theme Toggle */}
         <button
@@ -316,9 +371,17 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
               </p>
               <div className="space-y-0.5">
                 {members.map((member) => {
-                  const isOnline =
-                    member._id === user.id ||
-                    Object.values(players).some((p) => p.userId === member._id);
+                  const remotePlayer = Object.values(players).find((p) => p.userId === member._id);
+                  // Local user's effective status is purely active or busy.
+                  // If they're in the room, they're online. If not, they're offline.
+                  const effectiveStatus = member._id === user.id 
+                    ? userStatus 
+                    : (remotePlayer ? (remotePlayer.status || (remotePlayer.isBusy ? "busy" : "active")) : "offline");
+                  
+                  const isOnline = member._id === user.id || !!remotePlayer;
+                  const isBusy = effectiveStatus === "busy";
+                  
+                  const canKick = isOwner && member._id !== user.id;
                   return (
                     <div
                       key={member._id}
@@ -338,19 +401,29 @@ export const RoomSidebar: React.FC<RoomSidebarProps> = ({
                         <span
                           className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full"
                           style={{
-                            background: isOnline ? "#4ade80" : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"),
+                            background: isOnline ? (isBusy ? "#eab308" : "#4ade80") : (isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.1)"),
                             border: `2px solid ${isDark ? "#18181b" : "#fff"}`,
                           }}
                         />
                       </div>
-                      <div className="overflow-hidden">
+                      <div className="overflow-hidden flex-1 min-w-0">
                         <p className="text-sm font-semibold truncate leading-tight" style={{ color: colors.textPrimary }}>
                           {member.displayName}
                         </p>
-                        <p className="text-[11px] leading-none mt-0.5" style={{ color: isOnline ? "#4ade80" : colors.textMuted }}>
-                          {isOnline ? "● Online" : "○ Offline"}
+                        <p className="text-[11px] leading-none mt-0.5" style={{ color: isOnline ? (isBusy ? "#eab308" : "#4ade80") : colors.textMuted }}>
+                          {isOnline ? (isBusy ? "🟡 Busy" : "🟢 Active") : "⚫️ Offline"}
                         </p>
                       </div>
+                      {canKick && (
+                        <button
+                          onClick={() => handleKick(member._id)}
+                          className="shrink-0 p-1.5 rounded-lg transition-all hover:bg-red-500/10"
+                          style={{ color: "#ef4444" }}
+                          title="Kick member"
+                        >
+                          <UserX size={14} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

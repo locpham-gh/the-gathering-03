@@ -15,12 +15,15 @@ export interface RemotePlayer {
   emote?: { id: string; timestamp: number };
   chatBubble?: { text: string; timestamp: number };
   isPhoneOut?: boolean;
+  isBusy?: boolean;
+  status?: "active" | "busy";
 }
 
 export function useMultiplayer(roomId?: string) {
   const { user } = useAuth();
   const [players, setPlayers] = useState<Record<string, RemotePlayer>>({});
   const [localPosition, setLocalPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [localIsBusy, setLocalIsBusy] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const lastUpdatePayloadRef = useRef<any>(null);
   const kickedFromRoomRef = useRef(false);
@@ -39,10 +42,16 @@ export function useMultiplayer(roomId?: string) {
     let reconnectTimeoutId: ReturnType<typeof setTimeout>;
     let reconnectAttempts = 0;
     const maxReconnectAttempts = 10;
+    const sessionId = Math.random().toString(36).substring(2, 15);
 
     const connect = () => {
       if (isClosing) return;
-      const ws = new WebSocket(`${protocol}//${host}/ws?room=${effectiveRoomId}&userId=${user.id}`);
+      const qs = new URLSearchParams({
+        room: effectiveRoomId,
+        userId: user.id,
+        sessionId: sessionId,
+      });
+      const ws = new WebSocket(`${protocol}//${host}/ws?${qs.toString()}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -82,6 +91,23 @@ export function useMultiplayer(roomId?: string) {
       ws.onmessage = (event) => {
         if (isClosing) return;
         const { type, payload } = JSON.parse(event.data);
+
+        const forceExitAsKicked = (rawMsg?: string) => {
+          if (kickedFromRoomRef.current) return;
+          kickedFromRoomRef.current = true;
+          const msg =
+            typeof rawMsg === "string" && rawMsg.trim()
+              ? rawMsg.trim()
+              : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
+          window.dispatchEvent(
+            new CustomEvent("room-kicked-by-owner", { detail: { message: msg } }),
+          );
+          try {
+            ws.close();
+          } catch {
+            /* ignore */
+          }
+        };
         
         if (type === "player_moved") {
           // Skip if this is the local player
@@ -98,6 +124,8 @@ export function useMultiplayer(roomId?: string) {
               direction: payload.direction,
               isSitting: payload.isSitting,
               isPhoneOut: payload.isPhoneOut, // Sync phone state
+              isBusy: payload.isBusy,
+              status: payload.status,
               character: payload.character,
               lastUpdate: Date.now(),
               displayName: payload.displayName,
@@ -112,7 +140,9 @@ export function useMultiplayer(roomId?: string) {
               if (p.userId !== user.id) {
                 next[id] = {
                   ...p,
-                  isPhoneOut: p.isPhoneOut // Ensure initial state has phone info
+                  isPhoneOut: p.isPhoneOut, // Ensure initial state has phone info
+                  isBusy: p.isBusy,
+                  status: p.status,
                 };
               }
             });
@@ -170,19 +200,46 @@ export function useMultiplayer(roomId?: string) {
           window.dispatchEvent(new CustomEvent("whiteboard-open", { detail: payload }));
         } else if (type === "whiteboard_close") {
           window.dispatchEvent(new CustomEvent("whiteboard-close", { detail: payload }));
+        } else if (type === "mute_all") {
+          window.dispatchEvent(new CustomEvent("host-mute-all", { detail: payload }));
+        } else if (type === "summon_all") {
+          window.dispatchEvent(new CustomEvent("host-summon-all", { detail: payload }));
+        } else if (type === "megaphone") {
+          window.dispatchEvent(new CustomEvent("megaphone-event", { detail: payload }));
+        } else if (type === "share_iframe") {
+          window.dispatchEvent(new CustomEvent("share-iframe-event", { detail: payload }));
+        } else if (type === "room_member_kicked") {
+          const kickedUid = payload?.userId;
+          if (kickedUid && kickedUid === user.id) {
+            forceExitAsKicked(payload?.message);
+          } else if (kickedUid) {
+            setPlayers((prev) => {
+              const next = { ...prev };
+              for (const [wsId, p] of Object.entries(next)) {
+                if (p.userId === kickedUid) delete next[wsId];
+              }
+              return next;
+            });
+          }
         } else if (type === "kicked_from_room") {
-          kickedFromRoomRef.current = true;
-          const msg =
-            typeof payload?.message === "string"
-              ? payload.message
-              : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
-          window.dispatchEvent(
-            new CustomEvent("room-kicked-by-owner", { detail: { message: msg } }),
-          );
-          try {
-            ws.close();
-          } catch {
-            /* ignore */
+          forceExitAsKicked(payload?.message);
+        } else if (type === "session_replaced") {
+          // If the server tells us a new session started, and it's not us, disconnect
+          if (payload?.activeSessionId && payload.activeSessionId !== sessionId) {
+            window.dispatchEvent(
+              new CustomEvent("session-replaced", {
+                detail: {
+                  message:
+                    payload?.message ||
+                    "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
+                },
+              }),
+            );
+            try {
+              ws.close();
+            } catch {
+              /* ignore */
+            }
           }
         }
       };
@@ -212,12 +269,13 @@ export function useMultiplayer(roomId?: string) {
   const msgCounter = useRef(0);
   const lastLogTime = useRef(Date.now());
 
-  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean) => {
+  const updatePosition = useCallback((x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean, status?: "active" | "busy") => {
     const now = Date.now();
     const stateChanged = isSitting !== lastSittingState.current || isPhoneOut !== lastPhoneState.current;
     if (!stateChanged && now - lastSent.current < 50) return;
     
     setLocalPosition({ x, y });
+    setLocalIsBusy(Boolean(isBusy));
 
     if (wsRef.current?.readyState === WebSocket.OPEN && user) {
       try {
@@ -227,6 +285,8 @@ export function useMultiplayer(roomId?: string) {
           direction,
           isSitting,
           isPhoneOut,
+          isBusy,
+          status,
           character,
           userId: user.id,
           displayName: customName || user.displayName,
@@ -288,5 +348,5 @@ export function useMultiplayer(roomId?: string) {
     return () => window.removeEventListener("send-chat-message", handleSendChat as EventListener);
   }, [sendChatMessage]);
 
-  return { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage };
+  return { players, localPosition, localIsBusy, updatePosition, sendChatMessage, sendEmote, sendMessage };
 }

@@ -1,9 +1,0 @@
-@startuml
-skinparam actorStyle stickman
-
-actor "User" as U
-usecase "Directional Seat Snapping" as UC
-
-U -- UC
-
-@enduml

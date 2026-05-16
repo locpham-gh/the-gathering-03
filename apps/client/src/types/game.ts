@@ -16,6 +16,7 @@ export interface RemotePlayer {
   emote?: { id: string; timestamp: number };
   chatBubble?: { text: string; timestamp: number };
   isPhoneOut?: boolean;
+  isBusy?: boolean;
 }
 
 export interface Zone {

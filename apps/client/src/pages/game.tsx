@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, AlertCircle } from "lucide-react";
-import * as PIXI from "pixi.js";
 
 // Contexts & Hooks
 import { useAuth } from "../contexts/AuthContext";
@@ -19,22 +18,26 @@ import { RoomSidebar } from "../components/game/ui/RoomSidebar";
 import { LiveKitModal } from "../components/game/ui/LiveKitModal";
 import { PreJoinScreen } from "../components/game/ui/PreJoinScreen";
 import { WhiteboardModal } from "../components/game/ui/WhiteboardModal";
-import { InviteModal } from "../components/game/ui/InviteModal";
 import { NearbyChat } from "../components/game/ui/NearbyChat";
+import { HostControls } from "../components/game/ui/HostControls";
+import { MegaphoneBanner } from "../components/game/ui/MegaphoneBanner";
+import { IframeModal } from "../components/game/ui/IframeModal";
+import { VirtualJoystick } from "../components/game/ui/VirtualJoystick";
+import { MobileControls } from "../components/game/ui/MobileControls";
+import { InviteModal } from "../components/game/ui/InviteModal";
+import { LandscapePrompt } from "../components/game/ui/LandscapePrompt";
+
 
 export default function GamePage() {
-  const { user, token: authToken } = useAuth();
+  const { user, token: authToken, logout } = useAuth();
   const navigate = useNavigate();
   const { roomId } = useParams();
-
-  // 0. Pixi World Reference
-  const worldRef = useRef<PIXI.Container>(null);
 
   // 1. Room Logic
   const { room, initialServerPosition, isLoading: isLoadingRoom, error: roomError } = useGameRoom(roomId);
   
   // 2. Multiplayer Logic
-  const { players, localPosition, updatePosition, sendChatMessage, sendEmote, sendMessage } = useMultiplayer(roomId);
+  const { players, localPosition, localIsBusy, updatePosition, sendChatMessage, sendEmote, sendMessage } = useMultiplayer(roomId);
   
   // 3. UI State
   const [activeZone, setActiveZone] = useState<Zone | null>(null);
@@ -45,17 +48,48 @@ export default function GamePage() {
   const [localEmote, setLocalEmote] = useState<{ id: string; timestamp: number } | null>(null);
   const [localChatBubble, setLocalChatBubble] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [sharedIframeUrl, setSharedIframeUrl] = useState<string | null>(null);
   const [isPhoneOpen, setIsPhoneOpen] = useState(false);
   const [isWhiteboardLeader, setIsWhiteboardLeader] = useState(false);
+  const [cameraTransform, setCameraTransform] = useState({ x: 0, y: 0 });
+  const [isSidebarFullscreenOverlayOpen, setIsSidebarFullscreenOverlayOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [initialMediaState, setInitialMediaState] = useState({ videoEnabled: true, audioEnabled: true });
+  const joinStateKey = `joined-room:${roomId || "default"}`;
+  const clearSavedJoinState = useCallback(() => {
+    try {
+      sessionStorage.removeItem(joinStateKey);
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [joinStateKey]);
 
   // 4. Voice/Video Logic
   const { token: liveKitToken, setToken: setLiveKitToken } = useLiveKit(isJoined, user, roomId, authToken);
 
   // 5. Actions
-  const handleJoin = (data: { displayName: string; characterId: string }) => {
+  const handleJoin = (data: { displayName: string; characterId: string; videoEnabled?: boolean; audioEnabled?: boolean }) => {
     setCustomDisplayName(data.displayName);
     setSelectedCharacter(data.characterId);
+    setInitialMediaState({ 
+      videoEnabled: data.videoEnabled ?? true, 
+      audioEnabled: data.audioEnabled ?? true 
+    });
     setIsJoined(true);
+    try {
+      sessionStorage.setItem(
+        joinStateKey,
+        JSON.stringify({
+          isJoined: true,
+          displayName: data.displayName,
+          characterId: data.characterId,
+          videoEnabled: data.videoEnabled ?? true,
+          audioEnabled: data.audioEnabled ?? true,
+        }),
+      );
+    } catch {
+      // Ignore storage errors (private mode/quota).
+    }
   };
   const handleZoneClose = useCallback(() => {
     // If leader closes whiteboard, broadcast to attendees
@@ -65,6 +99,17 @@ export default function GamePage() {
     setIsWhiteboardLeader(false);
     setActiveZone(null);
   }, [isWhiteboardLeader, roomId, sendMessage]);
+
+  const handleResetPreJoin = useCallback(() => {
+    clearSavedJoinState();
+    setActiveZone(null);
+    setIsWhiteboardLeader(false);
+    setIsPhoneOpen(false);
+    setIsJoined(false);
+    setSelectedCharacter(null);
+    setCustomDisplayName(null);
+    setLiveKitToken(null);
+  }, [clearSavedJoinState, setLiveKitToken]);
 
   const handleInteract = useCallback(() => {
     if (!currentZone || currentZone.id === "chill") return;
@@ -107,6 +152,11 @@ export default function GamePage() {
     };
   }, [currentZone, isWhiteboardLeader]);
 
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // 6. Global Events
   useGameEvents({
@@ -120,7 +170,7 @@ export default function GamePage() {
     activeZone
   });
 
-  // 7. Chat Bubbles
+  // 7. Global Chat Bubbles and Iframe Events
   useEffect(() => {
     const handleLocalChat = (e: CustomEvent) => {
       const content = e.detail?.content;
@@ -129,8 +179,17 @@ export default function GamePage() {
         setTimeout(() => setLocalChatBubble(null), 4000);
       }
     };
+    const handleShareIframe = (e: CustomEvent) => {
+      if (e.detail?.url) {
+        setSharedIframeUrl(e.detail.url);
+      }
+    };
     window.addEventListener("send-chat-message", handleLocalChat as EventListener);
-    return () => window.removeEventListener("send-chat-message", handleLocalChat as EventListener);
+    window.addEventListener("share-iframe-event", handleShareIframe as EventListener);
+    return () => {
+      window.removeEventListener("send-chat-message", handleLocalChat as EventListener);
+      window.removeEventListener("share-iframe-event", handleShareIframe as EventListener);
+    };
   }, []);
 
   // 8. Auth Redirect
@@ -140,6 +199,42 @@ export default function GamePage() {
     }
   }, [user, navigate]);
 
+  // Keep pre-join choice across browser refresh in the same tab.
+  useEffect(() => {
+    if (!roomId) return;
+    if (!user) return;
+    const nav = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const isReload = nav?.type === "reload";
+    if (!isReload) {
+      // Fresh entries to room (including rejoin after kick) must show pre-join checks.
+      clearSavedJoinState();
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(joinStateKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as {
+        isJoined?: boolean;
+        displayName?: string;
+        characterId?: string;
+        videoEnabled?: boolean;
+        audioEnabled?: boolean;
+      };
+      if (!saved?.isJoined) return;
+      setIsJoined(true);
+      if (saved.displayName) setCustomDisplayName(saved.displayName);
+      if (saved.characterId) setSelectedCharacter(saved.characterId);
+      setInitialMediaState({ 
+        videoEnabled: saved.videoEnabled ?? true, 
+        audioEnabled: saved.audioEnabled ?? true 
+      });
+    } catch {
+      // Ignore malformed/blocked storage.
+    }
+  }, [clearSavedJoinState, joinStateKey, roomId, user]);
+
   useEffect(() => {
     const onKicked = (e: Event) => {
       const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
@@ -148,11 +243,28 @@ export default function GamePage() {
           ? msg
           : "Bạn đã bị mời ra khỏi phòng bởi chủ phòng.";
       alert(text);
+      clearSavedJoinState();
       navigate("/home/rooms", { replace: true });
     };
     window.addEventListener("room-kicked-by-owner", onKicked);
     return () => window.removeEventListener("room-kicked-by-owner", onKicked);
-  }, [navigate]);
+  }, [clearSavedJoinState, navigate]);
+
+  useEffect(() => {
+    const onSessionReplaced = (e: Event) => {
+      const msg = (e as CustomEvent<{ message?: string }>).detail?.message;
+      alert(
+        msg ||
+          "Tài khoản đã đăng nhập ở nơi khác. Phiên hiện tại sẽ bị đăng xuất.",
+      );
+      clearSavedJoinState();
+      logout();
+      navigate("/", { replace: true });
+    };
+    window.addEventListener("session-replaced", onSessionReplaced);
+    return () =>
+      window.removeEventListener("session-replaced", onSessionReplaced);
+  }, [clearSavedJoinState, logout, navigate]);
 
   if (!user) return null;
 
@@ -185,17 +297,20 @@ export default function GamePage() {
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 overflow-hidden font-sans relative">
-      <RoomSidebar
-        roomId={roomId}
-        user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
-        players={players}
-        onOpenInvite={() => setShowInviteModal(true)}
-      />
+      <LandscapePrompt />
+      <div className={`transition-all duration-300 ${isMobile && isJoined ? "-ml-[60px]" : ""}`}>
+        <RoomSidebar
+          roomId={roomId}
+          user={{ ...user, displayName: customDisplayName || user.displayName, avatarUrl: user.avatarUrl || "" }}
+          players={players}
+          onOpenInvite={() => setShowInviteModal(true)}
+          onFullscreenOverlayChange={setIsSidebarFullscreenOverlayOpen}
+        />
+      </div>
 
       <div className="flex-1 relative overflow-hidden bg-slate-900">
         <div className="absolute inset-0 pointer-events-auto">
           <GameCanvas
-            worldRef={worldRef}
             roomId={roomId}
             onZoneChange={setCurrentZone}
             onInteract={handleInteract}
@@ -210,6 +325,7 @@ export default function GamePage() {
             localPosition={localPosition}
             initialServerPosition={initialServerPosition}
             onPhoneToggle={setIsPhoneOpen}
+            onCameraTransform={(x, y) => setCameraTransform({ x, y })}
           />
         </div>
 
@@ -246,15 +362,17 @@ export default function GamePage() {
           <WhiteboardModal onClose={handleZoneClose} roomId={roomId} sendMessage={sendMessage} isLeader={true} />
         )}
 
-        {liveKitToken && (
+        {liveKitToken && !isSidebarFullscreenOverlayOpen && (
           <LiveKitModal
-            worldRef={worldRef}
             token={liveKitToken}
             serverUrl={import.meta.env.VITE_LIVEKIT_URL}
             onDisconnect={() => setLiveKitToken(null)}
             players={players}
             localPosition={localPosition}
             currentZone={currentZone}
+            localIsBusy={localIsBusy}
+            cameraTransform={cameraTransform}
+            mediaState={initialMediaState}
           />
         )}
         
@@ -264,6 +382,44 @@ export default function GamePage() {
           roomName={room?.name}
           roomCode={room?.code || roomId}
         />
+        
+        <IframeModal 
+          url={sharedIframeUrl}
+          onClose={() => setSharedIframeUrl(null)}
+        />
+
+        {isJoined && (
+          <>
+            <HostControls 
+              isHost={(room as any)?.ownerId === user.id}
+              onMuteAll={() => sendMessage("mute_all", { roomId })}
+              onSummonAll={() => sendMessage("summon_all", { x: localPosition.x, y: localPosition.y, roomId })}
+              onMegaphone={(message) => sendMessage("megaphone", { message, roomId })}
+              onShareIframe={(url) => sendMessage("share_iframe", { url, roomId })}
+            />
+            <MegaphoneBanner />
+            <button
+              type="button"
+              onClick={handleResetPreJoin}
+              className="absolute top-4 right-4 z-[120] pointer-events-auto rounded-lg border border-white/20 bg-slate-900/80 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+              title="Quay lại màn check mic/cam/character"
+            >
+              Reset pre-join
+            </button>
+            
+            {/* Mobile Controls */}
+            {isMobile && (
+              <>
+                <div className="absolute bottom-8 left-8 z-[150]">
+                  <VirtualJoystick />
+                </div>
+                <div className="absolute bottom-8 right-8 z-[150]">
+                  <MobileControls />
+                </div>
+              </>
+            )}
+          </>
+        )}
       </div>
 
       {!isJoined && <PreJoinScreen user={user} onJoin={handleJoin} />}

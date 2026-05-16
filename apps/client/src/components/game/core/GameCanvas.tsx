@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useRef, useMemo } from "react";
 import { Stage, Container, Sprite } from "@pixi/react";
 import * as PIXI from "pixi.js";
 
@@ -29,14 +29,7 @@ interface GameCanvasProps {
   activeZone: Zone | null;
   onNearbyPlayer?: (playerId: string | null) => void;
   players: Record<string, RemotePlayer>;
-  updatePosition: (
-    x: number,
-    y: number,
-    direction: string,
-    isSitting?: boolean,
-    character?: string,
-    customName?: string,
-  ) => void;
+  updatePosition: (x: number, y: number, direction: string, isSitting?: boolean, character?: string, customName?: string, isPhoneOut?: boolean, isBusy?: boolean) => void;
   selectedCharacter: string;
   customDisplayName?: string;
   mapType?: string;
@@ -46,7 +39,7 @@ interface GameCanvasProps {
   localPosition: LocalPosition;
   initialServerPosition?: { x: number; y: number } | null;
   onPhoneToggle?: (isOpen: boolean) => void;
-  worldRef: React.RefObject<PIXI.Container>;
+  onCameraTransform?: (x: number, y: number) => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -65,27 +58,23 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   localPosition,
   initialServerPosition,
   onPhoneToggle,
-  worldRef,
+  onCameraTransform,
 }) => {
   const { mapData, loading: mapLoading } = useMapLoader(mapType);
   const { w: screenW, h: screenH } = useWindowDimensions();
   const zones = useMemo(() => getZonesForMap(mapType), [mapType]);
+  const worldRef = useRef<PIXI.Container>(null);
 
   if (mapLoading || !mapData) {
     return (
       <div className="flex items-center justify-center w-full h-full bg-slate-900 border-none">
-        <div className="text-white animate-pulse font-medium">
-          Entering The Metaverse...
-        </div>
+         <div className="text-white animate-pulse font-medium">Entering The Metaverse...</div>
       </div>
     );
   }
 
   return (
-    <div
-      className="w-full h-full relative"
-      style={{ isolation: "isolate", transform: "translateZ(0)" }}
-    >
+    <div className="w-full h-full relative" style={{ isolation: "isolate", transform: "translateZ(0)" }}>
       <Stage
         key={`stage-${mapType}-${mapData.width}`} // Force clean remount when map changes
         width={screenW}
@@ -100,20 +89,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           clearBeforeRender: true,
           preserveDrawingBuffer: false,
         }}
-        style={{
-          imageRendering: "pixelated",
-          outline: "none",
-          border: "none",
-          position: "absolute",
-          inset: 0,
-          zIndex: 0,
+        style={{ 
+          imageRendering: "pixelated", 
+          outline: "none", 
+          border: "none", 
+          position: "absolute", 
+          inset: 0, 
+          zIndex: 0, 
           transform: "translateZ(0)",
-          willChange: "transform",
+          willChange: "transform"
         }}
       >
         <Container ref={worldRef}>
           <MapRender mapData={mapData} />
-
+          
           <Player
             roomId={roomId}
             mapData={mapData}
@@ -133,15 +122,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             localChatBubble={localChatBubble}
             initialServerPosition={initialServerPosition}
             onPhoneToggle={onPhoneToggle}
+            onCameraTransform={onCameraTransform}
           />
 
           {Object.values(players).map((player) => (
-            <OtherPlayer key={player.id} player={player} worldRef={worldRef} />
+            <OtherPlayer key={player.id} player={player} />
           ))}
 
-          <DayNightOverlay
-            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
-            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL}
+          <DayNightOverlay 
+            width={mapData.width * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
+            height={mapData.height * WORLD_CONFIG.TILE_SIZE_VIRTUAL} 
           />
 
           <ZoneDebugRenderer zones={zones} />

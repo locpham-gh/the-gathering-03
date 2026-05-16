@@ -28,12 +28,16 @@ export const chatRoutes = new Elysia({ prefix: "/api/chat" })
     "/",
     async ({ body, set }: any) => {
       try {
-        const { roomCode, channelName, content, authorId } = body;
+        const { roomCode, channelName, content, authorId, fileUrl, fileName, fileType, fileSize } = body;
         const newMessage = new Message({
           roomCode,
           channelName,
-          content,
+          content: content || "",
           authorId,
+          fileUrl,
+          fileName,
+          fileType,
+          fileSize
         });
         await newMessage.save();
 
@@ -52,8 +56,12 @@ export const chatRoutes = new Elysia({ prefix: "/api/chat" })
       body: t.Object({
         roomCode: t.String(),
         channelName: t.String(),
-        content: t.String(),
+        content: t.Optional(t.String()),
         authorId: t.String(),
+        fileUrl: t.Optional(t.String()),
+        fileName: t.Optional(t.String()),
+        fileType: t.Optional(t.String()),
+        fileSize: t.Optional(t.Number()),
       }),
     }
   );

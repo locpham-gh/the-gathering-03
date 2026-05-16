@@ -1,5 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
+function dispatchSessionReplaced() {
+    window.dispatchEvent(
+        new CustomEvent("session-replaced", {
+            detail: {
+                message: "Bạn bị đăng xuất vì đăng nhập ở thiết bị khác.",
+            },
+        }),
+    );
+}
+
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     const token = localStorage.getItem("token");
     
@@ -15,6 +25,9 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     });
 
     if (!response.ok) {
+        if (response.status === 401) {
+            dispatchSessionReplaced();
+        }
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || error.message || "Request failed");
     }

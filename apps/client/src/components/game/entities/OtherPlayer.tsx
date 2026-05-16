@@ -1,13 +1,18 @@
 import React, { useState } from "react";
 import { useTick } from "@pixi/react";
+import * as PIXI from "pixi.js";
 import { AnimatedPlayerSprite } from "./AnimatedPlayerSprite";
 import { getNewDirection } from "../lib/tileUtils";
 import type { DirString } from "../../../types/game";
 import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
+interface WorldContainer extends PIXI.Container {
+  playerPositions?: Record<string, { x: number; y: number }>;
+}
+
 interface OtherPlayerProps {
   player: RemotePlayer;
-  worldRef?: React.RefObject<any>;
+  worldRef?: React.RefObject<WorldContainer>;
 }
 
 export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player, worldRef }) => {
@@ -39,7 +44,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player, worldRef }) =>
     setY(newY);
 
     if (worldRef?.current) {
-      const container = worldRef.current as any;
+      const container = worldRef.current;
       if (!container.playerPositions) container.playerPositions = {};
       container.playerPositions[player.userId || player.id] = { x: newX, y: newY };
     }
@@ -57,6 +62,7 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player, worldRef }) =>
       emote={player.emote}
       displayName={player.displayName}
       chatBubble={player.chatBubble?.text || null}
+      status={player.status || (player.isBusy ? "busy" : "active")}
     />
   );
 };

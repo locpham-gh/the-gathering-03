@@ -13,9 +13,11 @@ export function useCamera(
 ) {
   // Track float state so Lerp is fluid, but Container snap is rounded 
   const camExactPos = useRef({ x: 0, y: 0 });
+  const lastApplied = useRef({ x: Number.NaN, y: Number.NaN });
 
   const updateCamera = useCallback((playerX: number, playerY: number, delta: number) => {
     if (!worldRef.current) return;
+    const d = Math.min(delta, 2);
 
     // 1. Calculate ideal target (centered on player)
     // Vertical offset (64px) to keep character centered-bottom
@@ -42,14 +44,29 @@ export function useCamera(
       camExactPos.current.x = targetCamX;
       camExactPos.current.y = targetCamY;
     } else {
-      camExactPos.current.x += (targetCamX - camExactPos.current.x) * 0.1 * delta;
-      camExactPos.current.y += (targetCamY - camExactPos.current.y) * 0.1 * delta;
+      // Softer follow to reduce motion sickness and shake.
+      const ease = 0.06 * d;
+      camExactPos.current.x += (targetCamX - camExactPos.current.x) * ease;
+      camExactPos.current.y += (targetCamY - camExactPos.current.y) * ease;
+
+      // Deadzone: avoid tiny subpixel oscillations that look like shaking.
+      if (Math.abs(targetCamX - camExactPos.current.x) < 0.4) {
+        camExactPos.current.x = targetCamX;
+      }
+      if (Math.abs(targetCamY - camExactPos.current.y) < 0.4) {
+        camExactPos.current.y = targetCamY;
+      }
     }
     
-    // ✅ STRICT INTEGER ROUNDING: Prevent any subpixel camera positioning
-    // Subpixel values on the parent container can cause the child sprites to bleed textures.
-    worldRef.current.x = Math.round(camExactPos.current.x);
-    worldRef.current.y = Math.round(camExactPos.current.y);
+    // Round only when changed to reduce visible jitter.
+    const nextX = Math.round(camExactPos.current.x);
+    const nextY = Math.round(camExactPos.current.y);
+    if (nextX !== lastApplied.current.x || nextY !== lastApplied.current.y) {
+      worldRef.current.x = nextX;
+      worldRef.current.y = nextY;
+      lastApplied.current.x = nextX;
+      lastApplied.current.y = nextY;
+    }
   }, [worldRef, screenW, screenH, mapWidth, mapHeight]);
 
   return { updateCamera };

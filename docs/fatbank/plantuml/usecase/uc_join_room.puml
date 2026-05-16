@@ -1,9 +1,0 @@
-@startuml
-skinparam actorStyle stickman
-
-actor "User" as U
-usecase "Join Room" as UC
-
-U -- UC
-
-@enduml

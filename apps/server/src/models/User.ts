@@ -9,6 +9,7 @@ export interface IUser extends Document {
   otpExpiresAt?: Date;
   role: "user" | "admin";
   status: "active" | "banned";
+  activeSessionId?: string;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -21,6 +22,7 @@ const UserSchema = new Schema<IUser>(
     otpExpiresAt: { type: Date },
     role: { type: String, enum: ["user", "admin"], default: "user", index: true },
     status: { type: String, enum: ["active", "banned"], default: "active", index: true },
+    activeSessionId: { type: String, index: true },
   },
   { timestamps: true }
 );

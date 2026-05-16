@@ -16,6 +16,7 @@ interface AnimatedPlayerSpriteProps {
   emote?: { id: string; timestamp: number } | null;
   displayName?: string;
   chatBubble?: string | null;
+  status?: "active" | "busy";
 }
 
 export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
@@ -30,6 +31,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
   emote = null,
   displayName,
   chatBubble = null,
+  status = "active",
 }) => {
   const [frame, setFrame] = useState(0);
   const timeAcc = useRef(0);
@@ -51,9 +53,10 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
 
   useEffect(() => {
     // Reset frame when phone state changes to start from "pull out" animation
+    if (isSitting) return;
     Promise.resolve().then(() => setFrame(0));
     timeAcc.current = 0;
-  }, [isPhoneOut]);
+  }, [isPhoneOut, isSitting]);
 
   // Animation logic loop
   useTick((delta) => {
@@ -118,7 +121,8 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
     baseCol = 0; 
   }
 
-  const col = Math.min(baseCol + frame, 23);
+  const effectiveFrame = isSitting ? 0 : frame;
+  const col = Math.min(baseCol + effectiveFrame, 23);
   const texture = getCharacterTexture(row, col, character);
 
   // Chat bubble background draw callback
@@ -156,7 +160,7 @@ export const AnimatedPlayerSprite: React.FC<AnimatedPlayerSpriteProps> = ({
       {/* Display Name Label */}
       {displayName && (
         <PixiText
-          text={displayName}
+          text={`${status === "active" ? "🟢" : "🟡"} ${displayName}`}
           x={32}
           y={132}
           anchor={0.5}
