@@ -7,9 +7,10 @@ import type { RemotePlayer } from "../../../hooks/useMultiplayer";
 
 interface OtherPlayerProps {
   player: RemotePlayer;
+  worldRef?: React.RefObject<any>;
 }
 
-export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
+export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player, worldRef }) => {
   const [x, setX] = useState(player.x);
   const [y, setY] = useState(player.y);
 
@@ -32,8 +33,16 @@ export const OtherPlayer: React.FC<OtherPlayerProps> = ({ player }) => {
       }
     }
 
-    setX((prev) => prev + dx * 0.1 * delta);
-    setY((prev) => prev + dy * 0.1 * delta);
+    const newX = x + dx * 0.1 * delta;
+    const newY = y + dy * 0.1 * delta;
+    setX(newX);
+    setY(newY);
+
+    if (worldRef?.current) {
+      const container = worldRef.current as any;
+      if (!container.playerPositions) container.playerPositions = {};
+      container.playerPositions[player.userId || player.id] = { x: newX, y: newY };
+    }
   });
 
   return (
